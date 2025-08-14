@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Foxy Player</string>
+    <string name="welcome_message">Hello Foxy Player</string>
+    <string name="ready_message">🦊🎵 Ready for music streaming</string>
 </resources>
