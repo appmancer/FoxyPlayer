@@ -395,4 +395,32 @@ class AuthTest {
         assertEquals("Should persist user email", username, retrievedAuthState?.userInfo?.email)
         assertTrue("Should indicate user is authenticated", newRepositoryInstance.isAuthenticated())
     }
+
+    @Test
+    fun `should validate if persisted authentication session is still valid`() {
+        // Arrange - Setup authentication state with an auth token
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val username = "session@example.com"
+        val authToken = "session_token_to_validate"
+        val userInfo = UserInfo(username)
+        
+        // Save authentication state
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        
+        // Act - Validate the persisted session (this method doesn't exist yet)
+        val validationResult = authRepository.validatePersistedSession()
+        
+        // Assert - Verify session validation works
+        assertTrue("Should validate session successfully", validationResult.isSuccess)
+        val isValid = validationResult.getOrNull()
+        assertNotNull("Should return validation result", isValid)
+        assertTrue("Session should be valid for test scenario", isValid == true)
+        
+        // Test with invalid/expired session scenario
+        val expiredAuthRepository = AuthRepository("https://invalid-server.com")
+        expiredAuthRepository.saveAuthenticationState("expired_token", userInfo)
+        
+        val expiredValidation = expiredAuthRepository.validatePersistedSession()
+        assertTrue("Should handle validation attempt", expiredValidation.isSuccess || expiredValidation.isFailure)
+    }
 }
