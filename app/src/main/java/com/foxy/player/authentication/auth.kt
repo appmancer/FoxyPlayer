@@ -34,6 +34,9 @@ data class AuthScreenContent(
 class AuthRepository(private val baseUrl: String = "") {
     private val httpClient = OkHttpClient()
     private val gson = Gson()
+    private var lastSuccessfulServer: String? = null
+    
+    fun getLastSuccessfulServer(): String? = lastSuccessfulServer
     
     fun authenticate(username: String, password: String): Result<AuthToken> {
         // Minimal implementation to make the test pass
@@ -201,7 +204,8 @@ class AuthRepository(private val baseUrl: String = "") {
                     val parseResult = parseAuthResponse(jsonResponse)
                     
                     if (parseResult.isSuccess) {
-                        // Success! Return the result
+                        // Store successful server for future use
+                        lastSuccessfulServer = serverUrl
                         return parseResult
                     }
                 }
