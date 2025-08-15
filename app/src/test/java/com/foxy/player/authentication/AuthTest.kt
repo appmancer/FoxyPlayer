@@ -338,4 +338,37 @@ class AuthTest {
         assertEquals("Connect timeout should be configured", connectTimeout, actualConnectTimeout)
         assertEquals("Read timeout should be configured", readTimeout, actualReadTimeout)
     }
+
+    @Test
+    fun `HTTP client should validate SSL certificates and reject invalid certificates`() {
+        // Arrange - Test SSL certificate validation
+        val validSslRepository = AuthRepository("https://eapi.pcloud.com")
+        val invalidSslRepository = AuthRepository("https://self-signed.badssl.com") // Known invalid SSL site
+        
+        val username = "ssl.test@example.com"
+        val password = "ssltest"
+        
+        // Act - Test SSL validation using method that doesn't exist yet
+        val validSslResult = validSslRepository.authenticateWithSSLValidation(username, password) // This method doesn't exist yet
+        val invalidSslResult = invalidSslRepository.authenticateWithSSLValidation(username, password)
+        
+        // Assert - Valid SSL should work (even if auth fails), invalid SSL should be rejected
+        // Valid SSL should not fail due to SSL issues (may fail due to auth, that's OK)
+        val validException = validSslResult.exceptionOrNull()
+        if (validException != null) {
+            // If it fails, it should NOT be due to SSL issues
+            assertFalse("Valid SSL should not fail with SSL error", 
+                validException.message?.contains("SSL", ignoreCase = true) == true ||
+                validException.message?.contains("certificate", ignoreCase = true) == true)
+        }
+        
+        // Invalid SSL should be rejected with SSL-related error
+        assertTrue("Invalid SSL should be rejected", invalidSslResult.isFailure)
+        val invalidException = invalidSslResult.exceptionOrNull()
+        assertNotNull("Should have SSL error for invalid certificate", invalidException)
+        assertTrue("Should be SSL-related error", 
+            invalidException?.message?.contains("SSL", ignoreCase = true) == true ||
+            invalidException?.message?.contains("certificate", ignoreCase = true) == true ||
+            invalidException?.message?.contains("trust", ignoreCase = true) == true)
+    }
 }
