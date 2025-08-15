@@ -464,4 +464,47 @@ class AuthTest {
         assertTrue("Logout event should be triggered", logoutEventTriggered)
         assertEquals("Logout event should have correct user email", username, logoutEventUser)
     }
+
+    @Test
+    fun `should handle authentication state clearing and session invalidation events`() {
+        // Arrange - Setup authentication state that will be cleared
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val username = "clear@example.com"
+        val authToken = "token_to_clear_123"
+        val userInfo = UserInfo(username)
+        
+        // Setup authentication state
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        assertTrue("Should be authenticated before clearing", authRepository.isAuthenticated())
+        assertNotNull("Should have persisted state before clearing", authRepository.getPersistedAuthenticationState())
+        
+        var sessionInvalidatedEventTriggered = false
+        var stateCleared = false
+        
+        // Setup event listeners for clearing events (these methods don't exist yet)
+        authRepository.setSessionInvalidationListener {
+            sessionInvalidatedEventTriggered = true
+        }
+        
+        authRepository.setAuthenticationStateCleared {
+            stateCleared = true
+        }
+        
+        // Act - Clear authentication state (this method doesn't exist yet)
+        authRepository.clearAuthenticationState()
+        
+        // Assert - Verify state was cleared and events were triggered
+        assertFalse("Should not be authenticated after clearing", authRepository.isAuthenticated())
+        assertNull("Should not have persisted state after clearing", authRepository.getPersistedAuthenticationState())
+        assertTrue("Session invalidation event should be triggered", sessionInvalidatedEventTriggered)
+        assertTrue("State cleared event should be triggered", stateCleared)
+        
+        // Act - Test session invalidation (this method doesn't exist yet)
+        authRepository.saveAuthenticationState("new_token", userInfo)
+        authRepository.invalidateCurrentSession()
+        
+        // Assert - Verify session invalidation works
+        assertFalse("Should not be authenticated after session invalidation", authRepository.isAuthenticated())
+        assertNull("Should not have persisted state after invalidation", authRepository.getPersistedAuthenticationState())
+    }
 }

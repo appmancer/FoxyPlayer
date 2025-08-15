@@ -115,6 +115,29 @@ class AuthRepository(private val baseUrl: String = "") {
         logoutEventListener?.invoke(userInfo)
     }
     
+    // Authentication State Clearing - Minimal implementation for PLY-46
+    private var sessionInvalidationListener: (() -> Unit)? = null
+    private var authenticationStateClearedListener: (() -> Unit)? = null
+    
+    fun setSessionInvalidationListener(listener: () -> Unit) {
+        sessionInvalidationListener = listener
+    }
+    
+    fun setAuthenticationStateCleared(listener: () -> Unit) {
+        authenticationStateClearedListener = listener
+    }
+    
+    fun clearAuthenticationState() {
+        persistedAuthState = null
+        sessionInvalidationListener?.invoke()
+        authenticationStateClearedListener?.invoke()
+    }
+    
+    fun invalidateCurrentSession() {
+        persistedAuthState = null
+        sessionInvalidationListener?.invoke()
+    }
+    
     fun authenticateWithSSLValidation(username: String, password: String): Result<AuthResponse> {
         return try {
             // Check for known invalid SSL domains
