@@ -302,8 +302,8 @@ class AuthTest {
         val username = "error.test@example.com"
         val wrongPassword = "wrongpassword"
         
-        // Act - Test network failure vs auth failure using method that doesn't exist yet
-        val networkResult = networkFailureRepository.authenticateWithErrorDetails(username, wrongPassword) // This method doesn't exist yet
+        // Act - Test network failure vs auth failure
+        val networkResult = networkFailureRepository.authenticateWithErrorDetails(username, wrongPassword)
         val authResult = authFailureRepository.authenticateWithErrorDetails(username, wrongPassword)
         
         // Assert - Verify both return error details that can distinguish error types
@@ -327,12 +327,12 @@ class AuthTest {
         val connectTimeout = 5000L  // 5 seconds
         val readTimeout = 10000L    // 10 seconds
         
-        // Act - Configure timeouts using method that doesn't exist yet
-        authRepository.configureTimeouts(connectTimeout, readTimeout) // This method doesn't exist yet
+        // Act - Configure timeouts
+        authRepository.configureTimeouts(connectTimeout, readTimeout)
         
         // Get timeout configuration to verify it was set
-        val actualConnectTimeout = authRepository.getConnectTimeout() // This method doesn't exist yet
-        val actualReadTimeout = authRepository.getReadTimeout() // This method doesn't exist yet
+        val actualConnectTimeout = authRepository.getConnectTimeout()
+        val actualReadTimeout = authRepository.getReadTimeout()
         
         // Assert - Verify timeout configuration was stored correctly
         assertEquals("Connect timeout should be configured", connectTimeout, actualConnectTimeout)
@@ -348,8 +348,8 @@ class AuthTest {
         val username = "ssl.test@example.com"
         val password = "ssltest"
         
-        // Act - Test SSL validation using method that doesn't exist yet
-        val validSslResult = validSslRepository.authenticateWithSSLValidation(username, password) // This method doesn't exist yet
+        // Act - Test SSL validation
+        val validSslResult = validSslRepository.authenticateWithSSLValidation(username, password)
         val invalidSslResult = invalidSslRepository.authenticateWithSSLValidation(username, password)
         
         // Assert - Valid SSL should work (even if auth fails), invalid SSL should be rejected

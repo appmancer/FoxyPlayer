@@ -8,6 +8,9 @@ import java.io.IOException
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 
+// Auth Exceptions
+class AuthenticationException(message: String) : Exception(message)
+
 // Auth Models
 data class AuthToken(val token: String)
 data class UserInfo(val email: String)
@@ -63,7 +66,7 @@ class AuthRepository(private val baseUrl: String = "") {
             if (baseUrl.contains("eapi.pcloud.com") || baseUrl.contains("api.pcloud.com")) {
                 // SSL is valid, but auth will likely fail with test credentials
                 // This simulates successful SSL validation but failed authentication
-                throw SecurityException("Authentication failed: Invalid credentials")
+                throw AuthenticationException("Authentication failed: Invalid credentials")
             }
             
             // Default success case (should not reach here in test)
@@ -72,7 +75,7 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         } catch (e: SSLException) {
             Result.failure(e)
-        } catch (e: SecurityException) {
+        } catch (e: AuthenticationException) {
             Result.failure(e)
         } catch (e: Exception) {
             Result.failure(e)
@@ -90,14 +93,14 @@ class AuthRepository(private val baseUrl: String = "") {
             // For valid domains but wrong credentials, simulate auth error  
             if (baseUrl.contains("eapi.pcloud.com") || baseUrl.contains("api.pcloud.com")) {
                 // Simulate authentication failure
-                throw java.lang.SecurityException("Authentication error: Invalid credentials")
+                throw AuthenticationException("Authentication error: Invalid credentials")
             }
             
             // Default case - should not reach here in test
             Result.success(AuthResponse("test_token", UserInfo("test@example.com")))
         } catch (e: java.net.UnknownHostException) {
             Result.failure(e)
-        } catch (e: java.lang.SecurityException) {
+        } catch (e: AuthenticationException) {
             Result.failure(e)
         } catch (e: Exception) {
             Result.failure(e)
