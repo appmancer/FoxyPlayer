@@ -131,8 +131,88 @@ class AuthRepository(private val baseUrl: String = "") {
         }
     }
     
-    override fun toString(): String {
-        return "AuthRepository(baseUrl='$baseUrl')"
+    fun getMockSuccessResponse(): String {
+        // Real pCloud success response based on actual API call to eapi.pcloud.com
+        return """
+            {
+                "cryptosetup": false,
+                "plan": 1,
+                "cryptosubscription": false,
+                "userid": 3808539,
+                "publiclinkquota": 536870912000,
+                "result": 0,
+                "premiumexpires": "Mon, 15 Sep 2025 09:02:37 +0000",
+                "email": "sjp@datilo.net",
+                "trashrevretentiondays": 30,
+                "auth": "DOtgukZVnEQZ54VYwK4DE4Bwgc4lJaoDxkLyx17V",
+                "emailverified": true,
+                "usedpublinkbranding": false,
+                "currency": "GBP",
+                "agreedwithpp": true,
+                "haspassword": true,
+                "quota": 536870912000,
+                "cryptolifetime": false,
+                "premium": true,
+                "premiumlifetime": false,
+                "business": false,
+                "usedquota": 147571783522,
+                "language": "en",
+                "haspaidrelocation": false,
+                "registered": "Thu, 27 Jul 2023 18:41:20 +0000",
+                "journey": {
+                    "steps": {
+                        "verifymail": true,
+                        "uploadfile": true,
+                        "autoupload": true,
+                        "downloadapp": true,
+                        "downloaddrive": true,
+                        "sentinvitation": false,
+                        "invitefriends": {
+                            "total": 0
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+    }
+    
+    fun authenticateWithAutoServerDetection(username: String, password: String): Result<AuthResponse> {
+        // Try European server first, then US server if that fails
+        val servers = listOf("https://eapi.pcloud.com", "https://api.pcloud.com")
+        
+        for (serverUrl in servers) {
+            try {
+                val requestBody = FormBody.Builder()
+                    .add("username", username)
+                    .add("password", password)
+                    .add("getauth", "1")
+                    .add("logout", "1")
+                    .build()
+
+                val request = Request.Builder()
+                    .url("$serverUrl/userinfo")
+                    .post(requestBody)
+                    .build()
+
+                val response = httpClient.newCall(request).execute()
+                
+                if (response.isSuccessful) {
+                    val jsonResponse = response.body?.string() ?: ""
+                    val parseResult = parseAuthResponse(jsonResponse)
+                    
+                    if (parseResult.isSuccess) {
+                        // Success! Return the result
+                        return parseResult
+                    }
+                }
+            } catch (e: Exception) {
+                // Continue to next server
+                continue
+            }
+        }
+        
+        // If we get here, both servers failed
+        return Result.failure(IOException("Authentication failed on both US and EU servers"))
     }
 }
 

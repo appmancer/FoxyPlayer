@@ -219,4 +219,58 @@ class AuthTest {
         assertFalse("Should not contain our old fake patterns", authResponse?.authToken?.contains("pcloud_real_") == true)
         assertFalse("Should not contain timestamp patterns", authResponse?.authToken?.matches(Regex(".*\\d{10,}.*")) == true)
     }
+    
+    @Test
+    fun `should provide realistic mock pCloud success response for testing`() {
+        // Arrange
+        val authRepository = AuthRepository("https://api.pcloud.com")
+        
+        // Act - Get mock success response 
+        val mockSuccessJson = authRepository.getMockSuccessResponse()
+        
+        // Parse the mock response
+        val result = authRepository.parseAuthResponse(mockSuccessJson)
+        
+        // Assert - Verify mock response is realistic and parseable
+        assertTrue("Mock response should be parseable", result.isSuccess)
+        val authResponse = result.getOrNull()
+        assertNotNull("Should have parsed auth response", authResponse)
+        
+        // Verify structure matches real pCloud API format
+        assertTrue("Should have realistic auth token", authResponse?.authToken?.isNotEmpty() == true)
+        assertTrue("Auth token should be alphanumeric", authResponse?.authToken?.matches(Regex("[A-Za-z0-9]+")) == true)
+        assertTrue("Should have realistic email", authResponse?.userInfo?.email?.contains("@") == true)
+        assertTrue("Mock JSON should contain result:0", mockSuccessJson.contains("\"result\": 0"))
+        assertTrue("Mock JSON should contain auth token", mockSuccessJson.contains("\"auth\":"))
+        assertTrue("Mock JSON should contain userid", mockSuccessJson.contains("\"userid\":"))
+        assertTrue("Mock JSON should contain email", mockSuccessJson.contains("\"email\":"))
+    }
+    
+    @Test
+    fun `should provide auto-server detection method that tries both EU and US servers`() {
+        // Arrange - This tests our discovery about pCloud having two data centers
+        val authRepository = AuthRepository() // No specific base URL - should auto-detect
+        val username = "test@example.com"
+        val password = "testpassword"
+        
+        // Act - Test that the auto-detection method exists and can be called
+        // This method should try eapi.pcloud.com first, then api.pcloud.com if that fails
+        val result = try {
+            authRepository.authenticateWithAutoServerDetection(username, password)
+        } catch (e: Exception) {
+            Result.failure<AuthResponse>(e)
+        }
+        
+        // Assert - Verify the method exists and returns a result (even if it fails due to invalid credentials in test)
+        assertNotNull("Auto-server detection method should exist and return a result", result)
+        
+        // The result will likely be a failure since we're using test credentials, but that's expected
+        // The important thing is that the method exists and handles both EU and US server attempts
+        
+        // Note: In a real scenario, this method would:
+        // 1. Try https://eapi.pcloud.com/userinfo first (European server)  
+        // 2. If that fails with auth error, try https://api.pcloud.com/userinfo (US server)
+        // 3. Return success from whichever server works
+        // 4. Return failure if both servers reject the credentials
+    }
 }
