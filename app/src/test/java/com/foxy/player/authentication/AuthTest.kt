@@ -516,6 +516,9 @@ class AuthTest {
         val username = "integration@example.com"
         val password = "integrationtest"
         
+        // Clear any existing state to ensure clean test
+        authRepository.clearAuthenticationState()
+        
         var loginEventTriggered = false
         var loginEventUser: String? = null
         
