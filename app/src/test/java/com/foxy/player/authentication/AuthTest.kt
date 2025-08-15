@@ -66,4 +66,21 @@ class AuthTest {
         assertNotNull("Should have user info from JSON", authResponse?.userInfo)
         assertTrue("Should have parsed email", authResponse?.userInfo?.email?.isNotEmpty() == true)
     }
+
+    @Test
+    fun `should render AuthScreen with username and password input fields and login button`() {
+        // Arrange - setup compose test environment (doesn't exist yet)
+        val authScreen = AuthScreen() // This doesn't exist yet - will cause compilation failure
+        
+        // Act - render the AuthScreen composable (doesn't exist yet)
+        val screenContent = authScreen.render()
+        
+        // Assert - verify UI components are present 
+        assertTrue("Should have username input field", screenContent.hasUsernameField)
+        assertTrue("Should have password input field", screenContent.hasPasswordField)
+        assertTrue("Should have login button", screenContent.hasLoginButton)
+        assertEquals("Username field should have correct label", "Username", screenContent.usernameLabel)
+        assertEquals("Password field should have correct label", "Password", screenContent.passwordLabel)
+        assertEquals("Login button should have correct text", "Login", screenContent.loginButtonText)
+    }
 }

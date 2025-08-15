@@ -11,6 +11,16 @@ data class AuthToken(val token: String)
 data class UserInfo(val email: String)
 data class AuthResponse(val authToken: String, val userInfo: UserInfo)
 
+// Auth UI Models  
+data class AuthScreenContent(
+    val hasUsernameField: Boolean,
+    val hasPasswordField: Boolean, 
+    val hasLoginButton: Boolean,
+    val usernameLabel: String,
+    val passwordLabel: String,
+    val loginButtonText: String
+)
+
 // Auth Repository
 class AuthRepository(private val baseUrl: String = "") {
     private val httpClient = OkHttpClient()
@@ -46,5 +56,20 @@ class AuthRepository(private val baseUrl: String = "") {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+}
+
+// Auth Screen (UI Layer)
+class AuthScreen {
+    fun render(): AuthScreenContent {
+        // Minimal implementation to make the test pass
+        return AuthScreenContent(
+            hasUsernameField = true,
+            hasPasswordField = true,
+            hasLoginButton = true,
+            usernameLabel = "Username",
+            passwordLabel = "Password", 
+            loginButtonText = "Login"
+        )
     }
 }
