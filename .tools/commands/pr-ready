@@ -367,8 +367,8 @@ Generated with [opencode](https://opencode.ai)"
 # Create PR targeting dev branch (CRITICAL from AGENTS.md)
 echo -e "${WORKING} Creating Android PR targeting dev branch..."
 
-# Configure GitHub CLI to use custom SSH host (process-scoped only)
-export GH_HOST=github.com-personal
+# Switch to appmancer account for GitHub CLI (the account that matches our SSH key)
+gh auth switch --hostname github.com --user appmancer
 
 # Try creating PR with explicit head specification to handle remote branch issues
 if ! gh pr create --base dev --head "$branch" --title "$ticket_id: $ticket_title" --body "$pr_description"; then
