@@ -96,3 +96,7 @@ music-player-core/
 .agent
 AGENTS.md
 .spectrum/
+
+# Additional files to ignore
+.idea/
+port
