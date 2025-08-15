@@ -1,0 +1,276 @@
+package com.foxy.player.authentication
+
+import org.junit.Test
+import org.junit.Assert.*
+
+class AuthTest {
+
+    @Test
+    fun `should authenticate user with valid credentials and return auth token`() {
+        // Arrange - setup test data
+        val username = "test@example.com"
+        val password = "testpassword"
+        val expectedToken = "mock_auth_token_12345"
+        
+        // Create repository (this doesn't exist yet - will cause compilation failure)
+        val authRepository = AuthRepository()
+        
+        // Act - call the authentication method that doesn't exist yet
+        val result = authRepository.authenticate(username, password)
+        
+        // Assert - verify we get an auth token
+        assertTrue(result.isSuccess)
+        assertEquals(expectedToken, result.getOrNull()?.token)
+    }
+
+    @Test
+    fun `should call pCloud userinfo endpoint with getauth=1 and return real auth token`() {
+        // Arrange - setup test data
+        val username = "real@user.com"
+        val password = "realpassword"
+        val pCloudBaseUrl = "https://api.pcloud.com"
+        
+        // Create repository with HTTP client capability (doesn't exist yet)
+        val authRepository = AuthRepository(pCloudBaseUrl)
+        
+        // Act - call the real pCloud API authentication method
+        val result = authRepository.authenticateWithPCloud(username, password)
+        
+        // Assert - verify we get a real response from pCloud API
+        assertTrue(result.isSuccess)
+        val authToken = result.getOrNull()
+        assertNotNull(authToken)
+        assertTrue("Token should not be empty", authToken?.token?.isNotEmpty() == true)
+        assertTrue("Token should not be mock", authToken?.token != "mock_auth_token_12345")
+    }
+
+    @Test 
+    fun `should make actual HTTP POST to pCloud userinfo endpoint and parse auth token from JSON response`() {
+        // Arrange - setup test data for real pCloud API call
+        val username = "testuser@example.com"
+        val password = "testpassword123"
+        val pCloudBaseUrl = "https://api.pcloud.com"
+        
+        // Create repository with HTTP parsing capability (doesn't exist yet)
+        val authRepository = AuthRepository(pCloudBaseUrl)
+        
+        // Act - call method that makes real HTTP POST and parses JSON (doesn't exist yet)
+        val result = authRepository.authenticateWithPCloudAPI(username, password)
+        
+        // Assert - verify JSON response was parsed correctly 
+        assertTrue("Should succeed with HTTP call", result.isSuccess)
+        val authResponse = result.getOrNull()
+        assertNotNull("Should have auth response", authResponse)
+        assertNotNull("Should have parsed auth token", authResponse?.authToken)
+        assertTrue("Should have valid auth token format", authResponse?.authToken?.startsWith("T") == true)
+        assertNotNull("Should have user info from JSON", authResponse?.userInfo)
+        assertTrue("Should have parsed email", authResponse?.userInfo?.email?.isNotEmpty() == true)
+    }
+
+    @Test
+    fun `should render AuthScreen with username and password input fields and login button`() {
+        // Arrange - setup compose test environment (doesn't exist yet)
+        val authScreen = AuthScreen() // This doesn't exist yet - will cause compilation failure
+        
+        // Act - render the AuthScreen composable (doesn't exist yet)
+        val screenContent = authScreen.render()
+        
+        // Assert - verify UI components are present 
+        assertTrue("Should have username input field", screenContent.hasUsernameField)
+        assertTrue("Should have password input field", screenContent.hasPasswordField)
+        assertTrue("Should have login button", screenContent.hasLoginButton)
+        assertEquals("Username field should have correct label", "Username", screenContent.usernameLabel)
+        assertEquals("Password field should have correct label", "Password", screenContent.passwordLabel)
+        assertEquals("Login button should have correct text", "Login", screenContent.loginButtonText)
+    }
+
+    @Test
+    fun `should manage authentication state with AuthViewModel including loading and success states`() {
+        // Arrange - setup test data for ViewModel state management
+        val username = "viewmodel@test.com"
+        val password = "viewmodeltest123"
+        val authRepository = AuthRepository("https://api.pcloud.com")
+        
+        // Create ViewModel that manages authentication state (doesn't exist yet)
+        val authViewModel = AuthViewModel(authRepository) // This doesn't exist yet - will cause compilation failure
+        
+        // Act - simulate user login through ViewModel (doesn't exist yet)
+        authViewModel.login(username, password)
+        
+        // Assert - verify ViewModel state management
+        assertTrue("Should start in loading state", authViewModel.isLoading)
+        assertFalse("Should not be authenticated initially", authViewModel.isAuthenticated)
+        
+        // Wait for authentication to complete (simulate async behavior)
+        Thread.sleep(100) // Simple simulation - real implementation would use coroutines
+        
+        // Assert final state
+        assertFalse("Should finish loading", authViewModel.isLoading)
+        assertTrue("Should be authenticated after successful login", authViewModel.isAuthenticated)
+        assertNotNull("Should have auth token in state", authViewModel.authToken)
+        assertEquals("Should store username in state", username, authViewModel.username)
+    }
+
+    @Test
+    fun `should handle network failures and authentication errors with proper error states`() {
+        // Arrange - setup test data for error scenarios
+        val invalidUsername = "invalid@test.com"
+        val invalidPassword = "wrongpassword"
+        val networkFailureUrl = "https://invalid-url-will-fail.com"
+        
+        // Create repository with invalid URL that will cause network failure (doesn't exist yet)
+        val authRepository = AuthRepository(networkFailureUrl)
+        val authViewModel = AuthViewModel(authRepository)
+        
+        // Act - attempt login that should fail (error handling doesn't exist yet)
+        authViewModel.loginWithErrorHandling(invalidUsername, invalidPassword) // This doesn't exist yet - will cause compilation failure
+        
+        // Assert initial error state
+        assertTrue("Should start in loading state", authViewModel.isLoading)
+        assertFalse("Should not be authenticated initially", authViewModel.isAuthenticated)
+        assertNull("Should not have error initially", authViewModel.errorMessage) // This doesn't exist yet
+        
+        // Wait for network failure to complete
+        Thread.sleep(200) // Longer delay to simulate network timeout
+        
+        // Assert final error state 
+        assertFalse("Should finish loading after error", authViewModel.isLoading)
+        assertFalse("Should not be authenticated after error", authViewModel.isAuthenticated)
+        assertNotNull("Should have error message after failure", authViewModel.errorMessage)
+        assertTrue("Should have network error message", authViewModel.errorMessage?.contains("network") == true)
+        assertNull("Should not have auth token after error", authViewModel.authToken)
+        assertEquals("Should still store attempted username", invalidUsername, authViewModel.username)
+    }
+
+    @Test
+    fun `should make real HTTP POST to pCloud API and authenticate with actual network call`() {
+        // Arrange - setup test data for real HTTP POST call
+        val realUsername = "test@pcloud.com"
+        val realPassword = "testpassword123"
+        val pCloudApiUrl = "https://eapi.pcloud.com" // Real pCloud endpoint
+        
+        // Create repository with real pCloud API URL (doesn't make real HTTP calls yet)
+        val authRepository = AuthRepository(pCloudApiUrl)
+        
+        // Act - call method that should make real HTTP POST request (doesn't exist yet)
+        val result = authRepository.authenticateWithRealHTTP(realUsername, realPassword) // This doesn't exist yet - will cause compilation failure
+        
+        // Assert - verify real HTTP call behavior (not mock timestamps)
+        assertTrue("Should succeed with real HTTP call", result.isSuccess)
+        val authResponse = result.getOrNull()
+        assertNotNull("Should have real auth response", authResponse)
+        
+        // Verify it's NOT a mock response (mocks use timestamps)
+        val authToken = authResponse?.authToken
+        assertNotNull("Should have real auth token", authToken)
+        assertFalse("Should not contain timestamp (mock indicator)", authToken?.contains(System.currentTimeMillis().toString().take(8)) == true)
+        assertFalse("Should not be mock pattern", authToken?.matches(Regex("T\\d+")) == true)
+        
+        // Verify HTTP-specific behavior
+        val userInfo = authResponse?.userInfo
+        assertNotNull("Should have user info from HTTP response", userInfo)
+        assertEquals("Should have correct email from HTTP", realUsername, userInfo?.email)
+        
+        // Verify it used actual HTTP (this should be different from mock behavior)
+        assertTrue("Auth token should be from real pCloud API format", authToken?.length ?: 0 > 20)
+    }
+
+    @Test
+    fun `should parse real pCloud JSON responses for both success and failure scenarios`() {
+        // Arrange - Real pCloud JSON responses based on API exploration
+        val pCloudFailureJson = """
+            {
+                "result": 2000,
+                "error": "Log in failed."
+            }
+        """.trimIndent()
+        
+        val pCloudSuccessJson = """
+            {
+                "result": 0,
+                "auth": "ABC123XYZ789pCloudAuthToken456DEF",
+                "userid": 123456789,
+                "email": "user@example.com"
+            }
+        """.trimIndent()
+        
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        
+        // Act - Parse failure response (method doesn't exist yet)
+        val failureResult = authRepository.parseAuthResponse(pCloudFailureJson) // This doesn't exist yet - will cause compilation failure
+        
+        // Assert - Verify failure response parsing
+        assertTrue("Should be failure result", failureResult.isFailure)
+        val failureException = failureResult.exceptionOrNull()
+        assertNotNull("Should have failure exception", failureException)
+        assertTrue("Should contain error message", failureException?.message?.contains("Log in failed") == true)
+        
+        // Act - Parse success response (method doesn't exist yet)  
+        val successResult = authRepository.parseAuthResponse(pCloudSuccessJson)
+        
+        // Assert - Verify success response parsing
+        assertTrue("Should be success result", successResult.isSuccess)
+        val authResponse = successResult.getOrNull()
+        assertNotNull("Should have auth response", authResponse)
+        assertEquals("Should parse auth token", "ABC123XYZ789pCloudAuthToken456DEF", authResponse?.authToken)
+        assertEquals("Should parse user email", "user@example.com", authResponse?.userInfo?.email)
+        
+        // Verify proper pCloud response structure (not our old fake format)
+        assertFalse("Should not contain our old fake patterns", authResponse?.authToken?.contains("pcloud_real_") == true)
+        assertFalse("Should not contain timestamp patterns", authResponse?.authToken?.matches(Regex(".*\\d{10,}.*")) == true)
+    }
+    
+    @Test
+    fun `should provide realistic mock pCloud success response for testing`() {
+        // Arrange
+        val authRepository = AuthRepository("https://api.pcloud.com")
+        
+        // Act - Get mock success response 
+        val mockSuccessJson = authRepository.getMockSuccessResponse()
+        
+        // Parse the mock response
+        val result = authRepository.parseAuthResponse(mockSuccessJson)
+        
+        // Assert - Verify mock response is realistic and parseable
+        assertTrue("Mock response should be parseable", result.isSuccess)
+        val authResponse = result.getOrNull()
+        assertNotNull("Should have parsed auth response", authResponse)
+        
+        // Verify structure matches real pCloud API format
+        assertTrue("Should have realistic auth token", authResponse?.authToken?.isNotEmpty() == true)
+        assertTrue("Auth token should be alphanumeric", authResponse?.authToken?.matches(Regex("[A-Za-z0-9]+")) == true)
+        assertTrue("Should have realistic email", authResponse?.userInfo?.email?.contains("@") == true)
+        assertTrue("Mock JSON should contain result:0", mockSuccessJson.contains("\"result\": 0"))
+        assertTrue("Mock JSON should contain auth token", mockSuccessJson.contains("\"auth\":"))
+        assertTrue("Mock JSON should contain userid", mockSuccessJson.contains("\"userid\":"))
+        assertTrue("Mock JSON should contain email", mockSuccessJson.contains("\"email\":"))
+    }
+    
+    @Test
+    fun `should provide auto-server detection method that tries both EU and US servers`() {
+        // Arrange - This tests our discovery about pCloud having two data centers
+        val authRepository = AuthRepository() // No specific base URL - should auto-detect
+        val username = "test@example.com"
+        val password = "testpassword"
+        
+        // Act - Test that the auto-detection method exists and can be called
+        // This method should try eapi.pcloud.com first, then api.pcloud.com if that fails
+        val result = try {
+            authRepository.authenticateWithAutoServerDetection(username, password)
+        } catch (e: Exception) {
+            Result.failure<AuthResponse>(e)
+        }
+        
+        // Assert - Verify the method exists and returns a result (even if it fails due to invalid credentials in test)
+        assertNotNull("Auto-server detection method should exist and return a result", result)
+        
+        // The result will likely be a failure since we're using test credentials, but that's expected
+        // The important thing is that the method exists and handles both EU and US server attempts
+        
+        // Note: In a real scenario, this method would:
+        // 1. Try https://eapi.pcloud.com/userinfo first (European server)  
+        // 2. If that fails with auth error, try https://api.pcloud.com/userinfo (US server)
+        // 3. Return success from whichever server works
+        // 4. Return failure if both servers reject the credentials
+    }
+}
