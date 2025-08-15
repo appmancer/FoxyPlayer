@@ -83,4 +83,31 @@ class AuthTest {
         assertEquals("Password field should have correct label", "Password", screenContent.passwordLabel)
         assertEquals("Login button should have correct text", "Login", screenContent.loginButtonText)
     }
+
+    @Test
+    fun `should manage authentication state with AuthViewModel including loading and success states`() {
+        // Arrange - setup test data for ViewModel state management
+        val username = "viewmodel@test.com"
+        val password = "viewmodeltest123"
+        val authRepository = AuthRepository("https://api.pcloud.com")
+        
+        // Create ViewModel that manages authentication state (doesn't exist yet)
+        val authViewModel = AuthViewModel(authRepository) // This doesn't exist yet - will cause compilation failure
+        
+        // Act - simulate user login through ViewModel (doesn't exist yet)
+        authViewModel.login(username, password)
+        
+        // Assert - verify ViewModel state management
+        assertTrue("Should start in loading state", authViewModel.isLoading)
+        assertFalse("Should not be authenticated initially", authViewModel.isAuthenticated)
+        
+        // Wait for authentication to complete (simulate async behavior)
+        Thread.sleep(100) // Simple simulation - real implementation would use coroutines
+        
+        // Assert final state
+        assertFalse("Should finish loading", authViewModel.isLoading)
+        assertTrue("Should be authenticated after successful login", authViewModel.isAuthenticated)
+        assertNotNull("Should have auth token in state", authViewModel.authToken)
+        assertEquals("Should store username in state", username, authViewModel.username)
+    }
 }
