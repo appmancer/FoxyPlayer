@@ -48,6 +48,10 @@ class AuthRepository(private val baseUrl: String = "") {
         private var persistedAuthState: AuthResponse? = null
     }
     
+    // Authentication Event Handling - Minimal implementation for PLY-46
+    private var loginEventListener: ((UserInfo) -> Unit)? = null
+    private var logoutEventListener: ((UserInfo) -> Unit)? = null
+    
     fun getLastSuccessfulServer(): String? = lastSuccessfulServer
     
     fun configureTimeouts(connectTimeout: Long, readTimeout: Long) {
@@ -92,6 +96,23 @@ class AuthRepository(private val baseUrl: String = "") {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+    
+    // Authentication Event Handling - Minimal implementation for PLY-46
+    fun setLoginEventListener(listener: (UserInfo) -> Unit) {
+        loginEventListener = listener
+    }
+    
+    fun setLogoutEventListener(listener: (UserInfo) -> Unit) {
+        logoutEventListener = listener
+    }
+    
+    fun triggerLoginEvent(userInfo: UserInfo) {
+        loginEventListener?.invoke(userInfo)
+    }
+    
+    fun triggerLogoutEvent(userInfo: UserInfo) {
+        logoutEventListener?.invoke(userInfo)
     }
     
     fun authenticateWithSSLValidation(username: String, password: String): Result<AuthResponse> {
@@ -281,7 +302,25 @@ class AuthRepository(private val baseUrl: String = "") {
                         "sentinvitation": false,
                         "invitefriends": {
                             "total": 0
-                        }
+    }
+    
+    // Authentication Event Handling - Minimal implementation for PLY-46
+    fun setLoginEventListener(listener: (UserInfo) -> Unit) {
+        loginEventListener = listener
+    }
+    
+    fun setLogoutEventListener(listener: (UserInfo) -> Unit) {
+        logoutEventListener = listener
+    }
+    
+    fun triggerLoginEvent(userInfo: UserInfo) {
+        loginEventListener?.invoke(userInfo)
+    }
+    
+    fun triggerLogoutEvent(userInfo: UserInfo) {
+        logoutEventListener?.invoke(userInfo)
+    }
+    
                     }
                 }
             }

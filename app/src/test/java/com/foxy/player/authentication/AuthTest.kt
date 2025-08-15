@@ -423,4 +423,45 @@ class AuthTest {
         val expiredValidation = expiredAuthRepository.validatePersistedSession()
         assertTrue("Should handle validation attempt", expiredValidation.isSuccess || expiredValidation.isFailure)
     }
+
+    @Test
+    fun `should handle authentication events with login and logout event listeners`() {
+        // Arrange - Setup event listeners for authentication events
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        var loginEventTriggered = false
+        var logoutEventTriggered = false
+        var loginEventUser: String? = null
+        var logoutEventUser: String? = null
+        
+        // Setup event listeners (these methods don't exist yet)
+        authRepository.setLoginEventListener { user ->
+            loginEventTriggered = true
+            loginEventUser = user.email
+        }
+        
+        authRepository.setLogoutEventListener { user ->
+            logoutEventTriggered = true
+            logoutEventUser = user.email
+        }
+        
+        val username = "event@example.com"
+        val password = "eventtest"
+        val userInfo = UserInfo(username)
+        
+        // Act - Trigger login event by saving authentication state
+        authRepository.saveAuthenticationState("event_token_123", userInfo)
+        authRepository.triggerLoginEvent(userInfo) // This method doesn't exist yet
+        
+        // Assert - Verify login event was triggered
+        assertTrue("Login event should be triggered", loginEventTriggered)
+        assertEquals("Login event should have correct user email", username, loginEventUser)
+        assertFalse("Logout event should not be triggered yet", logoutEventTriggered)
+        
+        // Act - Trigger logout event
+        authRepository.triggerLogoutEvent(userInfo) // This method doesn't exist yet
+        
+        // Assert - Verify logout event was triggered
+        assertTrue("Logout event should be triggered", logoutEventTriggered)
+        assertEquals("Logout event should have correct user email", username, logoutEventUser)
+    }
 }
