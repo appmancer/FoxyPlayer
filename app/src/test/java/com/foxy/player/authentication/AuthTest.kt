@@ -110,4 +110,35 @@ class AuthTest {
         assertNotNull("Should have auth token in state", authViewModel.authToken)
         assertEquals("Should store username in state", username, authViewModel.username)
     }
+
+    @Test
+    fun `should handle network failures and authentication errors with proper error states`() {
+        // Arrange - setup test data for error scenarios
+        val invalidUsername = "invalid@test.com"
+        val invalidPassword = "wrongpassword"
+        val networkFailureUrl = "https://invalid-url-will-fail.com"
+        
+        // Create repository with invalid URL that will cause network failure (doesn't exist yet)
+        val authRepository = AuthRepository(networkFailureUrl)
+        val authViewModel = AuthViewModel(authRepository)
+        
+        // Act - attempt login that should fail (error handling doesn't exist yet)
+        authViewModel.loginWithErrorHandling(invalidUsername, invalidPassword) // This doesn't exist yet - will cause compilation failure
+        
+        // Assert initial error state
+        assertTrue("Should start in loading state", authViewModel.isLoading)
+        assertFalse("Should not be authenticated initially", authViewModel.isAuthenticated)
+        assertNull("Should not have error initially", authViewModel.errorMessage) // This doesn't exist yet
+        
+        // Wait for network failure to complete
+        Thread.sleep(200) // Longer delay to simulate network timeout
+        
+        // Assert final error state 
+        assertFalse("Should finish loading after error", authViewModel.isLoading)
+        assertFalse("Should not be authenticated after error", authViewModel.isAuthenticated)
+        assertNotNull("Should have error message after failure", authViewModel.errorMessage)
+        assertTrue("Should have network error message", authViewModel.errorMessage?.contains("network") == true)
+        assertNull("Should not have auth token after error", authViewModel.authToken)
+        assertEquals("Should still store attempted username", invalidUsername, authViewModel.username)
+    }
 }
