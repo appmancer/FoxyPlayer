@@ -292,4 +292,31 @@ class AuthTest {
         assertTrue("getLastSuccessfulServer method should exist and be callable", 
             successfulServer == null || successfulServer.isNotEmpty())
     }
+
+    @Test
+    fun `HTTP client should distinguish between network errors and authentication errors`() {
+        // Arrange - Test error differentiation
+        val networkFailureRepository = AuthRepository("https://non-existent-server-12345.invalid")
+        val authFailureRepository = AuthRepository("https://eapi.pcloud.com")
+        
+        val username = "error.test@example.com"
+        val wrongPassword = "wrongpassword"
+        
+        // Act - Test network failure vs auth failure using method that doesn't exist yet
+        val networkResult = networkFailureRepository.authenticateWithErrorDetails(username, wrongPassword) // This method doesn't exist yet
+        val authResult = authFailureRepository.authenticateWithErrorDetails(username, wrongPassword)
+        
+        // Assert - Verify both return error details that can distinguish error types
+        assertTrue("Network error should be failure", networkResult.isFailure)
+        assertTrue("Auth error should be failure", authResult.isFailure)
+        
+        val networkException = networkResult.exceptionOrNull()
+        val authException = authResult.exceptionOrNull()
+        
+        // The method should provide error details that allow distinguishing types
+        assertNotNull("Should have network error details", networkException)
+        assertNotNull("Should have auth error details", authException)
+        assertNotEquals("Error messages should be different for different error types", 
+            networkException?.message, authException?.message)
+    }
 }
