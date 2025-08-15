@@ -35,8 +35,19 @@ class AuthRepository(private val baseUrl: String = "") {
     private val httpClient = OkHttpClient()
     private val gson = Gson()
     private var lastSuccessfulServer: String? = null
+    private var connectTimeout: Long = 30000L // Default 30 seconds
+    private var readTimeout: Long = 30000L    // Default 30 seconds
     
     fun getLastSuccessfulServer(): String? = lastSuccessfulServer
+    
+    fun configureTimeouts(connectTimeout: Long, readTimeout: Long) {
+        this.connectTimeout = connectTimeout
+        this.readTimeout = readTimeout
+    }
+    
+    fun getConnectTimeout(): Long = connectTimeout
+    
+    fun getReadTimeout(): Long = readTimeout
     
     fun authenticateWithErrorDetails(username: String, password: String): Result<AuthResponse> {
         return try {

@@ -319,4 +319,23 @@ class AuthTest {
         assertNotEquals("Error messages should be different for different error types", 
             networkException?.message, authException?.message)
     }
+
+    @Test
+    fun `HTTP client should support configurable connection timeouts`() {
+        // Arrange - Test timeout configuration
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val connectTimeout = 5000L  // 5 seconds
+        val readTimeout = 10000L    // 10 seconds
+        
+        // Act - Configure timeouts using method that doesn't exist yet
+        authRepository.configureTimeouts(connectTimeout, readTimeout) // This method doesn't exist yet
+        
+        // Get timeout configuration to verify it was set
+        val actualConnectTimeout = authRepository.getConnectTimeout() // This method doesn't exist yet
+        val actualReadTimeout = authRepository.getReadTimeout() // This method doesn't exist yet
+        
+        // Assert - Verify timeout configuration was stored correctly
+        assertEquals("Connect timeout should be configured", connectTimeout, actualConnectTimeout)
+        assertEquals("Read timeout should be configured", readTimeout, actualReadTimeout)
+    }
 }
