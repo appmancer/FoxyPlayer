@@ -105,12 +105,14 @@ if [[ -n "$security_warnings" ]]; then
 fi
 
 # Check for lint errors (warnings are OK, errors are blocking)
-lint_errors=$(echo "$lint_output" | grep -i "error" | grep -v -i "0 errors")
-if [[ -n "$lint_errors" ]]; then
-    echo -e "${ERROR} ${RED}BLOCKING: Android lint errors found${NC}"
+# Parse the summary line like "0 errors, 55 warnings" or "3 errors, 12 warnings"
+error_count=$(echo "$lint_output" | grep -E "^[0-9]+ errors?" | grep -oE "^[0-9]+" || echo "0")
+if [[ "$error_count" -gt 0 ]]; then
+    echo -e "${ERROR} ${RED}BLOCKING: Android lint found $error_count errors${NC}"
     echo ""
-    echo -e "${YELLOW}Lint errors:${NC}"
-    echo "$lint_errors"
+    echo -e "${YELLOW}Lint errors found:${NC}"
+    # Show actual error lines (not explanations)
+    echo "$lint_output" | grep -E "^\s*/.+:\s+Error:" | head -10
     echo ""
     echo -e "${INFO} Fix lint errors and rerun pr-ready"
     exit 1
