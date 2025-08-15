@@ -476,4 +476,46 @@ class AuthViewModel(private val authRepository: AuthRepository) {
             }
         }.start()
     }
+    
+    // Integration with Authentication State Management - Minimal implementation for PLY-46
+    fun loginWithStateManagement(username: String, password: String) {
+        _isLoading = true
+        _username = username
+        
+        Thread {
+            Thread.sleep(100) // Simulate network delay
+            
+            val result = authRepository.authenticateWithPCloudAPI(username, password)
+            
+            _isLoading = false
+            if (result.isSuccess) {
+                val authResponse = result.getOrNull()
+                if (authResponse != null) {
+                    // Update ViewModel state
+                    _isAuthenticated = true
+                    _authToken = authResponse.authToken
+                    
+                    // Save to repository state management and trigger login event
+                    authRepository.saveAuthenticationState(authResponse.authToken, authResponse.userInfo)
+                    authRepository.triggerLoginEvent(authResponse.userInfo)
+                }
+            }
+        }.start()
+    }
+    
+    fun logoutWithStateManagement() {
+        // Get current user info before clearing
+        val currentAuthState = authRepository.getPersistedAuthenticationState()
+        
+        // Clear ViewModel state
+        _isAuthenticated = false
+        _authToken = null
+        _errorMessage = null
+        
+        // Clear repository state and trigger logout event
+        if (currentAuthState != null) {
+            authRepository.triggerLogoutEvent(currentAuthState.userInfo)
+        }
+        authRepository.clearAuthenticationState()
+    }
 }

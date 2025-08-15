@@ -507,4 +507,58 @@ class AuthTest {
         assertFalse("Should not be authenticated after session invalidation", authRepository.isAuthenticated())
         assertNull("Should not have persisted state after invalidation", authRepository.getPersistedAuthenticationState())
     }
+
+    @Test
+    fun `should integrate authentication state management with existing login flow`() {
+        // Arrange - Setup repository and ViewModel with state management integration
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val authViewModel = AuthViewModel(authRepository)
+        val username = "integration@example.com"
+        val password = "integrationtest"
+        
+        var loginEventTriggered = false
+        var loginEventUser: String? = null
+        
+        // Setup login event listener
+        authRepository.setLoginEventListener { user ->
+            loginEventTriggered = true
+            loginEventUser = user.email
+        }
+        
+        // Verify initial state
+        assertFalse("Should not be authenticated initially", authRepository.isAuthenticated())
+        assertNull("Should not have persisted state initially", authRepository.getPersistedAuthenticationState())
+        
+        // Act - Perform login through ViewModel which should integrate with state management (this integration doesn't exist yet)
+        authViewModel.loginWithStateManagement(username, password) // This method doesn't exist yet
+        
+        // Wait for authentication to complete
+        Thread.sleep(150)
+        
+        // Assert - Verify login integration works with state management
+        assertTrue("Should be authenticated after login", authRepository.isAuthenticated())
+        assertNotNull("Should have persisted authentication state", authRepository.getPersistedAuthenticationState())
+        assertTrue("Login event should be triggered during login flow", loginEventTriggered)
+        assertEquals("Login event should have correct user", username, loginEventUser)
+        
+        // Verify ViewModel state is synchronized with repository state
+        assertTrue("ViewModel should show authenticated state", authViewModel.isAuthenticated)
+        assertNotNull("ViewModel should have auth token", authViewModel.authToken)
+        
+        // Test logout integration (this method doesn't exist yet)
+        var logoutEventTriggered = false
+        authRepository.setLogoutEventListener { 
+            logoutEventTriggered = true
+        }
+        
+        // Act - Perform logout which should clear state and trigger events
+        authViewModel.logoutWithStateManagement() // This method doesn't exist yet
+        
+        // Assert - Verify logout clears state properly
+        assertFalse("Should not be authenticated after logout", authRepository.isAuthenticated())
+        assertNull("Should not have persisted state after logout", authRepository.getPersistedAuthenticationState())
+        assertTrue("Logout event should be triggered", logoutEventTriggered)
+        assertFalse("ViewModel should show not authenticated", authViewModel.isAuthenticated)
+        assertNull("ViewModel should not have auth token", authViewModel.authToken)
+    }
 }
