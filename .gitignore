@@ -89,3 +89,10 @@ lint/tmp/
 # Spectrum Development Framework temp files
 tmp/
 music-player-core/
+
+# Protected development tools and configuration
+.tools/
+.opencode/
+.agent
+AGENTS.md
+.spectrum/
