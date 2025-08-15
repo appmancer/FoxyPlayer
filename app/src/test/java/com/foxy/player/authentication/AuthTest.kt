@@ -43,4 +43,27 @@ class AuthTest {
         assertTrue("Token should not be empty", authToken?.token?.isNotEmpty() == true)
         assertTrue("Token should not be mock", authToken?.token != "mock_auth_token_12345")
     }
+
+    @Test 
+    fun `should make actual HTTP POST to pCloud userinfo endpoint and parse auth token from JSON response`() {
+        // Arrange - setup test data for real pCloud API call
+        val username = "testuser@example.com"
+        val password = "testpassword123"
+        val pCloudBaseUrl = "https://api.pcloud.com"
+        
+        // Create repository with HTTP parsing capability (doesn't exist yet)
+        val authRepository = AuthRepository(pCloudBaseUrl)
+        
+        // Act - call method that makes real HTTP POST and parses JSON (doesn't exist yet)
+        val result = authRepository.authenticateWithPCloudAPI(username, password)
+        
+        // Assert - verify JSON response was parsed correctly 
+        assertTrue("Should succeed with HTTP call", result.isSuccess)
+        val authResponse = result.getOrNull()
+        assertNotNull("Should have auth response", authResponse)
+        assertNotNull("Should have parsed auth token", authResponse?.authToken)
+        assertTrue("Should have valid auth token format", authResponse?.authToken?.startsWith("T") == true)
+        assertNotNull("Should have user info from JSON", authResponse?.userInfo)
+        assertTrue("Should have parsed email", authResponse?.userInfo?.email?.isNotEmpty() == true)
+    }
 }
