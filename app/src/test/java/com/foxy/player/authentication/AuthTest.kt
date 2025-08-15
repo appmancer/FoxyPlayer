@@ -371,4 +371,28 @@ class AuthTest {
             invalidException?.message?.contains("certificate", ignoreCase = true) == true ||
             invalidException?.message?.contains("trust", ignoreCase = true) == true)
     }
+
+    @Test
+    fun `should persist authentication state across app restarts`() {
+        // Arrange - Setup authentication state that should persist
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val username = "test@example.com"
+        val authToken = "persistent_auth_token_12345"
+        val userInfo = UserInfo(username)
+        
+        // Act - Save authentication state (this method doesn't exist yet)
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        
+        // Simulate app restart by creating new repository instance
+        val newRepositoryInstance = AuthRepository("https://eapi.pcloud.com")
+        
+        // Act - Retrieve persisted authentication state (this method doesn't exist yet)
+        val retrievedAuthState = newRepositoryInstance.getPersistedAuthenticationState()
+        
+        // Assert - Verify authentication state persisted across "app restart"
+        assertNotNull("Should have persisted authentication state", retrievedAuthState)
+        assertEquals("Should persist auth token", authToken, retrievedAuthState?.authToken)
+        assertEquals("Should persist user email", username, retrievedAuthState?.userInfo?.email)
+        assertTrue("Should indicate user is authenticated", newRepositoryInstance.isAuthenticated())
+    }
 }

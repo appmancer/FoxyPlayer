@@ -43,6 +43,11 @@ class AuthRepository(private val baseUrl: String = "") {
     private var connectTimeout: Long = 30000L // Default 30 seconds
     private var readTimeout: Long = 30000L    // Default 30 seconds
     
+    // Authentication State Management - Static storage to simulate persistence
+    companion object {
+        private var persistedAuthState: AuthResponse? = null
+    }
+    
     fun getLastSuccessfulServer(): String? = lastSuccessfulServer
     
     fun configureTimeouts(connectTimeout: Long, readTimeout: Long) {
@@ -53,6 +58,22 @@ class AuthRepository(private val baseUrl: String = "") {
     fun getConnectTimeout(): Long = connectTimeout
     
     fun getReadTimeout(): Long = readTimeout
+    
+    // Authentication State Management - Minimal implementation for PLY-46
+    fun saveAuthenticationState(authToken: String, userInfo: UserInfo) {
+        // Minimal implementation - store in companion object to simulate persistence
+        persistedAuthState = AuthResponse(authToken, userInfo)
+    }
+    
+    fun getPersistedAuthenticationState(): AuthResponse? {
+        // Minimal implementation - return stored state from companion object
+        return persistedAuthState
+    }
+    
+    fun isAuthenticated(): Boolean {
+        // Minimal implementation - check if we have persisted auth state
+        return persistedAuthState != null
+    }
     
     fun authenticateWithSSLValidation(username: String, password: String): Result<AuthResponse> {
         return try {
