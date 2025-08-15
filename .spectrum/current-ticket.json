@@ -1,0 +1,23 @@
+{
+  "ticket": "PLY-54",
+  "title": "Ticket Assignment Found",
+  "domain": "music-player-core",
+  "base_path": ".",
+  "domain_folder": "./music-player-core",
+  "ticket_doc_path": "./music-player-core/PLY-54-ticket-assignment-found.md",
+  "branch": "feature/PLY-54-ticket-assignment-found",
+  "phase": "started",
+  "created": "2025-08-14T20:42:44+01:00",
+  "source_file": "./tmp/discovered-ticket-details.md",
+  "project": "pcloud-music-player",
+  "platform": "android",
+  "music_category": "general",
+  "technology_stack": {
+    "language": "kotlin",
+    "ui_framework": "jetpack_compose",
+    "architecture": "mvvm_repository",
+    "audio_engine": "media3_exoplayer",
+    "build_system": "gradle"
+  },
+  "pr_url": "https://github.com/appmancer/FoxyPlayer/pull/123"
+}

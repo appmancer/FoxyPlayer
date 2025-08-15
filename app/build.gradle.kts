@@ -6,6 +6,7 @@ plugins {
 
 android {
     namespace = "com.foxy.player"
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.foxy.player"
