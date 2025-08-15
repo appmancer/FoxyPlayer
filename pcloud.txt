@@ -1,0 +1,2 @@
+# Credentials have been removed for security.
+# Please provide credentials via environment variables or a secure secrets manager.

@@ -1,0 +1,16 @@
+# Global code ownership
+* @appmancer
+
+# Android specific files
+app/ @appmancer
+*.kt @appmancer
+*.xml @appmancer
+build.gradle.kts @appmancer
+
+# Authentication domain
+app/src/main/java/com/foxy/player/authentication/ @appmancer
+app/src/test/java/com/foxy/player/authentication/ @appmancer
+
+# Project configuration
+.github/ @appmancer
+gradle/ @appmancer
