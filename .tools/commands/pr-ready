@@ -367,8 +367,10 @@ Generated with [opencode](https://opencode.ai)"
 # Create PR targeting dev branch (CRITICAL from AGENTS.md)
 echo -e "${WORKING} Creating Android PR targeting dev branch..."
 
-# Switch to appmancer account for GitHub CLI (the account that matches our SSH key)
+# Switch to appmancer account for GitHub CLI and temporarily update remote for gh compatibility
 gh auth switch --hostname github.com --user appmancer
+original_remote=$(git remote get-url origin)
+git remote set-url origin git@github.com:appmancer/FoxyPlayer.git
 
 # Try creating PR with explicit head specification to handle remote branch issues
 if ! gh pr create --base dev --head "$branch" --title "$ticket_id: $ticket_title" --body "$pr_description"; then
@@ -389,6 +391,8 @@ if ! gh pr create --base dev --head "$branch" --title "$ticket_id: $ticket_title
         echo "     jq '.phase = \"pr-created\" | .pr_url = \"YOUR_PR_URL\"' .spectrum/current-ticket.json > tmp && mv tmp .spectrum/current-ticket.json"
         echo ""
         echo -e "${INFO} Android quality gates passed - branch is ready for PR creation"
+        # Restore original remote URL before exit  
+        git remote set-url origin "$original_remote"
         exit 1
     fi
 fi
@@ -397,8 +401,13 @@ fi
 if ! pr_url=$(gh pr view --json url --jq '.url' 2>/dev/null); then
     echo -e "${ERROR} Could not retrieve PR URL"
     echo -e "${INFO} PR may have been created - check GitHub manually"
+    # Restore original remote URL before exit
+    git remote set-url origin "$original_remote"
     exit 1
 fi
+
+# Restore original remote URL after GitHub CLI operations
+git remote set-url origin "$original_remote"
 
 # Update ticket state to PR created with Android context
 jq '.phase = "pr-created" | .pr_created_at = now | .pr_created_at |= todate | .pr_url = $url | .quality_gates_passed = true | .files_changed = $files | .test_count = $tests | .android_build_passed = true' \
