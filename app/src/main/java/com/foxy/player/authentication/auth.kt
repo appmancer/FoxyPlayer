@@ -11,6 +11,15 @@ data class AuthToken(val token: String)
 data class UserInfo(val email: String)
 data class AuthResponse(val authToken: String, val userInfo: UserInfo)
 
+// Real pCloud API Response Models (based on actual API exploration)
+data class PCloudResponse(
+    val result: Int,
+    val error: String? = null,
+    val auth: String? = null, 
+    val userid: Long? = null,
+    val email: String? = null
+)
+
 // Auth UI Models  
 data class AuthScreenContent(
     val hasUsernameField: Boolean,
@@ -92,6 +101,30 @@ class AuthRepository(private val baseUrl: String = "") {
                 Result.success(realAuthResponse)
             } else {
                 Result.failure(IOException("HTTP ${response.code}: ${response.message}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun parseAuthResponse(jsonResponse: String): Result<AuthResponse> {
+        return try {
+            // Parse pCloud JSON response format
+            val pCloudResponse = gson.fromJson(jsonResponse, PCloudResponse::class.java)
+            
+            // Check if response indicates success (result == 0)
+            if (pCloudResponse.result == 0) {
+                // Success case - extract auth token and user info
+                val authToken = pCloudResponse.auth ?: throw Exception("Missing auth token in success response")
+                val email = pCloudResponse.email ?: throw Exception("Missing email in success response")
+                
+                val userInfo = UserInfo(email = email)
+                val authResponse = AuthResponse(authToken = authToken, userInfo = userInfo)
+                Result.success(authResponse)
+            } else {
+                // Failure case - extract error message
+                val errorMessage = pCloudResponse.error ?: "Unknown authentication error (result: ${pCloudResponse.result})"
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
             Result.failure(e)

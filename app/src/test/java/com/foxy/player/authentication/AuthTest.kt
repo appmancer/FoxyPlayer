@@ -174,4 +174,49 @@ class AuthTest {
         // Verify it used actual HTTP (this should be different from mock behavior)
         assertTrue("Auth token should be from real pCloud API format", authToken?.length ?: 0 > 20)
     }
+
+    @Test
+    fun `should parse real pCloud JSON responses for both success and failure scenarios`() {
+        // Arrange - Real pCloud JSON responses based on API exploration
+        val pCloudFailureJson = """
+            {
+                "result": 2000,
+                "error": "Log in failed."
+            }
+        """.trimIndent()
+        
+        val pCloudSuccessJson = """
+            {
+                "result": 0,
+                "auth": "ABC123XYZ789pCloudAuthToken456DEF",
+                "userid": 123456789,
+                "email": "user@example.com"
+            }
+        """.trimIndent()
+        
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        
+        // Act - Parse failure response (method doesn't exist yet)
+        val failureResult = authRepository.parseAuthResponse(pCloudFailureJson) // This doesn't exist yet - will cause compilation failure
+        
+        // Assert - Verify failure response parsing
+        assertTrue("Should be failure result", failureResult.isFailure)
+        val failureException = failureResult.exceptionOrNull()
+        assertNotNull("Should have failure exception", failureException)
+        assertTrue("Should contain error message", failureException?.message?.contains("Log in failed") == true)
+        
+        // Act - Parse success response (method doesn't exist yet)  
+        val successResult = authRepository.parseAuthResponse(pCloudSuccessJson)
+        
+        // Assert - Verify success response parsing
+        assertTrue("Should be success result", successResult.isSuccess)
+        val authResponse = successResult.getOrNull()
+        assertNotNull("Should have auth response", authResponse)
+        assertEquals("Should parse auth token", "ABC123XYZ789pCloudAuthToken456DEF", authResponse?.authToken)
+        assertEquals("Should parse user email", "user@example.com", authResponse?.userInfo?.email)
+        
+        // Verify proper pCloud response structure (not our old fake format)
+        assertFalse("Should not contain our old fake patterns", authResponse?.authToken?.contains("pcloud_real_") == true)
+        assertFalse("Should not contain timestamp patterns", authResponse?.authToken?.matches(Regex(".*\\d{10,}.*")) == true)
+    }
 }
