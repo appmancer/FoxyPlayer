@@ -141,4 +141,37 @@ class AuthTest {
         assertNull("Should not have auth token after error", authViewModel.authToken)
         assertEquals("Should still store attempted username", invalidUsername, authViewModel.username)
     }
+
+    @Test
+    fun `should make real HTTP POST to pCloud API and authenticate with actual network call`() {
+        // Arrange - setup test data for real HTTP POST call
+        val realUsername = "test@pcloud.com"
+        val realPassword = "testpassword123"
+        val pCloudApiUrl = "https://eapi.pcloud.com" // Real pCloud endpoint
+        
+        // Create repository with real pCloud API URL (doesn't make real HTTP calls yet)
+        val authRepository = AuthRepository(pCloudApiUrl)
+        
+        // Act - call method that should make real HTTP POST request (doesn't exist yet)
+        val result = authRepository.authenticateWithRealHTTP(realUsername, realPassword) // This doesn't exist yet - will cause compilation failure
+        
+        // Assert - verify real HTTP call behavior (not mock timestamps)
+        assertTrue("Should succeed with real HTTP call", result.isSuccess)
+        val authResponse = result.getOrNull()
+        assertNotNull("Should have real auth response", authResponse)
+        
+        // Verify it's NOT a mock response (mocks use timestamps)
+        val authToken = authResponse?.authToken
+        assertNotNull("Should have real auth token", authToken)
+        assertFalse("Should not contain timestamp (mock indicator)", authToken?.contains(System.currentTimeMillis().toString().take(8)) == true)
+        assertFalse("Should not be mock pattern", authToken?.matches(Regex("T\\d+")) == true)
+        
+        // Verify HTTP-specific behavior
+        val userInfo = authResponse?.userInfo
+        assertNotNull("Should have user info from HTTP response", userInfo)
+        assertEquals("Should have correct email from HTTP", realUsername, userInfo?.email)
+        
+        // Verify it used actual HTTP (this should be different from mock behavior)
+        assertTrue("Auth token should be from real pCloud API format", authToken?.length ?: 0 > 20)
+    }
 }
