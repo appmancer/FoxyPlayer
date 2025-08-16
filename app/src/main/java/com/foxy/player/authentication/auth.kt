@@ -44,6 +44,8 @@ class AuthRepository(private val baseUrl: String = "") {
     private var readTimeout: Long = 30000L    // Default 30 seconds
     
     // Authentication State Management - Static storage to simulate persistence
+    // TODO: For production, consider using SharedPreferences or encrypted storage for proper persistence
+    // Current implementation is minimal for PLY-46 requirements and won't survive real app restarts
     companion object {
         private var persistedAuthState: AuthResponse? = null
     }
@@ -86,11 +88,9 @@ class AuthRepository(private val baseUrl: String = "") {
             if (authState == null) {
                 // No persisted session to validate
                 Result.success(false)
-            } else if (baseUrl.contains("invalid-server")) {
-                // Simulate validation failure for invalid servers
-                Result.success(false)
             } else {
-                // For test scenario, assume session is valid if we have auth state
+                // For minimal implementation, assume session is valid if we have auth state
+                // In production, this would make an HTTP call to validate the token
                 Result.success(true)
             }
         } catch (e: Exception) {

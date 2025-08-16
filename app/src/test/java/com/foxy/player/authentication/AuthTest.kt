@@ -2,6 +2,8 @@ package com.foxy.player.authentication
 
 import org.junit.Test
 import org.junit.Assert.*
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class AuthTest {
 
@@ -527,11 +529,13 @@ class AuthTest {
         
         var loginEventTriggered = false
         var loginEventUser: String? = null
+        val loginLatch = CountDownLatch(1)
         
         // Setup login event listener
         authRepository.setLoginEventListener { user ->
             loginEventTriggered = true
             loginEventUser = user.email
+            loginLatch.countDown()
         }
         
         // Verify initial state
@@ -541,8 +545,8 @@ class AuthTest {
         // Act - Perform login through ViewModel which should integrate with state management (this integration doesn't exist yet)
         authViewModel.loginWithStateManagement(username, password) // This method doesn't exist yet
         
-        // Wait for authentication to complete
-        Thread.sleep(150)
+        // Wait for login event or timeout after 1 second
+        assertTrue("Login event was not triggered in time", loginLatch.await(1, TimeUnit.SECONDS))
         
         // Assert - Verify login integration works with state management
         assertTrue("Should be authenticated after login", authRepository.isAuthenticated())
