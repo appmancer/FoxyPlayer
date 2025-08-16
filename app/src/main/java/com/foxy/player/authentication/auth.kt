@@ -325,25 +325,7 @@ class AuthRepository(private val baseUrl: String = "") {
                         "sentinvitation": false,
                         "invitefriends": {
                             "total": 0
-    }
-    
-    // Authentication Event Handling - Minimal implementation for PLY-46
-    fun setLoginEventListener(listener: (UserInfo) -> Unit) {
-        loginEventListener = listener
-    }
-    
-    fun setLogoutEventListener(listener: (UserInfo) -> Unit) {
-        logoutEventListener = listener
-    }
-    
-    fun triggerLoginEvent(userInfo: UserInfo) {
-        loginEventListener?.invoke(userInfo)
-    }
-    
-    fun triggerLogoutEvent(userInfo: UserInfo) {
-        logoutEventListener?.invoke(userInfo)
-    }
-    
+                        }
                     }
                 }
             }

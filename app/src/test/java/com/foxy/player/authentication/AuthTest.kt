@@ -231,8 +231,14 @@ class AuthTest {
         // Parse the mock response
         val result = authRepository.parseAuthResponse(mockSuccessJson)
         
+        // Debug: Print the error if parsing fails
+        if (result.isFailure) {
+            println("Parsing failed with error: ${result.exceptionOrNull()?.message}")
+            result.exceptionOrNull()?.printStackTrace()
+        }
+        
         // Assert - Verify mock response is realistic and parseable
-        assertTrue("Mock response should be parseable", result.isSuccess)
+        assertTrue("Mock response should be parseable: ${result.exceptionOrNull()?.message}", result.isSuccess)
         val authResponse = result.getOrNull()
         assertNotNull("Should have parsed auth response", authResponse)
         
