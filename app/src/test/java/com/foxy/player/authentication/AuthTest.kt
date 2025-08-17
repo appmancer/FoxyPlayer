@@ -517,6 +517,24 @@ class AuthTest {
     }
 
     @Test
+    fun `should display login form with username and password fields`() {
+        // Arrange - Setup compose test environment for login screen
+        val loginScreen = LoginScreen() // This doesn't exist yet - will cause compilation failure
+        
+        // Act - Render the login screen composable (doesn't exist yet)
+        val content = loginScreen.content()
+        
+        // Assert - Verify UI components are present in Compose UI
+        assertTrue("Should have username text field", content.hasUsernameTextField)
+        assertTrue("Should have password text field", content.hasPasswordTextField)
+        assertTrue("Should have login button", content.hasLoginButton)
+        assertEquals("Username field should have correct placeholder", "Username", content.usernamePlaceholder)
+        assertEquals("Password field should have correct placeholder", "Password", content.passwordPlaceholder)
+        assertEquals("Login button should have correct text", "Login", content.loginButtonText)
+        assertTrue("Password field should be password type", content.isPasswordFieldObscured)
+    }
+
+    @Test
     fun `should integrate authentication state management with existing login flow`() {
         // Arrange - Setup repository and ViewModel with state management integration
         val authRepository = AuthRepository("https://eapi.pcloud.com")
