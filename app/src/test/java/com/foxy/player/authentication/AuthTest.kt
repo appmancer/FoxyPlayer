@@ -788,4 +788,38 @@ class AuthTest {
         assertNotNull("Retrieved token should not be null", retrievedToken)
         assertEquals("Retrieved token should match stored token", testToken, retrievedToken)
     }
+
+    @Test
+    fun `should handle time-based token expiration and detect expired tokens`() {
+        // Arrange - PLY-43: Time-based token expiration management
+        val testToken = "TIME_EXPIRY_TEST_TOKEN"
+        val testAlias = "time_expiry_test_alias"
+        val expirationDurationMs = 1000L // 1 second for testing
+        
+        // Create secure token storage with time-based expiration (doesn't exist yet)
+        val secureTokenStorage = SecureTokenStorage()
+        
+        // Act - Store token with expiration time
+        val storeResult = secureTokenStorage.storeTokenWithExpiration(testAlias, testToken, expirationDurationMs) // Method doesn't exist yet
+        
+        // Assert - Token should be stored successfully
+        assertTrue("Should successfully store token with expiration", storeResult.isSuccess)
+        
+        // Act - Retrieve token immediately (should be valid)
+        val immediateRetrieveResult = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("Should retrieve valid token immediately", immediateRetrieveResult.isSuccess)
+        assertEquals("Token should match", testToken, immediateRetrieveResult.getOrNull())
+        
+        // Act - Wait for token to expire
+        Thread.sleep(1100L) // Wait longer than expiration time
+        
+        // Act - Try to retrieve expired token
+        val expiredRetrieveResult = secureTokenStorage.retrieveToken(testAlias)
+        
+        // Assert - Expired token should not be retrievable
+        assertTrue("Expired token retrieval should fail", expiredRetrieveResult.isFailure)
+        val exception = expiredRetrieveResult.exceptionOrNull()
+        assertTrue("Should be TokenExpiredException", exception is TokenExpiredException) // Class doesn't exist yet
+        assertTrue("Error message should mention expiration", exception?.message?.contains("expired") == true)
+    }
 }

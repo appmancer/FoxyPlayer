@@ -11,6 +11,7 @@ import javax.net.ssl.SSLHandshakeException
 // Auth Exceptions
 class AuthenticationException(message: String) : Exception(message)
 class AccessException(message: String) : Exception(message) // PLY-44: For 4000 series errors
+class TokenExpiredException(message: String) : Exception(message) // PLY-43: For expired tokens
 
 // Auth Models
 data class AuthToken(val token: String)
@@ -697,8 +698,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
     }
 }
 
-// PLY-43: Secure Token Storage using Android Keystore
-// PLY-43: Secure Token Storage using Android Keystore
+// PLY-43: Secure Token Storage with Time-based Expiration
 class SecureTokenStorage {
     
     fun storeToken(alias: String, token: String): Result<Unit> {
@@ -706,7 +706,26 @@ class SecureTokenStorage {
             // For unit tests, use a secure in-memory storage simulation
             // In real Android app, this would use Android Keystore
             val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            
             secureStorage[alias] = encryptToken(token)
+            // No expiration for regular storeToken method
+            expirationStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun storeTokenWithExpiration(alias: String, token: String, expirationDurationMs: Long): Result<Unit> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            expirationStorage[alias] = System.currentTimeMillis() + expirationDurationMs
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -716,8 +735,24 @@ class SecureTokenStorage {
     fun retrieveToken(alias: String): Result<String> {
         return try {
             val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            
+            // Check if token exists
             val encryptedToken = secureStorage[alias] 
                 ?: return Result.failure(IllegalArgumentException("Token not found for alias: $alias"))
+            
+            // Check if token has expiration
+            val expirationTime = expirationStorage[alias]
+            if (expirationTime != null) {
+                // Token has expiration - check if it's expired
+                val currentTime = System.currentTimeMillis()
+                if (currentTime > expirationTime) {
+                    // Token is expired - remove it and throw exception
+                    secureStorage.remove(alias)
+                    expirationStorage.remove(alias)
+                    return Result.failure(TokenExpiredException("Token expired for alias: $alias"))
+                }
+            }
             
             val decryptedToken = decryptToken(encryptedToken)
             Result.success(decryptedToken)
@@ -729,6 +764,11 @@ class SecureTokenStorage {
     // Simulate secure storage (in production, this would be Android Keystore)
     private fun getSecureStorage(): MutableMap<String, String> {
         return tokenStorage
+    }
+    
+    // Simulate expiration storage (in production, this would be part of Android Keystore metadata)
+    private fun getExpirationStorage(): MutableMap<String, Long> {
+        return expirationStorage
     }
     
     // Simulate encryption (in production, this would use Android Keystore encryption)
@@ -746,5 +786,7 @@ class SecureTokenStorage {
     companion object {
         // Simulate secure storage (in production, this would be Android Keystore)
         private val tokenStorage = mutableMapOf<String, String>()
+        // Simulate expiration times storage 
+        private val expirationStorage = mutableMapOf<String, Long>()
     }
 }
