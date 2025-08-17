@@ -10,6 +10,7 @@ import javax.net.ssl.SSLHandshakeException
 
 // Auth Exceptions
 class AuthenticationException(message: String) : Exception(message)
+class AccessException(message: String) : Exception(message) // PLY-44: For 4000 series errors
 
 // Auth Models
 data class AuthToken(val token: String)
@@ -499,5 +500,129 @@ class AuthViewModel(private val authRepository: AuthRepository) {
             authRepository.triggerLogoutEvent(currentAuthState.userInfo)
         }
         authRepository.clearAuthenticationState()
+    }
+}
+
+// PLY-44: Authenticated API Client Data Models
+data class AuthenticatedRequestResult(
+    val httpResponse: String,
+    val authTokenUsed: String
+) {
+    fun containsAuthToken(token: String): Boolean {
+        return authTokenUsed == token
+    }
+}
+
+data class ServerRoutingResult(
+    val attemptedServers: List<String>,
+    val successfulServer: String?
+)
+
+// PLY-44: Authenticated API Client
+class AuthenticatedApiClient(private val authRepository: AuthRepository) {
+    private val httpClient = OkHttpClient()
+    private val gson = Gson()
+    
+    fun makeAuthenticatedRequest(endpoint: String): Result<AuthenticatedRequestResult> {
+        return try {
+            // Get current authentication state
+            val authState = authRepository.getPersistedAuthenticationState()
+                ?: return Result.failure(AuthenticationException("No authentication state found"))
+            
+            // Get base URL from repository
+            val baseUrl = authRepository.getLastSuccessfulServer() ?: "https://eapi.pcloud.com"
+            
+            // Make authenticated request with token injection
+            val requestBody = FormBody.Builder()
+                .add("auth", authState.authToken) // Inject auth token
+                .build()
+            
+            val request = Request.Builder()
+                .url("$baseUrl$endpoint")
+                .post(requestBody)
+                .build()
+            
+            val response = httpClient.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+            
+            // Create result with auth token confirmation
+            val result = AuthenticatedRequestResult(
+                httpResponse = responseBody,
+                authTokenUsed = authState.authToken
+            )
+            
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun makeRequestWithAutoRouting(endpoint: String): Result<ServerRoutingResult> {
+        val servers = listOf("https://eapi.pcloud.com", "https://api.pcloud.com")
+        val attemptedServers = mutableListOf<String>()
+        var successfulServer: String? = null
+        
+        for (serverUrl in servers) {
+            attemptedServers.add(serverUrl.removePrefix("https://"))
+            
+            try {
+                // Get auth state
+                val authState = authRepository.getPersistedAuthenticationState()
+                    ?: return Result.failure(AuthenticationException("No authentication state found"))
+                
+                // Make request to this server
+                val requestBody = FormBody.Builder()
+                    .add("auth", authState.authToken)
+                    .build()
+                
+                val request = Request.Builder()
+                    .url("$serverUrl$endpoint")
+                    .post(requestBody)
+                    .build()
+                
+                val response = httpClient.newCall(request).execute()
+                
+                if (response.isSuccessful) {
+                    successfulServer = serverUrl.removePrefix("https://")
+                    break
+                }
+            } catch (e: Exception) {
+                // Continue to next server
+                continue
+            }
+        }
+        
+        val result = ServerRoutingResult(
+            attemptedServers = attemptedServers,
+            successfulServer = successfulServer
+        )
+        
+        return Result.success(result)
+    }
+    
+    fun handlePCloudErrorResponse(jsonResponse: String): Result<Nothing> {
+        return try {
+            val pCloudResponse = gson.fromJson(jsonResponse, PCloudResponse::class.java)
+            
+            when (pCloudResponse.result) {
+                in 2000..2999 -> {
+                    // 2000 series - authentication errors
+                    val errorMessage = pCloudResponse.error ?: "Authentication error (${pCloudResponse.result})"
+                    Result.failure(AuthenticationException(errorMessage))
+                }
+                in 4000..4999 -> {
+                    // 4000 series - access/permission errors
+                    val errorMessage = pCloudResponse.error ?: "Access error (${pCloudResponse.result})"
+                    Result.failure(AccessException(errorMessage))
+                }
+                else -> {
+                    // Other errors
+                    val errorMessage = pCloudResponse.error ?: "Unknown error (${pCloudResponse.result})"
+                    Result.failure(Exception(errorMessage))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

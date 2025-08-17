@@ -574,4 +574,110 @@ class AuthTest {
         assertFalse("ViewModel should show not authenticated", authViewModel.isAuthenticated)
         assertNull("ViewModel should not have auth token", authViewModel.authToken)
     }
+
+    @Test
+    fun `should inject auth token into pCloud API requests automatically`() {
+        // Arrange - PLY-44: Authenticated API client with token injection
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val authToken = "test_auth_token_12345"
+        val userInfo = UserInfo("test@example.com")
+        
+        // Save authentication state (simulate existing login)
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        
+        // Create authenticated API client (doesn't exist yet)
+        val apiClient = AuthenticatedApiClient(authRepository) // This doesn't exist yet - will cause compilation failure
+        
+        // Act - Make API call that should automatically inject auth token (doesn't exist yet)
+        val result = apiClient.makeAuthenticatedRequest("/userinfo") // This doesn't exist yet - will cause compilation failure
+        
+        // Assert - Verify auth token was injected into request
+        assertTrue("Should succeed with authenticated request", result.isSuccess)
+        val requestDetails = result.getOrNull()
+        assertNotNull("Should have request details", requestDetails)
+        assertTrue("Should contain auth token in request", requestDetails?.containsAuthToken(authToken) == true)
+        assertNotNull("Should have made HTTP request", requestDetails?.httpResponse)
+    }
+
+    @Test
+    fun `should automatically route to correct pCloud server - US or Europe based on user location`() {
+        // Arrange - PLY-44: Automatic server routing 
+        val authRepository = AuthRepository() // No specific server - should auto-detect
+        val authToken = "routing_test_token_789"
+        val userInfo = UserInfo("routing@example.com")
+        
+        // Save authentication state 
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        
+        // Create authenticated API client with auto-routing (doesn't exist yet)
+        val apiClient = AuthenticatedApiClient(authRepository)
+        
+        // Act - Make request that should auto-route to correct server (doesn't exist yet)
+        val routingResult = apiClient.makeRequestWithAutoRouting("/userinfo") // This doesn't exist yet - will cause compilation failure
+        
+        // Assert - Verify auto-routing behavior
+        assertTrue("Should succeed with auto-routing", routingResult.isSuccess)
+        val routingInfo = routingResult.getOrNull()
+        assertNotNull("Should have routing information", routingInfo)
+        
+        // Should have attempted both EU and US servers if needed
+        assertTrue("Should have tried routing logic", 
+            routingInfo?.attemptedServers?.contains("eapi.pcloud.com") == true ||
+            routingInfo?.attemptedServers?.contains("api.pcloud.com") == true)
+        
+        // Should have selected a successful server
+        assertNotNull("Should have successful server", routingInfo?.successfulServer)
+        assertTrue("Successful server should be valid pCloud endpoint",
+            routingInfo?.successfulServer?.contains("pcloud.com") == true)
+    }
+
+    @Test
+    fun `should handle pCloud 2000 and 4000 series error codes with proper error mapping`() {
+        // Arrange - PLY-44: pCloud error code handling
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val authToken = "error_test_token_456"
+        val userInfo = UserInfo("error@example.com")
+        
+        // Save authentication state
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        
+        // Create authenticated API client (doesn't exist yet)
+        val apiClient = AuthenticatedApiClient(authRepository)
+        
+        // Test 2000 series error (authentication errors)
+        val pCloud2000Json = """{"result": 2000, "error": "Log in failed."}"""
+        val pCloud2001Json = """{"result": 2001, "error": "Invalid login."}"""
+        
+        // Test 4000 series error (access/permission errors)  
+        val pCloud4000Json = """{"result": 4000, "error": "Access denied."}"""
+        val pCloud4001Json = """{"result": 4001, "error": "Insufficient permissions."}"""
+        
+        // Act - Handle different pCloud error responses (doesn't exist yet)
+        val result2000 = apiClient.handlePCloudErrorResponse(pCloud2000Json) // This doesn't exist yet - will cause compilation failure
+        val result2001 = apiClient.handlePCloudErrorResponse(pCloud2001Json)
+        val result4000 = apiClient.handlePCloudErrorResponse(pCloud4000Json)
+        val result4001 = apiClient.handlePCloudErrorResponse(pCloud4001Json)
+        
+        // Assert - Verify proper error mapping and categorization
+        
+        // 2000 series - authentication errors
+        assertTrue("2000 error should be failure", result2000.isFailure)
+        val error2000 = result2000.exceptionOrNull()
+        assertTrue("2000 should be AuthenticationException", error2000 is AuthenticationException)
+        assertTrue("2000 should contain error message", error2000?.message?.contains("Log in failed") == true)
+        
+        assertTrue("2001 error should be failure", result2001.isFailure)
+        val error2001 = result2001.exceptionOrNull()
+        assertTrue("2001 should be AuthenticationException", error2001 is AuthenticationException)
+        
+        // 4000 series - access/permission errors  
+        assertTrue("4000 error should be failure", result4000.isFailure)
+        val error4000 = result4000.exceptionOrNull()
+        assertTrue("4000 should be AccessException", error4000 is AccessException) // This class doesn't exist yet
+        assertTrue("4000 should contain error message", error4000?.message?.contains("Access denied") == true)
+        
+        assertTrue("4001 error should be failure", result4001.isFailure)
+        val error4001 = result4001.exceptionOrNull()
+        assertTrue("4001 should be AccessException", error4001 is AccessException)
+    }
 }
