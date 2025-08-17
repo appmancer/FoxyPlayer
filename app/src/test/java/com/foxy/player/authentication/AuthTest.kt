@@ -602,7 +602,7 @@ class AuthTest {
     @Test
     fun `should automatically route to correct pCloud server - US or Europe based on user location`() {
         // Arrange - PLY-44: Automatic server routing 
-        val authRepository = AuthRepository() // No specific server - should auto-detect
+        val authRepository = AuthRepository("https://eapi.pcloud.com") // No specific server - should auto-detect
         val authToken = "routing_test_token_789"
         val userInfo = UserInfo("routing@example.com")
         
