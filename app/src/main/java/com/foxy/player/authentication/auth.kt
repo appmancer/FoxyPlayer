@@ -722,9 +722,30 @@ class SecureTokenStorage {
         return try {
             val secureStorage = getSecureStorage()
             val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
             
             secureStorage[alias] = encryptToken(token)
             expirationStorage[alias] = System.currentTimeMillis() + expirationDurationMs
+            // Clear activity timeout for fixed expiration tokens
+            activityStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun storeTokenWithActivityTimeout(alias: String, token: String, inactivityTimeoutMs: Long): Result<Unit> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            // Store inactivity timeout duration and last access time
+            activityStorage[alias] = ActivityInfo(inactivityTimeoutMs, System.currentTimeMillis())
+            // Clear fixed expiration for activity-based tokens
+            expirationStorage.remove(alias)
             
             Result.success(Unit)
         } catch (e: Exception) {
@@ -736,22 +757,40 @@ class SecureTokenStorage {
         return try {
             val secureStorage = getSecureStorage()
             val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
             
             // Check if token exists
             val encryptedToken = secureStorage[alias] 
                 ?: return Result.failure(IllegalArgumentException("Token not found for alias: $alias"))
             
-            // Check if token has expiration
-            val expirationTime = expirationStorage[alias]
-            if (expirationTime != null) {
-                // Token has expiration - check if it's expired
-                val currentTime = System.currentTimeMillis()
-                if (currentTime > expirationTime) {
+            val currentTime = System.currentTimeMillis()
+            
+            // Check if token has fixed expiration
+            val fixedExpirationTime = expirationStorage[alias]
+            if (fixedExpirationTime != null) {
+                // Token has fixed expiration - check if it's expired
+                if (currentTime > fixedExpirationTime) {
                     // Token is expired - remove it and throw exception
                     secureStorage.remove(alias)
                     expirationStorage.remove(alias)
                     return Result.failure(TokenExpiredException("Token expired for alias: $alias"))
                 }
+            }
+            
+            // Check if token has activity-based expiration
+            val activityInfo = activityStorage[alias]
+            if (activityInfo != null) {
+                // Token has activity timeout - check if it's expired due to inactivity
+                val timeSinceLastAccess = currentTime - activityInfo.lastAccessTime
+                if (timeSinceLastAccess > activityInfo.timeoutMs) {
+                    // Token is expired due to inactivity - remove it and throw exception
+                    secureStorage.remove(alias)
+                    activityStorage.remove(alias)
+                    return Result.failure(TokenExpiredException("Token expired due to inactivity for alias: $alias"))
+                }
+                
+                // Token is still valid - extend the activity timeout by updating last access time
+                activityStorage[alias] = activityInfo.copy(lastAccessTime = currentTime)
             }
             
             val decryptedToken = decryptToken(encryptedToken)
@@ -771,6 +810,17 @@ class SecureTokenStorage {
         return expirationStorage
     }
     
+    // Simulate activity timeout storage (in production, this would be part of Android Keystore metadata)
+    private fun getActivityTimeoutStorage(): MutableMap<String, ActivityInfo> {
+        return activityTimeoutStorage
+    }
+    
+    // Data class to store activity-based expiration information
+    private data class ActivityInfo(
+        val timeoutMs: Long,        // How long token stays valid without activity
+        val lastAccessTime: Long   // When token was last accessed
+    )
+    
     // Simulate encryption (in production, this would use Android Keystore encryption)
     private fun encryptToken(token: String): String {
         // Simple obfuscation for unit test (production would use real encryption)
@@ -788,5 +838,7 @@ class SecureTokenStorage {
         private val tokenStorage = mutableMapOf<String, String>()
         // Simulate expiration times storage 
         private val expirationStorage = mutableMapOf<String, Long>()
+        // Simulate activity timeout storage
+        private val activityTimeoutStorage = mutableMapOf<String, ActivityInfo>()
     }
 }

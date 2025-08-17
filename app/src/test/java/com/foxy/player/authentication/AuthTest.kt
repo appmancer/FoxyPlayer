@@ -822,4 +822,45 @@ class AuthTest {
         assertTrue("Should be TokenExpiredException", exception is TokenExpiredException) // Class doesn't exist yet
         assertTrue("Error message should mention expiration", exception?.message?.contains("expired") == true)
     }
+
+    @Test
+    fun `should handle activity-based token expiration and extend token lifetime on access`() {
+        // Arrange - PLY-43: Activity-based token expiration management
+        val testToken = "ACTIVITY_EXPIRY_TEST_TOKEN"
+        val testAlias = "activity_expiry_test_alias"
+        val inactivityTimeoutMs = 1000L // 1 second for testing
+        
+        // Create secure token storage with activity-based expiration (doesn't exist yet)
+        val secureTokenStorage = SecureTokenStorage()
+        
+        // Act - Store token with activity-based expiration
+        val storeResult = secureTokenStorage.storeTokenWithActivityTimeout(testAlias, testToken, inactivityTimeoutMs) // Method doesn't exist yet
+        
+        // Assert - Token should be stored successfully
+        assertTrue("Should successfully store token with activity timeout", storeResult.isSuccess)
+        
+        // Act - Access token after 500ms (should extend lifetime)
+        Thread.sleep(500L)
+        val firstAccess = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("First access should succeed", firstAccess.isSuccess)
+        assertEquals("Token should match", testToken, firstAccess.getOrNull())
+        
+        // Act - Access token again after another 500ms (should extend lifetime again)
+        Thread.sleep(500L) 
+        val secondAccess = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("Second access should succeed and extend lifetime", secondAccess.isSuccess)
+        assertEquals("Token should still match", testToken, secondAccess.getOrNull())
+        
+        // Act - Wait for full inactivity timeout without accessing token
+        Thread.sleep(1100L) // Wait longer than inactivity timeout
+        
+        // Act - Try to retrieve token after inactivity timeout
+        val expiredAccess = secureTokenStorage.retrieveToken(testAlias)
+        
+        // Assert - Token should be expired due to inactivity
+        assertTrue("Token should be expired after inactivity", expiredAccess.isFailure)
+        val exception = expiredAccess.exceptionOrNull()
+        assertTrue("Should be TokenExpiredException", exception is TokenExpiredException)
+        assertTrue("Error message should mention inactivity", exception?.message?.contains("inactivity") == true)
+    }
 }
