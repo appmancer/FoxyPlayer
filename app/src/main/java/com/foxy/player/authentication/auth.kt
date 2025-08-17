@@ -43,7 +43,11 @@ data class LoginScreenContent(
     val usernamePlaceholder: String,
     val passwordPlaceholder: String, 
     val loginButtonText: String,
-    val isPasswordFieldObscured: Boolean
+    val isPasswordFieldObscured: Boolean,
+    val isLoading: Boolean = false,
+    val isLoginButtonDisabled: Boolean = false,
+    val isUsernameEnabled: Boolean = true,
+    val isPasswordEnabled: Boolean = true
 )
 
 // Auth Repository
@@ -401,6 +405,8 @@ class AuthScreen {
 
 // Login Screen (PLY-45 Compose UI Layer)
 class LoginScreen {
+    private var _isLoading = false
+    
     fun content(): LoginScreenContent {
         // Minimal implementation to make the PLY-45 test pass
         return LoginScreenContent(
@@ -409,9 +415,18 @@ class LoginScreen {
             hasLoginButton = true,
             usernamePlaceholder = "Username",
             passwordPlaceholder = "Password",
-            loginButtonText = "Login",
-            isPasswordFieldObscured = true
+            loginButtonText = if (_isLoading) "Logging in..." else "Login",
+            isPasswordFieldObscured = true,
+            isLoading = _isLoading,
+            isLoginButtonDisabled = _isLoading,
+            isUsernameEnabled = !_isLoading,
+            isPasswordEnabled = !_isLoading
         )
+    }
+    
+    fun onLoginPressed(username: String, password: String) {
+        // Minimal implementation to make the loading test pass
+        _isLoading = true
     }
 }
 

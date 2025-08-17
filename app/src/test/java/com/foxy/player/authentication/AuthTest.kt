@@ -535,6 +535,27 @@ class AuthTest {
     }
 
     @Test
+    fun `should show loading state when login button is pressed`() {
+        // Arrange - Setup login screen with ability to trigger login
+        val loginScreen = LoginScreen()
+        val username = "test@example.com"
+        val password = "testpassword"
+        
+        // Act - Trigger login action (this method doesn't exist yet)
+        loginScreen.onLoginPressed(username, password) // This doesn't exist yet - will cause compilation failure
+        
+        // Get the updated screen state after login action
+        val content = loginScreen.content()
+        
+        // Assert - Verify loading state is shown during login
+        assertTrue("Should show loading indicator when login is pressed", content.isLoading)
+        assertTrue("Login button should be disabled during loading", content.isLoginButtonDisabled)
+        assertEquals("Should show loading text on button", "Logging in...", content.loginButtonText)
+        assertFalse("Username field should be disabled during loading", content.isUsernameEnabled)
+        assertFalse("Password field should be disabled during loading", content.isPasswordEnabled)
+    }
+
+    @Test
     fun `should integrate authentication state management with existing login flow`() {
         // Arrange - Setup repository and ViewModel with state management integration
         val authRepository = AuthRepository("https://eapi.pcloud.com")
