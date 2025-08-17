@@ -47,7 +47,9 @@ data class LoginScreenContent(
     val isLoading: Boolean = false,
     val isLoginButtonDisabled: Boolean = false,
     val isUsernameEnabled: Boolean = true,
-    val isPasswordEnabled: Boolean = true
+    val isPasswordEnabled: Boolean = true,
+    val hasErrorMessage: Boolean = false,
+    val errorMessage: String? = null
 )
 
 // Auth Repository
@@ -406,6 +408,7 @@ class AuthScreen {
 // Login Screen (PLY-45 Compose UI Layer)
 class LoginScreen {
     private var _isLoading = false
+    private var _errorMessage: String? = null
     
     fun content(): LoginScreenContent {
         // Minimal implementation to make the PLY-45 test pass
@@ -420,13 +423,22 @@ class LoginScreen {
             isLoading = _isLoading,
             isLoginButtonDisabled = _isLoading,
             isUsernameEnabled = !_isLoading,
-            isPasswordEnabled = !_isLoading
+            isPasswordEnabled = !_isLoading,
+            hasErrorMessage = _errorMessage != null,
+            errorMessage = _errorMessage
         )
     }
     
     fun onLoginPressed(username: String, password: String) {
         // Minimal implementation to make the loading test pass
         _isLoading = true
+        _errorMessage = null // Clear any previous error
+    }
+    
+    fun onLoginFailed(errorMessage: String) {
+        // Minimal implementation to make the error test pass
+        _isLoading = false
+        _errorMessage = errorMessage
     }
 }
 

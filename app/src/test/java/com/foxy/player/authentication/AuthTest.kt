@@ -556,6 +556,29 @@ class AuthTest {
     }
 
     @Test
+    fun `should show error message when login fails`() {
+        // Arrange - Setup login screen that can simulate login failure
+        val loginScreen = LoginScreen()
+        val invalidUsername = "invalid@example.com"
+        val invalidPassword = "wrongpassword"
+        
+        // Act - Trigger login with invalid credentials that should fail
+        loginScreen.onLoginFailed("Invalid credentials") // This method doesn't exist yet - will cause compilation failure
+        
+        // Get the updated screen state after login failure
+        val content = loginScreen.content()
+        
+        // Assert - Verify error state is shown
+        assertTrue("Should show error message when login fails", content.hasErrorMessage)
+        assertEquals("Should display correct error message", "Invalid credentials", content.errorMessage)
+        assertFalse("Should not be in loading state after error", content.isLoading)
+        assertFalse("Login button should not be disabled after error", content.isLoginButtonDisabled)
+        assertTrue("Username field should be enabled after error", content.isUsernameEnabled)
+        assertTrue("Password field should be enabled after error", content.isPasswordEnabled)
+        assertEquals("Login button should show 'Login' text after error", "Login", content.loginButtonText)
+    }
+
+    @Test
     fun `should integrate authentication state management with existing login flow`() {
         // Arrange - Setup repository and ViewModel with state management integration
         val authRepository = AuthRepository("https://eapi.pcloud.com")
