@@ -35,6 +35,28 @@ data class AuthScreenContent(
     val loginButtonText: String
 )
 
+// Login Screen Content Model (for PLY-45 Compose UI)
+data class LoginScreenContent(
+    val hasUsernameTextField: Boolean,
+    val hasPasswordTextField: Boolean,
+    val hasLoginButton: Boolean,
+    val usernamePlaceholder: String,
+    val passwordPlaceholder: String, 
+    val loginButtonText: String,
+    val isPasswordFieldObscured: Boolean,
+    val isLoading: Boolean = false,
+    val isLoginButtonDisabled: Boolean = false,
+    val isUsernameEnabled: Boolean = true,
+    val isPasswordEnabled: Boolean = true,
+    val hasErrorMessage: Boolean = false,
+    val errorMessage: String? = null,
+    val hasServerSelectionField: Boolean = true,
+    val serverPlaceholder: String = "pCloud Server (optional)",
+    val defaultServerValue: String = "api.pcloud.com",
+    val isServerFieldEnabled: Boolean = true,
+    val currentServerValue: String = "api.pcloud.com"
+)
+
 // Auth Repository
 class AuthRepository(private val baseUrl: String = "") {
     private val httpClient = OkHttpClient()
@@ -385,6 +407,54 @@ class AuthScreen {
             passwordLabel = "Password", 
             loginButtonText = "Login"
         )
+    }
+}
+
+// Login Screen (PLY-45 Compose UI Layer)
+class LoginScreen {
+    private var _isLoading = false
+    private var _errorMessage: String? = null
+    private var _currentServerValue = "api.pcloud.com"
+    
+    fun content(): LoginScreenContent {
+        // Minimal implementation to make the PLY-45 test pass
+        return LoginScreenContent(
+            hasUsernameTextField = true,
+            hasPasswordTextField = true,
+            hasLoginButton = true,
+            usernamePlaceholder = "Username",
+            passwordPlaceholder = "Password",
+            loginButtonText = if (_isLoading) "Logging in..." else "Login",
+            isPasswordFieldObscured = true,
+            isLoading = _isLoading,
+            isLoginButtonDisabled = _isLoading,
+            isUsernameEnabled = !_isLoading,
+            isPasswordEnabled = !_isLoading,
+            hasErrorMessage = _errorMessage != null,
+            errorMessage = _errorMessage,
+            hasServerSelectionField = true,
+            serverPlaceholder = "pCloud Server (optional)",
+            defaultServerValue = "api.pcloud.com",
+            isServerFieldEnabled = true,
+            currentServerValue = _currentServerValue
+        )
+    }
+    
+    fun onLoginPressed(username: String, password: String) {
+        // Minimal implementation to make the loading test pass
+        _isLoading = true
+        _errorMessage = null // Clear any previous error
+    }
+    
+    fun onLoginFailed(errorMessage: String) {
+        // Minimal implementation to make the error test pass
+        _isLoading = false
+        _errorMessage = errorMessage
+    }
+    
+    fun onServerChanged(serverValue: String) {
+        // Minimal implementation to make the server selection test pass
+        _currentServerValue = serverValue
     }
 }
 

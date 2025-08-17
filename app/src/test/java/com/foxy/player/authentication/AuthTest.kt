@@ -517,6 +517,89 @@ class AuthTest {
     }
 
     @Test
+    fun `should display login form with username and password fields`() {
+        // Arrange - Setup compose test environment for login screen
+        val loginScreen = LoginScreen() // This doesn't exist yet - will cause compilation failure
+        
+        // Act - Render the login screen composable (doesn't exist yet)
+        val content = loginScreen.content()
+        
+        // Assert - Verify UI components are present in Compose UI
+        assertTrue("Should have username text field", content.hasUsernameTextField)
+        assertTrue("Should have password text field", content.hasPasswordTextField)
+        assertTrue("Should have login button", content.hasLoginButton)
+        assertEquals("Username field should have correct placeholder", "Username", content.usernamePlaceholder)
+        assertEquals("Password field should have correct placeholder", "Password", content.passwordPlaceholder)
+        assertEquals("Login button should have correct text", "Login", content.loginButtonText)
+        assertTrue("Password field should be password type", content.isPasswordFieldObscured)
+    }
+
+    @Test
+    fun `should show loading state when login button is pressed`() {
+        // Arrange - Setup login screen with ability to trigger login
+        val loginScreen = LoginScreen()
+        val username = "test@example.com"
+        val password = "testpassword"
+        
+        // Act - Trigger login action (this method doesn't exist yet)
+        loginScreen.onLoginPressed(username, password) // This doesn't exist yet - will cause compilation failure
+        
+        // Get the updated screen state after login action
+        val content = loginScreen.content()
+        
+        // Assert - Verify loading state is shown during login
+        assertTrue("Should show loading indicator when login is pressed", content.isLoading)
+        assertTrue("Login button should be disabled during loading", content.isLoginButtonDisabled)
+        assertEquals("Should show loading text on button", "Logging in...", content.loginButtonText)
+        assertFalse("Username field should be disabled during loading", content.isUsernameEnabled)
+        assertFalse("Password field should be disabled during loading", content.isPasswordEnabled)
+    }
+
+    @Test
+    fun `should show error message when login fails`() {
+        // Arrange - Setup login screen that can simulate login failure
+        val loginScreen = LoginScreen()
+        val invalidUsername = "invalid@example.com"
+        val invalidPassword = "wrongpassword"
+        
+        // Act - Trigger login with invalid credentials that should fail
+        loginScreen.onLoginFailed("Invalid credentials") // This method doesn't exist yet - will cause compilation failure
+        
+        // Get the updated screen state after login failure
+        val content = loginScreen.content()
+        
+        // Assert - Verify error state is shown
+        assertTrue("Should show error message when login fails", content.hasErrorMessage)
+        assertEquals("Should display correct error message", "Invalid credentials", content.errorMessage)
+        assertFalse("Should not be in loading state after error", content.isLoading)
+        assertFalse("Login button should not be disabled after error", content.isLoginButtonDisabled)
+        assertTrue("Username field should be enabled after error", content.isUsernameEnabled)
+        assertTrue("Password field should be enabled after error", content.isPasswordEnabled)
+        assertEquals("Login button should show 'Login' text after error", "Login", content.loginButtonText)
+    }
+
+    @Test
+    fun `should display server selection field for manual pCloud server configuration`() {
+        // Arrange - Setup login screen with server selection capability
+        val loginScreen = LoginScreen()
+        
+        // Act - Get the login screen content with server selection
+        val content = loginScreen.content()
+        
+        // Assert - Verify server selection UI components are present
+        assertTrue("Should have server selection field", content.hasServerSelectionField)
+        assertEquals("Server field should have correct placeholder", "pCloud Server (optional)", content.serverPlaceholder)
+        assertEquals("Server field should have default value", "api.pcloud.com", content.defaultServerValue)
+        assertTrue("Server field should be enabled", content.isServerFieldEnabled)
+        
+        // Test server selection interaction (this method doesn't exist yet)
+        loginScreen.onServerChanged("eapi.pcloud.com") // This method doesn't exist yet - will cause compilation failure
+        
+        val updatedContent = loginScreen.content()
+        assertEquals("Should update server value when changed", "eapi.pcloud.com", updatedContent.currentServerValue)
+    }
+
+    @Test
     fun `should integrate authentication state management with existing login flow`() {
         // Arrange - Setup repository and ViewModel with state management integration
         val authRepository = AuthRepository("https://eapi.pcloud.com")
