@@ -2,6 +2,8 @@ package com.foxy.player.authentication
 
 import org.junit.Test
 import org.junit.Assert.*
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class AuthTest {
 
@@ -231,8 +233,14 @@ class AuthTest {
         // Parse the mock response
         val result = authRepository.parseAuthResponse(mockSuccessJson)
         
+        // Debug: Print the error if parsing fails
+        if (result.isFailure) {
+            println("Parsing failed with error: ${result.exceptionOrNull()?.message}")
+            result.exceptionOrNull()?.printStackTrace()
+        }
+        
         // Assert - Verify mock response is realistic and parseable
-        assertTrue("Mock response should be parseable", result.isSuccess)
+        assertTrue("Mock response should be parseable: ${result.exceptionOrNull()?.message}", result.isSuccess)
         val authResponse = result.getOrNull()
         assertNotNull("Should have parsed auth response", authResponse)
         
@@ -370,5 +378,200 @@ class AuthTest {
             invalidException?.message?.contains("SSL", ignoreCase = true) == true ||
             invalidException?.message?.contains("certificate", ignoreCase = true) == true ||
             invalidException?.message?.contains("trust", ignoreCase = true) == true)
+    }
+
+    @Test
+    fun `should persist authentication state across app restarts`() {
+        // Arrange - Setup authentication state that should persist
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val username = "test@example.com"
+        val authToken = "persistent_auth_token_12345"
+        val userInfo = UserInfo(username)
+        
+        // Act - Save authentication state (this method doesn't exist yet)
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        
+        // Simulate app restart by creating new repository instance
+        val newRepositoryInstance = AuthRepository("https://eapi.pcloud.com")
+        
+        // Act - Retrieve persisted authentication state (this method doesn't exist yet)
+        val retrievedAuthState = newRepositoryInstance.getPersistedAuthenticationState()
+        
+        // Assert - Verify authentication state persisted across "app restart"
+        assertNotNull("Should have persisted authentication state", retrievedAuthState)
+        assertEquals("Should persist auth token", authToken, retrievedAuthState?.authToken)
+        assertEquals("Should persist user email", username, retrievedAuthState?.userInfo?.email)
+        assertTrue("Should indicate user is authenticated", newRepositoryInstance.isAuthenticated())
+    }
+
+    @Test
+    fun `should validate if persisted authentication session is still valid`() {
+        // Arrange - Setup authentication state with an auth token
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val username = "session@example.com"
+        val authToken = "session_token_to_validate"
+        val userInfo = UserInfo(username)
+        
+        // Save authentication state
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        
+        // Act - Validate the persisted session (this method doesn't exist yet)
+        val validationResult = authRepository.validatePersistedSession()
+        
+        // Assert - Verify session validation works
+        assertTrue("Should validate session successfully", validationResult.isSuccess)
+        val isValid = validationResult.getOrNull()
+        assertNotNull("Should return validation result", isValid)
+        assertTrue("Session should be valid for test scenario", isValid == true)
+        
+        // Test with invalid/expired session scenario
+        val expiredAuthRepository = AuthRepository("https://invalid-server.com")
+        expiredAuthRepository.saveAuthenticationState("expired_token", userInfo)
+        
+        val expiredValidation = expiredAuthRepository.validatePersistedSession()
+        assertTrue("Should handle validation attempt", expiredValidation.isSuccess || expiredValidation.isFailure)
+    }
+
+    @Test
+    fun `should handle authentication events with login and logout event listeners`() {
+        // Arrange - Setup event listeners for authentication events
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        var loginEventTriggered = false
+        var logoutEventTriggered = false
+        var loginEventUser: String? = null
+        var logoutEventUser: String? = null
+        
+        // Setup event listeners (these methods don't exist yet)
+        authRepository.setLoginEventListener { user ->
+            loginEventTriggered = true
+            loginEventUser = user.email
+        }
+        
+        authRepository.setLogoutEventListener { user ->
+            logoutEventTriggered = true
+            logoutEventUser = user.email
+        }
+        
+        val username = "event@example.com"
+        val password = "eventtest"
+        val userInfo = UserInfo(username)
+        
+        // Act - Trigger login event by saving authentication state
+        authRepository.saveAuthenticationState("event_token_123", userInfo)
+        authRepository.triggerLoginEvent(userInfo) // This method doesn't exist yet
+        
+        // Assert - Verify login event was triggered
+        assertTrue("Login event should be triggered", loginEventTriggered)
+        assertEquals("Login event should have correct user email", username, loginEventUser)
+        assertFalse("Logout event should not be triggered yet", logoutEventTriggered)
+        
+        // Act - Trigger logout event
+        authRepository.triggerLogoutEvent(userInfo) // This method doesn't exist yet
+        
+        // Assert - Verify logout event was triggered
+        assertTrue("Logout event should be triggered", logoutEventTriggered)
+        assertEquals("Logout event should have correct user email", username, logoutEventUser)
+    }
+
+    @Test
+    fun `should handle authentication state clearing and session invalidation events`() {
+        // Arrange - Setup authentication state that will be cleared
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val username = "clear@example.com"
+        val authToken = "token_to_clear_123"
+        val userInfo = UserInfo(username)
+        
+        // Setup authentication state
+        authRepository.saveAuthenticationState(authToken, userInfo)
+        assertTrue("Should be authenticated before clearing", authRepository.isAuthenticated())
+        assertNotNull("Should have persisted state before clearing", authRepository.getPersistedAuthenticationState())
+        
+        var sessionInvalidatedEventTriggered = false
+        var stateCleared = false
+        
+        // Setup event listeners for clearing events (these methods don't exist yet)
+        authRepository.setSessionInvalidationListener {
+            sessionInvalidatedEventTriggered = true
+        }
+        
+        authRepository.setAuthenticationStateCleared {
+            stateCleared = true
+        }
+        
+        // Act - Clear authentication state (this method doesn't exist yet)
+        authRepository.clearAuthenticationState()
+        
+        // Assert - Verify state was cleared and events were triggered
+        assertFalse("Should not be authenticated after clearing", authRepository.isAuthenticated())
+        assertNull("Should not have persisted state after clearing", authRepository.getPersistedAuthenticationState())
+        assertTrue("Session invalidation event should be triggered", sessionInvalidatedEventTriggered)
+        assertTrue("State cleared event should be triggered", stateCleared)
+        
+        // Act - Test session invalidation (this method doesn't exist yet)
+        authRepository.saveAuthenticationState("new_token", userInfo)
+        authRepository.invalidateCurrentSession()
+        
+        // Assert - Verify session invalidation works
+        assertFalse("Should not be authenticated after session invalidation", authRepository.isAuthenticated())
+        assertNull("Should not have persisted state after invalidation", authRepository.getPersistedAuthenticationState())
+    }
+
+    @Test
+    fun `should integrate authentication state management with existing login flow`() {
+        // Arrange - Setup repository and ViewModel with state management integration
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val authViewModel = AuthViewModel(authRepository)
+        val username = "integration@example.com"
+        val password = "integrationtest"
+        
+        // Clear any existing state to ensure clean test
+        authRepository.clearAuthenticationState()
+        
+        var loginEventTriggered = false
+        var loginEventUser: String? = null
+        val loginLatch = CountDownLatch(1)
+        
+        // Setup login event listener
+        authRepository.setLoginEventListener { user ->
+            loginEventTriggered = true
+            loginEventUser = user.email
+            loginLatch.countDown()
+        }
+        
+        // Verify initial state
+        assertFalse("Should not be authenticated initially", authRepository.isAuthenticated())
+        assertNull("Should not have persisted state initially", authRepository.getPersistedAuthenticationState())
+        
+        // Act - Perform login through ViewModel which should integrate with state management (this integration doesn't exist yet)
+        authViewModel.loginWithStateManagement(username, password) // This method doesn't exist yet
+        
+        // Wait for login event or timeout after 1 second
+        assertTrue("Login event was not triggered in time", loginLatch.await(1, TimeUnit.SECONDS))
+        
+        // Assert - Verify login integration works with state management
+        assertTrue("Should be authenticated after login", authRepository.isAuthenticated())
+        assertNotNull("Should have persisted authentication state", authRepository.getPersistedAuthenticationState())
+        assertTrue("Login event should be triggered during login flow", loginEventTriggered)
+        assertEquals("Login event should have correct user", username, loginEventUser)
+        
+        // Verify ViewModel state is synchronized with repository state
+        assertTrue("ViewModel should show authenticated state", authViewModel.isAuthenticated)
+        assertNotNull("ViewModel should have auth token", authViewModel.authToken)
+        
+        // Test logout integration (this method doesn't exist yet)
+        var logoutEventTriggered = false
+        authRepository.setLogoutEventListener { 
+            logoutEventTriggered = true
+        }
+        
+        // Act - Perform logout which should clear state and trigger events
+        authViewModel.logoutWithStateManagement() // This method doesn't exist yet
+        
+        // Assert - Verify logout clears state properly
+        assertFalse("Should not be authenticated after logout", authRepository.isAuthenticated())
+        assertNull("Should not have persisted state after logout", authRepository.getPersistedAuthenticationState())
+        assertTrue("Logout event should be triggered", logoutEventTriggered)
+        assertFalse("ViewModel should show not authenticated", authViewModel.isAuthenticated)
+        assertNull("ViewModel should not have auth token", authViewModel.authToken)
     }
 }

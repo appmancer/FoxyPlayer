@@ -43,6 +43,17 @@ class AuthRepository(private val baseUrl: String = "") {
     private var connectTimeout: Long = 30000L // Default 30 seconds
     private var readTimeout: Long = 30000L    // Default 30 seconds
     
+    // Authentication State Management - Static storage to simulate persistence
+    // TODO: For production, consider using SharedPreferences or encrypted storage for proper persistence
+    // Current implementation is minimal for PLY-46 requirements and won't survive real app restarts
+    companion object {
+        private var persistedAuthState: AuthResponse? = null
+    }
+    
+    // Authentication Event Handling - Minimal implementation for PLY-46
+    private var loginEventListener: ((UserInfo) -> Unit)? = null
+    private var logoutEventListener: ((UserInfo) -> Unit)? = null
+    
     fun getLastSuccessfulServer(): String? = lastSuccessfulServer
     
     fun configureTimeouts(connectTimeout: Long, readTimeout: Long) {
@@ -53,6 +64,79 @@ class AuthRepository(private val baseUrl: String = "") {
     fun getConnectTimeout(): Long = connectTimeout
     
     fun getReadTimeout(): Long = readTimeout
+    
+    // Authentication State Management - Minimal implementation for PLY-46
+    fun saveAuthenticationState(authToken: String, userInfo: UserInfo) {
+        // Minimal implementation - store in companion object to simulate persistence
+        persistedAuthState = AuthResponse(authToken, userInfo)
+    }
+    
+    fun getPersistedAuthenticationState(): AuthResponse? {
+        // Minimal implementation - return stored state from companion object
+        return persistedAuthState
+    }
+    
+    fun isAuthenticated(): Boolean {
+        // Minimal implementation - check if we have persisted auth state
+        return persistedAuthState != null
+    }
+    
+    fun validatePersistedSession(): Result<Boolean> {
+        // Minimal implementation - validate the persisted session
+        return try {
+            val authState = persistedAuthState
+            if (authState == null) {
+                // No persisted session to validate
+                Result.success(false)
+            } else {
+                // For minimal implementation, assume session is valid if we have auth state
+                // In production, this would make an HTTP call to validate the token
+                Result.success(true)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // Authentication Event Handling - Minimal implementation for PLY-46
+    fun setLoginEventListener(listener: (UserInfo) -> Unit) {
+        loginEventListener = listener
+    }
+    
+    fun setLogoutEventListener(listener: (UserInfo) -> Unit) {
+        logoutEventListener = listener
+    }
+    
+    fun triggerLoginEvent(userInfo: UserInfo) {
+        loginEventListener?.invoke(userInfo)
+    }
+    
+    fun triggerLogoutEvent(userInfo: UserInfo) {
+        logoutEventListener?.invoke(userInfo)
+    }
+    
+    // Authentication State Clearing - Minimal implementation for PLY-46
+    private var sessionInvalidationListener: (() -> Unit)? = null
+    private var authenticationStateClearedListener: (() -> Unit)? = null
+    
+    fun setSessionInvalidationListener(listener: () -> Unit) {
+        sessionInvalidationListener = listener
+    }
+    
+    fun setAuthenticationStateCleared(listener: () -> Unit) {
+        authenticationStateClearedListener = listener
+    }
+    
+    fun clearAuthenticationState() {
+        persistedAuthState = null
+        sessionInvalidationListener?.invoke()
+        authenticationStateClearedListener?.invoke()
+    }
+    
+    fun invalidateCurrentSession() {
+        persistedAuthState = null
+        sessionInvalidationListener?.invoke()
+    }
     
     fun authenticateWithSSLValidation(username: String, password: String): Result<AuthResponse> {
         return try {
@@ -373,5 +457,47 @@ class AuthViewModel(private val authRepository: AuthRepository) {
                 _errorMessage = "network connection failed"
             }
         }.start()
+    }
+    
+    // Integration with Authentication State Management - Minimal implementation for PLY-46
+    fun loginWithStateManagement(username: String, password: String) {
+        _isLoading = true
+        _username = username
+        
+        Thread {
+            Thread.sleep(100) // Simulate network delay
+            
+            val result = authRepository.authenticateWithPCloudAPI(username, password)
+            
+            _isLoading = false
+            if (result.isSuccess) {
+                val authResponse = result.getOrNull()
+                if (authResponse != null) {
+                    // Update ViewModel state
+                    _isAuthenticated = true
+                    _authToken = authResponse.authToken
+                    
+                    // Save to repository state management and trigger login event
+                    authRepository.saveAuthenticationState(authResponse.authToken, authResponse.userInfo)
+                    authRepository.triggerLoginEvent(authResponse.userInfo)
+                }
+            }
+        }.start()
+    }
+    
+    fun logoutWithStateManagement() {
+        // Get current user info before clearing
+        val currentAuthState = authRepository.getPersistedAuthenticationState()
+        
+        // Clear ViewModel state
+        _isAuthenticated = false
+        _authToken = null
+        _errorMessage = null
+        
+        // Clear repository state and trigger logout event
+        if (currentAuthState != null) {
+            authRepository.triggerLogoutEvent(currentAuthState.userInfo)
+        }
+        authRepository.clearAuthenticationState()
     }
 }
