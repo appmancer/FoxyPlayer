@@ -579,6 +579,27 @@ class AuthTest {
     }
 
     @Test
+    fun `should display server selection field for manual pCloud server configuration`() {
+        // Arrange - Setup login screen with server selection capability
+        val loginScreen = LoginScreen()
+        
+        // Act - Get the login screen content with server selection
+        val content = loginScreen.content()
+        
+        // Assert - Verify server selection UI components are present
+        assertTrue("Should have server selection field", content.hasServerSelectionField)
+        assertEquals("Server field should have correct placeholder", "pCloud Server (optional)", content.serverPlaceholder)
+        assertEquals("Server field should have default value", "api.pcloud.com", content.defaultServerValue)
+        assertTrue("Server field should be enabled", content.isServerFieldEnabled)
+        
+        // Test server selection interaction (this method doesn't exist yet)
+        loginScreen.onServerChanged("eapi.pcloud.com") // This method doesn't exist yet - will cause compilation failure
+        
+        val updatedContent = loginScreen.content()
+        assertEquals("Should update server value when changed", "eapi.pcloud.com", updatedContent.currentServerValue)
+    }
+
+    @Test
     fun `should integrate authentication state management with existing login flow`() {
         // Arrange - Setup repository and ViewModel with state management integration
         val authRepository = AuthRepository("https://eapi.pcloud.com")

@@ -49,7 +49,12 @@ data class LoginScreenContent(
     val isUsernameEnabled: Boolean = true,
     val isPasswordEnabled: Boolean = true,
     val hasErrorMessage: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val hasServerSelectionField: Boolean = true,
+    val serverPlaceholder: String = "pCloud Server (optional)",
+    val defaultServerValue: String = "api.pcloud.com",
+    val isServerFieldEnabled: Boolean = true,
+    val currentServerValue: String = "api.pcloud.com"
 )
 
 // Auth Repository
@@ -409,6 +414,7 @@ class AuthScreen {
 class LoginScreen {
     private var _isLoading = false
     private var _errorMessage: String? = null
+    private var _currentServerValue = "api.pcloud.com"
     
     fun content(): LoginScreenContent {
         // Minimal implementation to make the PLY-45 test pass
@@ -425,7 +431,12 @@ class LoginScreen {
             isUsernameEnabled = !_isLoading,
             isPasswordEnabled = !_isLoading,
             hasErrorMessage = _errorMessage != null,
-            errorMessage = _errorMessage
+            errorMessage = _errorMessage,
+            hasServerSelectionField = true,
+            serverPlaceholder = "pCloud Server (optional)",
+            defaultServerValue = "api.pcloud.com",
+            isServerFieldEnabled = true,
+            currentServerValue = _currentServerValue
         )
     }
     
@@ -439,6 +450,11 @@ class LoginScreen {
         // Minimal implementation to make the error test pass
         _isLoading = false
         _errorMessage = errorMessage
+    }
+    
+    fun onServerChanged(serverValue: String) {
+        // Minimal implementation to make the server selection test pass
+        _currentServerValue = serverValue
     }
 }
 
