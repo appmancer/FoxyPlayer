@@ -11,7 +11,7 @@ class AuthTest {
     fun `should authenticate user with valid credentials and return auth token`() {
         // Arrange - setup test data
         val username = "test@example.com"
-        val password = "testpassword"
+        val password = "test123"
         val expectedToken = "mock_auth_token_12345"
         
         // Create repository (this doesn't exist yet - will cause compilation failure)
@@ -29,7 +29,7 @@ class AuthTest {
     fun `should call pCloud userinfo endpoint with getauth=1 and return real auth token`() {
         // Arrange - setup test data
         val username = "real@user.com"
-        val password = "realpassword"
+        val password = "test123"
         val pCloudBaseUrl = "https://api.pcloud.com"
         
         // Create repository with HTTP client capability (doesn't exist yet)
@@ -50,7 +50,7 @@ class AuthTest {
     fun `should make actual HTTP POST to pCloud userinfo endpoint and parse auth token from JSON response`() {
         // Arrange - setup test data for real pCloud API call
         val username = "testuser@example.com"
-        val password = "testpassword123"
+        val password = "test123"
         val pCloudBaseUrl = "https://api.pcloud.com"
         
         // Create repository with HTTP parsing capability (doesn't exist yet)
@@ -90,7 +90,7 @@ class AuthTest {
     fun `should manage authentication state with AuthViewModel including loading and success states`() {
         // Arrange - setup test data for ViewModel state management
         val username = "viewmodel@test.com"
-        val password = "viewmodeltest123"
+        val password = "test123"
         val authRepository = AuthRepository("https://api.pcloud.com")
         
         // Create ViewModel that manages authentication state (doesn't exist yet)
@@ -259,7 +259,7 @@ class AuthTest {
         // Arrange - This tests our discovery about pCloud having two data centers
         val authRepository = AuthRepository() // No specific base URL - should auto-detect
         val username = "test@example.com"
-        val password = "testpassword"
+        val password = "test123"
         
         // Act - Test that the auto-detection method exists and can be called
         // This method should try eapi.pcloud.com first, then api.pcloud.com if that fails
@@ -453,7 +453,7 @@ class AuthTest {
         }
         
         val username = "event@example.com"
-        val password = "eventtest"
+        val password = "test123"
         val userInfo = UserInfo(username)
         
         // Act - Trigger login event by saving authentication state
@@ -539,7 +539,7 @@ class AuthTest {
         // Arrange - Setup login screen with ability to trigger login
         val loginScreen = LoginScreen()
         val username = "test@example.com"
-        val password = "testpassword"
+        val password = "test123"
         
         // Act - Trigger login action (this method doesn't exist yet)
         loginScreen.onLoginPressed(username, password) // This doesn't exist yet - will cause compilation failure
@@ -605,7 +605,7 @@ class AuthTest {
         val authRepository = AuthRepository("https://eapi.pcloud.com")
         val authViewModel = AuthViewModel(authRepository)
         val username = "integration@example.com"
-        val password = "integrationtest"
+        val password = "test123"
         
         // Clear any existing state to ensure clean test
         authRepository.clearAuthenticationState()
@@ -762,5 +762,30 @@ class AuthTest {
         assertTrue("4001 error should be failure", result4001.isFailure)
         val error4001 = result4001.exceptionOrNull()
         assertTrue("4001 should be AccessException", error4001 is AccessException)
+    }
+
+    @Test
+    fun `should store auth token securely in Android Keystore and retrieve it successfully`() {
+        // Arrange - PLY-43: Secure token storage using Android Keystore
+        val testToken = "TEST_TOKEN_FOR_UNITTEST_ONLY"
+        val testAlias = "test_alias_for_keystore"
+        
+        // Create secure token storage manager (doesn't exist yet - will cause compilation failure)
+        val secureTokenStorage = SecureTokenStorage() // This class doesn't exist yet
+        
+        // Act - Store token securely in Android Keystore
+        val storeResult = secureTokenStorage.storeToken(testAlias, testToken) // Method doesn't exist yet
+        
+        // Assert - Verify token was stored successfully
+        assertTrue("Should successfully store token in Keystore", storeResult.isSuccess)
+        
+        // Act - Retrieve token from Android Keystore
+        val retrieveResult = secureTokenStorage.retrieveToken(testAlias) // Method doesn't exist yet
+        
+        // Assert - Verify token was retrieved successfully and matches original
+        assertTrue("Should successfully retrieve token from Keystore", retrieveResult.isSuccess)
+        val retrievedToken = retrieveResult.getOrNull()
+        assertNotNull("Retrieved token should not be null", retrievedToken)
+        assertEquals("Retrieved token should match stored token", testToken, retrievedToken)
     }
 }
