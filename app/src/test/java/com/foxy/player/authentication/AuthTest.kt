@@ -863,4 +863,61 @@ class AuthTest {
         assertTrue("Should be TokenExpiredException", exception is TokenExpiredException)
         assertTrue("Error message should mention inactivity", exception?.message?.contains("inactivity") == true)
     }
+
+    @Test
+    fun `should refresh tokens automatically before expiration`() {
+        // Arrange - PLY-43: Token refresh mechanism
+        val testToken = "TOKEN_TO_REFRESH_12345"
+        val refreshedToken = "REFRESHED_TOKEN_67890"
+        val testAlias = "refresh_test_alias"
+        val expirationDurationMs = 2000L // 2 seconds for testing
+        val refreshThresholdMs = 500L // Refresh when 500ms before expiration
+        
+        // Create secure token storage with refresh capability (doesn't exist yet)
+        val secureTokenStorage = SecureTokenStorage()
+        
+        // Mock refresh function that returns new token
+        val refreshFunction: (String) -> Result<String> = { oldToken ->
+            if (oldToken == testToken) {
+                Result.success(refreshedToken)
+            } else {
+                Result.failure(Exception("Invalid token for refresh"))
+            }
+        }
+        
+        // Act - Store token with automatic refresh capability
+        val storeResult = secureTokenStorage.storeTokenWithAutoRefresh(
+            testAlias, 
+            testToken, 
+            expirationDurationMs, 
+            refreshThresholdMs,
+            refreshFunction
+        ) // Method doesn't exist yet - will cause compilation failure
+        
+        // Assert - Token should be stored successfully
+        assertTrue("Should successfully store token with auto-refresh", storeResult.isSuccess)
+        
+        // Act - Wait until near expiration time (but before refresh threshold)
+        Thread.sleep(1200L) // Wait 1.2 seconds (before 1.5s refresh threshold)
+        
+        // Act - Access token which should still be original
+        val preRefreshAccess = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("Should retrieve original token before refresh", preRefreshAccess.isSuccess)
+        assertEquals("Should still have original token", testToken, preRefreshAccess.getOrNull())
+        
+        // Act - Wait until refresh threshold is reached
+        Thread.sleep(400L) // Total 1.6 seconds - should trigger refresh
+        
+        // Act - Access token which should trigger automatic refresh
+        val postRefreshAccess = secureTokenStorage.retrieveToken(testAlias)
+        
+        // Assert - Should get refreshed token
+        assertTrue("Should successfully retrieve refreshed token", postRefreshAccess.isSuccess)
+        assertEquals("Should have refreshed token", refreshedToken, postRefreshAccess.getOrNull())
+        
+        // Act - Verify token remains valid after refresh
+        val confirmRefresh = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("Refreshed token should remain valid", confirmRefresh.isSuccess)
+        assertEquals("Should consistently return refreshed token", refreshedToken, confirmRefresh.getOrNull())
+    }
 }

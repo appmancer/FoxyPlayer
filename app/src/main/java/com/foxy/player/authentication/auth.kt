@@ -753,11 +753,38 @@ class SecureTokenStorage {
         }
     }
     
+    fun storeTokenWithAutoRefresh(
+        alias: String, 
+        token: String, 
+        expirationDurationMs: Long, 
+        refreshThresholdMs: Long,
+        refreshFunction: (String) -> Result<String>
+    ): Result<Unit> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
+            val refreshStorage = getRefreshStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            expirationStorage[alias] = System.currentTimeMillis() + expirationDurationMs
+            // Store refresh configuration
+            refreshStorage[alias] = RefreshInfo(refreshThresholdMs, refreshFunction)
+            // Clear activity timeout for auto-refresh tokens
+            activityStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
     fun retrieveToken(alias: String): Result<String> {
         return try {
             val secureStorage = getSecureStorage()
             val expirationStorage = getExpirationStorage()
             val activityStorage = getActivityTimeoutStorage()
+            val refreshStorage = getRefreshStorage()
             
             // Check if token exists
             val encryptedToken = secureStorage[alias] 
@@ -768,12 +795,36 @@ class SecureTokenStorage {
             // Check if token has fixed expiration
             val fixedExpirationTime = expirationStorage[alias]
             if (fixedExpirationTime != null) {
-                // Token has fixed expiration - check if it's expired
-                if (currentTime > fixedExpirationTime) {
-                    // Token is expired - remove it and throw exception
-                    secureStorage.remove(alias)
-                    expirationStorage.remove(alias)
-                    return Result.failure(TokenExpiredException("Token expired for alias: $alias"))
+                // Check if token has auto-refresh capability
+                val refreshInfo = refreshStorage[alias]
+                if (refreshInfo != null) {
+                    // Token has auto-refresh - check if we need to refresh
+                    val timeUntilExpiration = fixedExpirationTime - currentTime
+                    if (timeUntilExpiration <= refreshInfo.refreshThresholdMs) {
+                        // Need to refresh token
+                        val currentToken = decryptToken(encryptedToken)
+                        val refreshResult = refreshInfo.refreshFunction(currentToken)
+                        
+                        if (refreshResult.isSuccess) {
+                            val newToken = refreshResult.getOrNull()!!
+                            // Store refreshed token with new expiration (same duration as original)
+                            secureStorage[alias] = encryptToken(newToken)
+                            expirationStorage[alias] = currentTime + (fixedExpirationTime - (currentTime - refreshInfo.refreshThresholdMs))
+                            
+                            return Result.success(newToken)
+                        } else {
+                            // Refresh failed - return failure
+                            return Result.failure(Exception("Token refresh failed: ${refreshResult.exceptionOrNull()?.message}"))
+                        }
+                    }
+                } else {
+                    // Token has fixed expiration without auto-refresh - check if it's expired
+                    if (currentTime > fixedExpirationTime) {
+                        // Token is expired - remove it and throw exception
+                        secureStorage.remove(alias)
+                        expirationStorage.remove(alias)
+                        return Result.failure(TokenExpiredException("Token expired for alias: $alias"))
+                    }
                 }
             }
             
@@ -815,10 +866,21 @@ class SecureTokenStorage {
         return activityTimeoutStorage
     }
     
+    // Simulate refresh storage (in production, this would be part of Android Keystore metadata)
+    private fun getRefreshStorage(): MutableMap<String, RefreshInfo> {
+        return refreshStorage
+    }
+    
     // Data class to store activity-based expiration information
     private data class ActivityInfo(
         val timeoutMs: Long,        // How long token stays valid without activity
         val lastAccessTime: Long   // When token was last accessed
+    )
+    
+    // Data class to store auto-refresh information
+    private data class RefreshInfo(
+        val refreshThresholdMs: Long,                           // When to trigger refresh before expiration
+        val refreshFunction: (String) -> Result<String>        // Function to call for token refresh
     )
     
     // Simulate encryption (in production, this would use Android Keystore encryption)
@@ -840,5 +902,7 @@ class SecureTokenStorage {
         private val expirationStorage = mutableMapOf<String, Long>()
         // Simulate activity timeout storage
         private val activityTimeoutStorage = mutableMapOf<String, ActivityInfo>()
+        // Simulate refresh configuration storage
+        private val refreshStorage = mutableMapOf<String, RefreshInfo>()
     }
 }
