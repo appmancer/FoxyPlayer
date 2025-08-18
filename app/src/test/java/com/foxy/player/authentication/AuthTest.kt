@@ -920,4 +920,64 @@ class AuthTest {
         assertTrue("Refreshed token should remain valid", confirmRefresh.isSuccess)
         assertEquals("Should consistently return refreshed token", refreshedToken, confirmRefresh.getOrNull())
     }
+
+    @Test
+    fun `should validate token integrity and authenticity before returning it`() {
+        // Arrange - PLY-43: Token validation functionality  
+        val validToken = "VALID_TOKEN_12345"
+        val corruptedToken = "CORRUPTED_TOKEN_67890"
+        val testAlias = "validation_test_alias"
+        
+        // Create secure token storage with validation capability (doesn't exist yet)
+        val secureTokenStorage = SecureTokenStorage()
+        
+        // Mock validation function that checks token authenticity
+        val validationFunction: (String) -> Boolean = { token ->
+            // Simulate validation logic (in production, this would check signatures, checksums, etc.)
+            token.contains("VALID") && token.length >= 10
+        }
+        
+        // Act - Store valid token with validation (method doesn't exist yet)
+        val storeValidResult = secureTokenStorage.storeTokenWithValidation(
+            testAlias + "_valid", 
+            validToken, 
+            validationFunction
+        ) // Method doesn't exist yet - will cause compilation failure
+        
+        // Assert - Valid token should be stored successfully
+        assertTrue("Should successfully store valid token", storeValidResult.isSuccess)
+        
+        // Act - Try to store corrupted token with validation  
+        val storeCorruptedResult = secureTokenStorage.storeTokenWithValidation(
+            testAlias + "_corrupted",
+            corruptedToken,
+            validationFunction
+        )
+        
+        // Assert - Corrupted token should be rejected during storage
+        assertTrue("Should reject corrupted token during storage", storeCorruptedResult.isFailure)
+        val storeException = storeCorruptedResult.exceptionOrNull()
+        assertTrue("Should be TokenValidationException", storeException is TokenValidationException) // Class doesn't exist yet
+        assertTrue("Error should mention validation failure", storeException?.message?.contains("validation") == true)
+        
+        // Act - Retrieve valid token (should validate before returning)
+        val retrieveValidResult = secureTokenStorage.retrieveToken(testAlias + "_valid")
+        
+        // Assert - Valid token should be retrieved successfully after validation
+        assertTrue("Should retrieve valid token after validation", retrieveValidResult.isSuccess)
+        assertEquals("Should return valid token", validToken, retrieveValidResult.getOrNull())
+        
+        // Act - Simulate token corruption in storage (e.g., bit flip)
+        // In production, this could happen due to storage corruption, memory errors, etc.
+        secureTokenStorage.simulateTokenCorruption(testAlias + "_valid") // Method doesn't exist yet
+        
+        // Act - Try to retrieve corrupted token
+        val retrieveCorruptedResult = secureTokenStorage.retrieveToken(testAlias + "_valid")
+        
+        // Assert - Corrupted token should be detected and rejected during retrieval
+        assertTrue("Should detect and reject corrupted token", retrieveCorruptedResult.isFailure)
+        val retrieveException = retrieveCorruptedResult.exceptionOrNull()
+        assertTrue("Should be TokenValidationException", retrieveException is TokenValidationException)
+        assertTrue("Error should mention corruption", retrieveException?.message?.contains("validation") == true)
+    }
 }

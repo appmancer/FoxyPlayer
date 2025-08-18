@@ -12,6 +12,7 @@ import javax.net.ssl.SSLHandshakeException
 class AuthenticationException(message: String) : Exception(message)
 class AccessException(message: String) : Exception(message) // PLY-44: For 4000 series errors
 class TokenExpiredException(message: String) : Exception(message) // PLY-43: For expired tokens
+class TokenValidationException(message: String) : Exception(message) // PLY-43: For invalid tokens
 
 // Auth Models
 data class AuthToken(val token: String)
@@ -779,12 +780,46 @@ class SecureTokenStorage {
         }
     }
     
+    fun storeTokenWithValidation(
+        alias: String,
+        token: String,
+        validationFunction: (String) -> Boolean
+    ): Result<Unit> {
+        return try {
+            // Validate token before storing
+            if (!validationFunction(token)) {
+                return Result.failure(TokenValidationException("Token validation failed for alias: $alias"))
+            }
+            
+            val secureStorage = getSecureStorage()
+            val validationStorage = getValidationStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            // Store validation function for later use
+            validationStorage[alias] = validationFunction
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun simulateTokenCorruption(alias: String) {
+        // Simulate token corruption by completely replacing the encrypted token with garbage
+        val secureStorage = getSecureStorage()
+        if (secureStorage.containsKey(alias)) {
+            // Replace with corrupted data that will decrypt to something that fails validation
+            secureStorage[alias] = "CORRUPTED_DATA_THAT_FAILS_VALIDATION_ENCRYPTED"
+        }
+    }
+    
     fun retrieveToken(alias: String): Result<String> {
         return try {
             val secureStorage = getSecureStorage()
             val expirationStorage = getExpirationStorage()
             val activityStorage = getActivityTimeoutStorage()
             val refreshStorage = getRefreshStorage()
+            val validationStorage = getValidationStorage()
             
             // Check if token exists
             val encryptedToken = secureStorage[alias] 
@@ -844,7 +879,26 @@ class SecureTokenStorage {
                 activityStorage[alias] = activityInfo.copy(lastAccessTime = currentTime)
             }
             
-            val decryptedToken = decryptToken(encryptedToken)
+            val decryptedToken = try {
+                decryptToken(encryptedToken)
+            } catch (e: Exception) {
+                // Decryption failed - token is corrupted
+                secureStorage.remove(alias)
+                return Result.failure(TokenValidationException("Token decryption failed for alias: $alias - token may be corrupted"))
+            }
+            
+            // Check if token has validation requirements
+            val validationFunction = validationStorage[alias]
+            if (validationFunction != null) {
+                // Validate token before returning
+                if (!validationFunction(decryptedToken)) {
+                    // Token validation failed - remove it and throw exception
+                    secureStorage.remove(alias)
+                    validationStorage.remove(alias)
+                    return Result.failure(TokenValidationException("Token validation failed for alias: $alias"))
+                }
+            }
+            
             Result.success(decryptedToken)
         } catch (e: Exception) {
             Result.failure(e)
@@ -869,6 +923,11 @@ class SecureTokenStorage {
     // Simulate refresh storage (in production, this would be part of Android Keystore metadata)
     private fun getRefreshStorage(): MutableMap<String, RefreshInfo> {
         return refreshStorage
+    }
+    
+    // Simulate validation storage (in production, this would be part of Android Keystore metadata)
+    private fun getValidationStorage(): MutableMap<String, (String) -> Boolean> {
+        return validationStorage
     }
     
     // Data class to store activity-based expiration information
@@ -904,5 +963,7 @@ class SecureTokenStorage {
         private val activityTimeoutStorage = mutableMapOf<String, ActivityInfo>()
         // Simulate refresh configuration storage
         private val refreshStorage = mutableMapOf<String, RefreshInfo>()
+        // Simulate validation function storage
+        private val validationStorage = mutableMapOf<String, (String) -> Boolean>()
     }
 }
