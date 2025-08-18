@@ -1,0 +1,11 @@
+{
+  "cycle": 1,
+  "phase": "red",
+  "timestamp": "$(date -Iseconds)",
+  "test_description": "should authenticate with username and password using digest authentication for non-SSL endpoints",
+  "test_file": "app/src/test/java/com/foxy/player/authentication/AuthTest.kt",
+  "test_result": "FAILED - method authenticateWithDigest does not exist",
+  "error_message": "Unresolved reference 'authenticateWithDigest'",
+  "requirement": "PLY-42: Implement digest authentication for non-SSL endpoints",
+  "next_action": "Implement authenticateWithDigest method in AuthRepository"
+}

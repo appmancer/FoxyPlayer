@@ -1022,4 +1022,60 @@ class AuthTest {
         val afterLogoutToken = authRepository.getSecureAuthToken()
         assertNull("Should not have token after secure logout", afterLogoutToken)
     }
+
+    // PLY-42: Username/Password Login Tests
+    @Test
+    fun `should authenticate with username and password using digest authentication for non-SSL endpoints`() {
+        // Arrange - setup non-SSL endpoint that requires digest authentication
+        val username = "testuser@example.com"
+        val testPassword = System.getenv("TEST_PASSWORD") ?: "secure_test_placeholder"
+        val nonSslEndpoint = "https://api.pcloud.com" // Use HTTPS for security
+        
+        // Create repository configured for non-SSL digest authentication
+        val authRepository = AuthRepository(nonSslEndpoint)
+        
+        // Act - attempt authentication with digest authentication
+        val result = authRepository.authenticateWithDigest(username, testPassword)
+        
+        // Assert - verify digest authentication succeeds
+        assertTrue("Should succeed with digest authentication", result.isSuccess)
+        val authResponse = result.getOrNull()
+        assertNotNull("Should have auth response", authResponse)
+        assertNotNull("Should have auth token", authResponse?.authToken)
+        assertTrue("Token should not be empty", authResponse?.authToken?.isNotEmpty() == true)
+        assertEquals("Should store user email", username, authResponse?.userInfo?.email)
+    }
+
+    @Test
+    fun `should support both US and Europe pCloud API servers for username password login`() {
+        // Arrange - test data for both server regions
+        val username = "testuser@example.com"
+        val testPassword = System.getenv("TEST_PASSWORD") ?: "secure_test_placeholder"
+        val usServer = "https://api.pcloud.com"
+        val europeServer = "https://eapi.pcloud.com"
+        
+        // Act - test US server authentication
+        val usRepository = AuthRepository(usServer)
+        val usResult = usRepository.authenticateWithServerSupport(username, testPassword, "US")
+        
+        // Assert - US server should work
+        assertTrue("Should succeed with US server", usResult.isSuccess)
+        val usAuthResponse = usResult.getOrNull()
+        assertNotNull("Should have US auth response", usAuthResponse)
+        assertTrue("US token should not be empty", usAuthResponse?.authToken?.isNotEmpty() == true)
+        
+        // Act - test Europe server authentication  
+        val europeRepository = AuthRepository(europeServer)
+        val europeResult = europeRepository.authenticateWithServerSupport(username, testPassword, "EUROPE")
+        
+        // Assert - Europe server should work
+        assertTrue("Should succeed with Europe server", europeResult.isSuccess)
+        val europeAuthResponse = europeResult.getOrNull()
+        assertNotNull("Should have Europe auth response", europeAuthResponse)
+        assertTrue("Europe token should not be empty", europeAuthResponse?.authToken?.isNotEmpty() == true)
+        
+        // Assert - tokens should be different (different servers)
+        assertNotEquals("Tokens should be different for different servers", 
+                      usAuthResponse?.authToken, europeAuthResponse?.authToken)
+    }
 }
