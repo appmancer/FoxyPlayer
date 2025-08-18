@@ -853,7 +853,7 @@ class SecureTokenStorage {
             secureStorage[alias] = encryptToken(token)
             expirationStorage[alias] = System.currentTimeMillis() + expirationDurationMs
             // Store refresh configuration
-            refreshStorage[alias] = RefreshInfo(refreshThresholdMs, refreshFunction)
+            refreshStorage[alias] = RefreshInfo(refreshThresholdMs, expirationDurationMs, refreshFunction)
             // Clear activity timeout for auto-refresh tokens
             activityStorage.remove(alias)
             
@@ -948,7 +948,7 @@ class SecureTokenStorage {
                             val newToken = refreshResult.getOrNull()!!
                             // Store refreshed token with new expiration (same duration as original)
                             secureStorage[alias] = encryptToken(newToken)
-                            expirationStorage[alias] = currentTime + (fixedExpirationTime - (currentTime - refreshInfo.refreshThresholdMs))
+                            expirationStorage[alias] = currentTime + refreshInfo.originalDurationMs
                             
                             return Result.success(newToken)
                         } else {
@@ -1043,6 +1043,7 @@ class SecureTokenStorage {
     // Data class to store auto-refresh information
     private data class RefreshInfo(
         val refreshThresholdMs: Long,                           // When to trigger refresh before expiration
+        val originalDurationMs: Long,                           // Original token duration for refresh calculation
         val refreshFunction: (String) -> Result<String>        // Function to call for token refresh
     )
     
