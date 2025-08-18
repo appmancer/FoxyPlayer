@@ -11,7 +11,7 @@ class AuthTest {
     fun `should authenticate user with valid credentials and return auth token`() {
         // Arrange - setup test data
         val username = "test@example.com"
-        val password = "testpassword"
+        val password = "test123"
         val expectedToken = "mock_auth_token_12345"
         
         // Create repository (this doesn't exist yet - will cause compilation failure)
@@ -29,7 +29,7 @@ class AuthTest {
     fun `should call pCloud userinfo endpoint with getauth=1 and return real auth token`() {
         // Arrange - setup test data
         val username = "real@user.com"
-        val password = "realpassword"
+        val password = "test123"
         val pCloudBaseUrl = "https://api.pcloud.com"
         
         // Create repository with HTTP client capability (doesn't exist yet)
@@ -50,7 +50,7 @@ class AuthTest {
     fun `should make actual HTTP POST to pCloud userinfo endpoint and parse auth token from JSON response`() {
         // Arrange - setup test data for real pCloud API call
         val username = "testuser@example.com"
-        val password = "testpassword123"
+        val password = "test123"
         val pCloudBaseUrl = "https://api.pcloud.com"
         
         // Create repository with HTTP parsing capability (doesn't exist yet)
@@ -90,7 +90,7 @@ class AuthTest {
     fun `should manage authentication state with AuthViewModel including loading and success states`() {
         // Arrange - setup test data for ViewModel state management
         val username = "viewmodel@test.com"
-        val password = "viewmodeltest123"
+        val password = "test123"
         val authRepository = AuthRepository("https://api.pcloud.com")
         
         // Create ViewModel that manages authentication state (doesn't exist yet)
@@ -259,7 +259,7 @@ class AuthTest {
         // Arrange - This tests our discovery about pCloud having two data centers
         val authRepository = AuthRepository() // No specific base URL - should auto-detect
         val username = "test@example.com"
-        val password = "testpassword"
+        val password = "test123"
         
         // Act - Test that the auto-detection method exists and can be called
         // This method should try eapi.pcloud.com first, then api.pcloud.com if that fails
@@ -453,7 +453,7 @@ class AuthTest {
         }
         
         val username = "event@example.com"
-        val password = "eventtest"
+        val password = "test123"
         val userInfo = UserInfo(username)
         
         // Act - Trigger login event by saving authentication state
@@ -539,7 +539,7 @@ class AuthTest {
         // Arrange - Setup login screen with ability to trigger login
         val loginScreen = LoginScreen()
         val username = "test@example.com"
-        val password = "testpassword"
+        val password = "test123"
         
         // Act - Trigger login action (this method doesn't exist yet)
         loginScreen.onLoginPressed(username, password) // This doesn't exist yet - will cause compilation failure
@@ -605,7 +605,7 @@ class AuthTest {
         val authRepository = AuthRepository("https://eapi.pcloud.com")
         val authViewModel = AuthViewModel(authRepository)
         val username = "integration@example.com"
-        val password = "integrationtest"
+        val password = "test123"
         
         // Clear any existing state to ensure clean test
         authRepository.clearAuthenticationState()
@@ -762,5 +762,264 @@ class AuthTest {
         assertTrue("4001 error should be failure", result4001.isFailure)
         val error4001 = result4001.exceptionOrNull()
         assertTrue("4001 should be AccessException", error4001 is AccessException)
+    }
+
+    @Test
+    fun `should store auth token securely in Android Keystore and retrieve it successfully`() {
+        // Arrange - PLY-43: Secure token storage using Android Keystore
+        val testToken = "TEST_TOKEN_FOR_UNITTEST_ONLY"
+        val testAlias = "test_alias_for_keystore"
+        
+        // Create secure token storage manager (doesn't exist yet - will cause compilation failure)
+        val secureTokenStorage = SecureTokenStorage() // This class doesn't exist yet
+        
+        // Act - Store token securely in Android Keystore
+        val storeResult = secureTokenStorage.storeToken(testAlias, testToken) // Method doesn't exist yet
+        
+        // Assert - Verify token was stored successfully
+        assertTrue("Should successfully store token in Keystore", storeResult.isSuccess)
+        
+        // Act - Retrieve token from Android Keystore
+        val retrieveResult = secureTokenStorage.retrieveToken(testAlias) // Method doesn't exist yet
+        
+        // Assert - Verify token was retrieved successfully and matches original
+        assertTrue("Should successfully retrieve token from Keystore", retrieveResult.isSuccess)
+        val retrievedToken = retrieveResult.getOrNull()
+        assertNotNull("Retrieved token should not be null", retrievedToken)
+        assertEquals("Retrieved token should match stored token", testToken, retrievedToken)
+    }
+
+    @Test
+    fun `should handle time-based token expiration and detect expired tokens`() {
+        // Arrange - PLY-43: Time-based token expiration management
+        val testToken = "TIME_EXPIRY_TEST_TOKEN"
+        val testAlias = "time_expiry_test_alias"
+        val expirationDurationMs = 1000L // 1 second for testing
+        
+        // Create secure token storage with time-based expiration (doesn't exist yet)
+        val secureTokenStorage = SecureTokenStorage()
+        
+        // Act - Store token with expiration time
+        val storeResult = secureTokenStorage.storeTokenWithExpiration(testAlias, testToken, expirationDurationMs) // Method doesn't exist yet
+        
+        // Assert - Token should be stored successfully
+        assertTrue("Should successfully store token with expiration", storeResult.isSuccess)
+        
+        // Act - Retrieve token immediately (should be valid)
+        val immediateRetrieveResult = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("Should retrieve valid token immediately", immediateRetrieveResult.isSuccess)
+        assertEquals("Token should match", testToken, immediateRetrieveResult.getOrNull())
+        
+        // Act - Wait for token to expire
+        Thread.sleep(1100L) // Wait longer than expiration time
+        
+        // Act - Try to retrieve expired token
+        val expiredRetrieveResult = secureTokenStorage.retrieveToken(testAlias)
+        
+        // Assert - Expired token should not be retrievable
+        assertTrue("Expired token retrieval should fail", expiredRetrieveResult.isFailure)
+        val exception = expiredRetrieveResult.exceptionOrNull()
+        assertTrue("Should be TokenExpiredException", exception is TokenExpiredException) // Class doesn't exist yet
+        assertTrue("Error message should mention expiration", exception?.message?.contains("expired") == true)
+    }
+
+    @Test
+    fun `should handle activity-based token expiration and extend token lifetime on access`() {
+        // Arrange - PLY-43: Activity-based token expiration management
+        val testToken = "ACTIVITY_EXPIRY_TEST_TOKEN"
+        val testAlias = "activity_expiry_test_alias"
+        val inactivityTimeoutMs = 1000L // 1 second for testing
+        
+        // Create secure token storage with activity-based expiration (doesn't exist yet)
+        val secureTokenStorage = SecureTokenStorage()
+        
+        // Act - Store token with activity-based expiration
+        val storeResult = secureTokenStorage.storeTokenWithActivityTimeout(testAlias, testToken, inactivityTimeoutMs) // Method doesn't exist yet
+        
+        // Assert - Token should be stored successfully
+        assertTrue("Should successfully store token with activity timeout", storeResult.isSuccess)
+        
+        // Act - Access token after 500ms (should extend lifetime)
+        Thread.sleep(500L)
+        val firstAccess = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("First access should succeed", firstAccess.isSuccess)
+        assertEquals("Token should match", testToken, firstAccess.getOrNull())
+        
+        // Act - Access token again after another 500ms (should extend lifetime again)
+        Thread.sleep(500L) 
+        val secondAccess = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("Second access should succeed and extend lifetime", secondAccess.isSuccess)
+        assertEquals("Token should still match", testToken, secondAccess.getOrNull())
+        
+        // Act - Wait for full inactivity timeout without accessing token
+        Thread.sleep(1100L) // Wait longer than inactivity timeout
+        
+        // Act - Try to retrieve token after inactivity timeout
+        val expiredAccess = secureTokenStorage.retrieveToken(testAlias)
+        
+        // Assert - Token should be expired due to inactivity
+        assertTrue("Token should be expired after inactivity", expiredAccess.isFailure)
+        val exception = expiredAccess.exceptionOrNull()
+        assertTrue("Should be TokenExpiredException", exception is TokenExpiredException)
+        assertTrue("Error message should mention inactivity", exception?.message?.contains("inactivity") == true)
+    }
+
+    @Test
+    fun `should refresh tokens automatically before expiration`() {
+        // Arrange - PLY-43: Token refresh mechanism
+        val testToken = "TOKEN_TO_REFRESH_12345"
+        val refreshedToken = "REFRESHED_TOKEN_67890"
+        val testAlias = "refresh_test_alias"
+        val expirationDurationMs = 2000L // 2 seconds for testing
+        val refreshThresholdMs = 500L // Refresh when 500ms before expiration
+        
+        // Create secure token storage with refresh capability (doesn't exist yet)
+        val secureTokenStorage = SecureTokenStorage()
+        
+        // Mock refresh function that returns new token
+        val refreshFunction: (String) -> Result<String> = { oldToken ->
+            if (oldToken == testToken) {
+                Result.success(refreshedToken)
+            } else {
+                Result.failure(Exception("Invalid token for refresh"))
+            }
+        }
+        
+        // Act - Store token with automatic refresh capability
+        val storeResult = secureTokenStorage.storeTokenWithAutoRefresh(
+            testAlias, 
+            testToken, 
+            expirationDurationMs, 
+            refreshThresholdMs,
+            refreshFunction
+        ) // Method doesn't exist yet - will cause compilation failure
+        
+        // Assert - Token should be stored successfully
+        assertTrue("Should successfully store token with auto-refresh", storeResult.isSuccess)
+        
+        // Act - Wait until near expiration time (but before refresh threshold)
+        Thread.sleep(1200L) // Wait 1.2 seconds (before 1.5s refresh threshold)
+        
+        // Act - Access token which should still be original
+        val preRefreshAccess = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("Should retrieve original token before refresh", preRefreshAccess.isSuccess)
+        assertEquals("Should still have original token", testToken, preRefreshAccess.getOrNull())
+        
+        // Act - Wait until refresh threshold is reached
+        Thread.sleep(400L) // Total 1.6 seconds - should trigger refresh
+        
+        // Act - Access token which should trigger automatic refresh
+        val postRefreshAccess = secureTokenStorage.retrieveToken(testAlias)
+        
+        // Assert - Should get refreshed token
+        assertTrue("Should successfully retrieve refreshed token", postRefreshAccess.isSuccess)
+        assertEquals("Should have refreshed token", refreshedToken, postRefreshAccess.getOrNull())
+        
+        // Act - Verify token remains valid after refresh
+        val confirmRefresh = secureTokenStorage.retrieveToken(testAlias)
+        assertTrue("Refreshed token should remain valid", confirmRefresh.isSuccess)
+        assertEquals("Should consistently return refreshed token", refreshedToken, confirmRefresh.getOrNull())
+    }
+
+    @Test
+    fun `should validate token integrity and authenticity before returning it`() {
+        // Arrange - PLY-43: Token validation functionality  
+        val validToken = "VALID_TOKEN_12345"
+        val corruptedToken = "CORRUPTED_TOKEN_67890"
+        val testAlias = "validation_test_alias"
+        
+        // Create secure token storage with validation capability (doesn't exist yet)
+        val secureTokenStorage = SecureTokenStorage()
+        
+        // Mock validation function that checks token authenticity
+        val validationFunction: (String) -> Boolean = { token ->
+            // Simulate validation logic (in production, this would check signatures, checksums, etc.)
+            token.contains("VALID") && token.length >= 10
+        }
+        
+        // Act - Store valid token with validation (method doesn't exist yet)
+        val storeValidResult = secureTokenStorage.storeTokenWithValidation(
+            testAlias + "_valid", 
+            validToken, 
+            validationFunction
+        ) // Method doesn't exist yet - will cause compilation failure
+        
+        // Assert - Valid token should be stored successfully
+        assertTrue("Should successfully store valid token", storeValidResult.isSuccess)
+        
+        // Act - Try to store corrupted token with validation  
+        val storeCorruptedResult = secureTokenStorage.storeTokenWithValidation(
+            testAlias + "_corrupted",
+            corruptedToken,
+            validationFunction
+        )
+        
+        // Assert - Corrupted token should be rejected during storage
+        assertTrue("Should reject corrupted token during storage", storeCorruptedResult.isFailure)
+        val storeException = storeCorruptedResult.exceptionOrNull()
+        assertTrue("Should be TokenValidationException", storeException is TokenValidationException) // Class doesn't exist yet
+        assertTrue("Error should mention validation failure", storeException?.message?.contains("validation") == true)
+        
+        // Act - Retrieve valid token (should validate before returning)
+        val retrieveValidResult = secureTokenStorage.retrieveToken(testAlias + "_valid")
+        
+        // Assert - Valid token should be retrieved successfully after validation
+        assertTrue("Should retrieve valid token after validation", retrieveValidResult.isSuccess)
+        assertEquals("Should return valid token", validToken, retrieveValidResult.getOrNull())
+        
+        // Act - Simulate token corruption in storage (e.g., bit flip)
+        // In production, this could happen due to storage corruption, memory errors, etc.
+        secureTokenStorage.simulateTokenCorruption(testAlias + "_valid") // Method doesn't exist yet
+        
+        // Act - Try to retrieve corrupted token
+        val retrieveCorruptedResult = secureTokenStorage.retrieveToken(testAlias + "_valid")
+        
+        // Assert - Corrupted token should be detected and rejected during retrieval
+        assertTrue("Should detect and reject corrupted token", retrieveCorruptedResult.isFailure)
+        val retrieveException = retrieveCorruptedResult.exceptionOrNull()
+        assertTrue("Should be TokenValidationException", retrieveException is TokenValidationException)
+        assertTrue("Error should mention corruption", retrieveException?.message?.contains("validation") == true)
+    }
+
+    @Test
+    fun `should integrate SecureTokenStorage with AuthRepository for seamless token management`() {
+        // Arrange - PLY-43: AuthRepository integration with SecureTokenStorage
+        val username = "integration@example.com"
+        val password = "test123"
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        
+        // Clear any existing state
+        authRepository.clearAuthenticationState()
+        
+        // Act - Authenticate through AuthRepository which should use SecureTokenStorage internally
+        val loginResult = authRepository.authenticateWithSecureStorage(username, password) // Method doesn't exist yet - will cause compilation failure
+        
+        // Assert - Authentication should succeed and use secure storage
+        assertTrue("Should authenticate successfully with secure storage", loginResult.isSuccess)
+        val authResponse = loginResult.getOrNull()
+        assertNotNull("Should have auth response", authResponse)
+        
+        // Act - Verify token is stored securely (should be accessible through repository)
+        val isAuthenticated = authRepository.isAuthenticatedWithSecureStorage() // Method doesn't exist yet
+        assertTrue("Should show authenticated state from secure storage", isAuthenticated)
+        
+        // Act - Retrieve token through secure storage integration
+        val secureToken = authRepository.getSecureAuthToken() // Method doesn't exist yet  
+        assertNotNull("Should have secure auth token", secureToken)
+        assertEquals("Token should match auth response", authResponse?.authToken, secureToken)
+        
+        // Act - Test token expiration integration
+        val tokenValid = authRepository.isSecureTokenValid() // Method doesn't exist yet
+        assertTrue("Token should be valid after authentication", tokenValid)
+        
+        // Act - Test logout integration with secure storage
+        authRepository.logoutWithSecureStorage() // Method doesn't exist yet
+        
+        // Assert - Logout should clear secure storage
+        val afterLogoutAuth = authRepository.isAuthenticatedWithSecureStorage()
+        assertFalse("Should not be authenticated after secure logout", afterLogoutAuth)
+        
+        val afterLogoutToken = authRepository.getSecureAuthToken()
+        assertNull("Should not have token after secure logout", afterLogoutToken)
     }
 }

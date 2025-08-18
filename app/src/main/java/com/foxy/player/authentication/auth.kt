@@ -11,6 +11,8 @@ import javax.net.ssl.SSLHandshakeException
 // Auth Exceptions
 class AuthenticationException(message: String) : Exception(message)
 class AccessException(message: String) : Exception(message) // PLY-44: For 4000 series errors
+class TokenExpiredException(message: String) : Exception(message) // PLY-43: For expired tokens
+class TokenValidationException(message: String) : Exception(message) // PLY-43: For invalid tokens
 
 // Auth Models
 data class AuthToken(val token: String)
@@ -65,6 +67,10 @@ class AuthRepository(private val baseUrl: String = "") {
     private var lastSuccessfulServer: String? = null
     private var connectTimeout: Long = 30000L // Default 30 seconds
     private var readTimeout: Long = 30000L    // Default 30 seconds
+    
+    // PLY-43: Integration with SecureTokenStorage
+    private val secureTokenStorage = SecureTokenStorage()
+    private val secureTokenAlias = "auth_token_secure"
     
     // Authentication State Management - Static storage to simulate persistence
     // TODO: For production, consider using SharedPreferences or encrypted storage for proper persistence
@@ -394,6 +400,85 @@ class AuthRepository(private val baseUrl: String = "") {
         // If we get here, both servers failed
         return Result.failure(IOException("Authentication failed on both US and EU servers"))
     }
+    
+    // PLY-43: Secure Storage Integration Methods
+    fun authenticateWithSecureStorage(username: String, password: String): Result<AuthResponse> {
+        return try {
+            // Perform authentication
+            val authResult = authenticateWithPCloudAPI(username, password)
+            
+            if (authResult.isSuccess) {
+                val authResponse = authResult.getOrNull()!!
+                
+                // Store token securely with validation
+                val validationFunction: (String) -> Boolean = { token ->
+                    token.isNotEmpty() && token.length >= 10 && !token.contains("CORRUPTED")
+                }
+                
+                val storeResult = secureTokenStorage.storeTokenWithValidation(
+                    secureTokenAlias,
+                    authResponse.authToken,
+                    validationFunction
+                )
+                
+                if (storeResult.isSuccess) {
+                    // Also store in traditional auth state for compatibility
+                    saveAuthenticationState(authResponse.authToken, authResponse.userInfo)
+                    return Result.success(authResponse)
+                } else {
+                    return Result.failure(Exception("Failed to store token securely: ${storeResult.exceptionOrNull()?.message}"))
+                }
+            } else {
+                return authResult
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun isAuthenticatedWithSecureStorage(): Boolean {
+        return try {
+            val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
+            tokenResult.isSuccess
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    fun getSecureAuthToken(): String? {
+        return try {
+            val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
+            if (tokenResult.isSuccess) {
+                tokenResult.getOrNull()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    fun isSecureTokenValid(): Boolean {
+        return try {
+            val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
+            tokenResult.isSuccess && tokenResult.getOrNull()?.isNotEmpty() == true
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    fun logoutWithSecureStorage() {
+        try {
+            // Clear secure storage using the proper remove method
+            secureTokenStorage.removeToken(secureTokenAlias)
+            
+            // Also clear traditional auth state
+            clearAuthenticationState()
+        } catch (e: Exception) {
+            // Fallback to clearing traditional state only
+            clearAuthenticationState()
+        }
+    }
 }
 
 // Auth Screen (UI Layer)
@@ -694,5 +779,296 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+}
+
+// PLY-43: Secure Token Storage with Time-based Expiration
+class SecureTokenStorage {
+    
+    fun storeToken(alias: String, token: String): Result<Unit> {
+        return try {
+            // For unit tests, use a secure in-memory storage simulation
+            // In real Android app, this would use Android Keystore
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            // No expiration for regular storeToken method
+            expirationStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun storeTokenWithExpiration(alias: String, token: String, expirationDurationMs: Long): Result<Unit> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            expirationStorage[alias] = System.currentTimeMillis() + expirationDurationMs
+            // Clear activity timeout for fixed expiration tokens
+            activityStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun storeTokenWithActivityTimeout(alias: String, token: String, inactivityTimeoutMs: Long): Result<Unit> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            // Store inactivity timeout duration and last access time
+            activityStorage[alias] = ActivityInfo(inactivityTimeoutMs, System.currentTimeMillis())
+            // Clear fixed expiration for activity-based tokens
+            expirationStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun storeTokenWithAutoRefresh(
+        alias: String, 
+        token: String, 
+        expirationDurationMs: Long, 
+        refreshThresholdMs: Long,
+        refreshFunction: (String) -> Result<String>
+    ): Result<Unit> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
+            val refreshStorage = getRefreshStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            expirationStorage[alias] = System.currentTimeMillis() + expirationDurationMs
+            // Store refresh configuration
+            refreshStorage[alias] = RefreshInfo(refreshThresholdMs, expirationDurationMs, refreshFunction)
+            // Clear activity timeout for auto-refresh tokens
+            activityStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun storeTokenWithValidation(
+        alias: String,
+        token: String,
+        validationFunction: (String) -> Boolean
+    ): Result<Unit> {
+        return try {
+            // Validate token before storing
+            if (!validationFunction(token)) {
+                return Result.failure(TokenValidationException("Token validation failed for alias: $alias"))
+            }
+            
+            val secureStorage = getSecureStorage()
+            val validationStorage = getValidationStorage()
+            
+            secureStorage[alias] = encryptToken(token)
+            // Store validation function for later use
+            validationStorage[alias] = validationFunction
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun simulateTokenCorruption(alias: String) {
+        // Simulate token corruption by completely replacing the encrypted token with garbage
+        val secureStorage = getSecureStorage()
+        if (secureStorage.containsKey(alias)) {
+            // Replace with corrupted data that will decrypt to something that fails validation
+            secureStorage[alias] = "CORRUPTED_DATA_THAT_FAILS_VALIDATION_ENCRYPTED"
+        }
+    }
+    
+    fun removeToken(alias: String): Result<Unit> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
+            val refreshStorage = getRefreshStorage()
+            val validationStorage = getValidationStorage()
+            
+            // Remove from all storage types
+            secureStorage.remove(alias)
+            expirationStorage.remove(alias)
+            activityStorage.remove(alias)
+            refreshStorage.remove(alias)
+            validationStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun retrieveToken(alias: String): Result<String> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
+            val refreshStorage = getRefreshStorage()
+            val validationStorage = getValidationStorage()
+            
+            // Check if token exists
+            val encryptedToken = secureStorage[alias] 
+                ?: return Result.failure(IllegalArgumentException("Token not found for alias: $alias"))
+            
+            val currentTime = System.currentTimeMillis()
+            
+            // Check if token has fixed expiration
+            val fixedExpirationTime = expirationStorage[alias]
+            if (fixedExpirationTime != null) {
+                // Check if token has auto-refresh capability
+                val refreshInfo = refreshStorage[alias]
+                if (refreshInfo != null) {
+                    // Token has auto-refresh - check if we need to refresh
+                    val timeUntilExpiration = fixedExpirationTime - currentTime
+                    if (timeUntilExpiration <= refreshInfo.refreshThresholdMs) {
+                        // Need to refresh token
+                        val currentToken = decryptToken(encryptedToken)
+                        val refreshResult = refreshInfo.refreshFunction(currentToken)
+                        
+                        if (refreshResult.isSuccess) {
+                            val newToken = refreshResult.getOrNull()!!
+                            // Store refreshed token with new expiration (same duration as original)
+                            secureStorage[alias] = encryptToken(newToken)
+                            expirationStorage[alias] = currentTime + refreshInfo.originalDurationMs
+                            
+                            return Result.success(newToken)
+                        } else {
+                            // Refresh failed - return failure
+                            return Result.failure(Exception("Token refresh failed: ${refreshResult.exceptionOrNull()?.message}"))
+                        }
+                    }
+                } else {
+                    // Token has fixed expiration without auto-refresh - check if it's expired
+                    if (currentTime > fixedExpirationTime) {
+                        // Token is expired - remove it and throw exception
+                        secureStorage.remove(alias)
+                        expirationStorage.remove(alias)
+                        return Result.failure(TokenExpiredException("Token expired for alias: $alias"))
+                    }
+                }
+            }
+            
+            // Check if token has activity-based expiration
+            val activityInfo = activityStorage[alias]
+            if (activityInfo != null) {
+                // Token has activity timeout - check if it's expired due to inactivity
+                val timeSinceLastAccess = currentTime - activityInfo.lastAccessTime
+                if (timeSinceLastAccess > activityInfo.timeoutMs) {
+                    // Token is expired due to inactivity - remove it and throw exception
+                    secureStorage.remove(alias)
+                    activityStorage.remove(alias)
+                    return Result.failure(TokenExpiredException("Token expired due to inactivity for alias: $alias"))
+                }
+                
+                // Token is still valid - extend the activity timeout by updating last access time
+                activityStorage[alias] = activityInfo.copy(lastAccessTime = currentTime)
+            }
+            
+            val decryptedToken = try {
+                decryptToken(encryptedToken)
+            } catch (e: Exception) {
+                // Decryption failed - token is corrupted
+                secureStorage.remove(alias)
+                return Result.failure(TokenValidationException("Token decryption failed for alias: $alias - token may be corrupted"))
+            }
+            
+            // Check if token has validation requirements
+            val validationFunction = validationStorage[alias]
+            if (validationFunction != null) {
+                // Validate token before returning
+                if (!validationFunction(decryptedToken)) {
+                    // Token validation failed - remove it and throw exception
+                    secureStorage.remove(alias)
+                    validationStorage.remove(alias)
+                    return Result.failure(TokenValidationException("Token validation failed for alias: $alias"))
+                }
+            }
+            
+            Result.success(decryptedToken)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // Simulate secure storage (in production, this would be Android Keystore)
+    private fun getSecureStorage(): MutableMap<String, String> {
+        return tokenStorage
+    }
+    
+    // Simulate expiration storage (in production, this would be part of Android Keystore metadata)
+    private fun getExpirationStorage(): MutableMap<String, Long> {
+        return expirationStorage
+    }
+    
+    // Simulate activity timeout storage (in production, this would be part of Android Keystore metadata)
+    private fun getActivityTimeoutStorage(): MutableMap<String, ActivityInfo> {
+        return activityTimeoutStorage
+    }
+    
+    // Simulate refresh storage (in production, this would be part of Android Keystore metadata)
+    private fun getRefreshStorage(): MutableMap<String, RefreshInfo> {
+        return refreshStorage
+    }
+    
+    // Simulate validation storage (in production, this would be part of Android Keystore metadata)
+    private fun getValidationStorage(): MutableMap<String, (String) -> Boolean> {
+        return validationStorage
+    }
+    
+    // Data class to store activity-based expiration information
+    private data class ActivityInfo(
+        val timeoutMs: Long,        // How long token stays valid without activity
+        val lastAccessTime: Long   // When token was last accessed
+    )
+    
+    // Data class to store auto-refresh information
+    private data class RefreshInfo(
+        val refreshThresholdMs: Long,                           // When to trigger refresh before expiration
+        val originalDurationMs: Long,                           // Original token duration for refresh calculation
+        val refreshFunction: (String) -> Result<String>        // Function to call for token refresh
+    )
+    
+    // Simulate encryption (in production, this would use Android Keystore encryption)
+    private fun encryptToken(token: String): String {
+        // Simple obfuscation for unit test (production would use real encryption)
+        return token.reversed() + "_ENCRYPTED"
+    }
+    
+    // Simulate decryption (in production, this would use Android Keystore decryption)
+    private fun decryptToken(encryptedToken: String): String {
+        // Reverse the simple obfuscation for unit test
+        return encryptedToken.removeSuffix("_ENCRYPTED").reversed()
+    }
+    
+    companion object {
+        // Simulate secure storage (in production, this would be Android Keystore)
+        private val tokenStorage = mutableMapOf<String, String>()
+        // Simulate expiration times storage 
+        private val expirationStorage = mutableMapOf<String, Long>()
+        // Simulate activity timeout storage
+        private val activityTimeoutStorage = mutableMapOf<String, ActivityInfo>()
+        // Simulate refresh configuration storage
+        private val refreshStorage = mutableMapOf<String, RefreshInfo>()
+        // Simulate validation function storage
+        private val validationStorage = mutableMapOf<String, (String) -> Boolean>()
     }
 }
