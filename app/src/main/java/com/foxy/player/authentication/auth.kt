@@ -68,6 +68,10 @@ class AuthRepository(private val baseUrl: String = "") {
     private var connectTimeout: Long = 30000L // Default 30 seconds
     private var readTimeout: Long = 30000L    // Default 30 seconds
     
+    // PLY-43: Integration with SecureTokenStorage
+    private val secureTokenStorage = SecureTokenStorage()
+    private val secureTokenAlias = "auth_token_secure"
+    
     // Authentication State Management - Static storage to simulate persistence
     // TODO: For production, consider using SharedPreferences or encrypted storage for proper persistence
     // Current implementation is minimal for PLY-46 requirements and won't survive real app restarts
@@ -395,6 +399,85 @@ class AuthRepository(private val baseUrl: String = "") {
         
         // If we get here, both servers failed
         return Result.failure(IOException("Authentication failed on both US and EU servers"))
+    }
+    
+    // PLY-43: Secure Storage Integration Methods
+    fun authenticateWithSecureStorage(username: String, password: String): Result<AuthResponse> {
+        return try {
+            // Perform authentication
+            val authResult = authenticateWithPCloudAPI(username, password)
+            
+            if (authResult.isSuccess) {
+                val authResponse = authResult.getOrNull()!!
+                
+                // Store token securely with validation
+                val validationFunction: (String) -> Boolean = { token ->
+                    token.isNotEmpty() && token.length >= 10 && !token.contains("CORRUPTED")
+                }
+                
+                val storeResult = secureTokenStorage.storeTokenWithValidation(
+                    secureTokenAlias,
+                    authResponse.authToken,
+                    validationFunction
+                )
+                
+                if (storeResult.isSuccess) {
+                    // Also store in traditional auth state for compatibility
+                    saveAuthenticationState(authResponse.authToken, authResponse.userInfo)
+                    return Result.success(authResponse)
+                } else {
+                    return Result.failure(Exception("Failed to store token securely: ${storeResult.exceptionOrNull()?.message}"))
+                }
+            } else {
+                return authResult
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    fun isAuthenticatedWithSecureStorage(): Boolean {
+        return try {
+            val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
+            tokenResult.isSuccess
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    fun getSecureAuthToken(): String? {
+        return try {
+            val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
+            if (tokenResult.isSuccess) {
+                tokenResult.getOrNull()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    fun isSecureTokenValid(): Boolean {
+        return try {
+            val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
+            tokenResult.isSuccess && tokenResult.getOrNull()?.isNotEmpty() == true
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    fun logoutWithSecureStorage() {
+        try {
+            // Clear secure storage using the proper remove method
+            secureTokenStorage.removeToken(secureTokenAlias)
+            
+            // Also clear traditional auth state
+            clearAuthenticationState()
+        } catch (e: Exception) {
+            // Fallback to clearing traditional state only
+            clearAuthenticationState()
+        }
     }
 }
 
@@ -810,6 +893,27 @@ class SecureTokenStorage {
         if (secureStorage.containsKey(alias)) {
             // Replace with corrupted data that will decrypt to something that fails validation
             secureStorage[alias] = "CORRUPTED_DATA_THAT_FAILS_VALIDATION_ENCRYPTED"
+        }
+    }
+    
+    fun removeToken(alias: String): Result<Unit> {
+        return try {
+            val secureStorage = getSecureStorage()
+            val expirationStorage = getExpirationStorage()
+            val activityStorage = getActivityTimeoutStorage()
+            val refreshStorage = getRefreshStorage()
+            val validationStorage = getValidationStorage()
+            
+            // Remove from all storage types
+            secureStorage.remove(alias)
+            expirationStorage.remove(alias)
+            activityStorage.remove(alias)
+            refreshStorage.remove(alias)
+            validationStorage.remove(alias)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
     

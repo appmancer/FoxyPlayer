@@ -980,4 +980,46 @@ class AuthTest {
         assertTrue("Should be TokenValidationException", retrieveException is TokenValidationException)
         assertTrue("Error should mention corruption", retrieveException?.message?.contains("validation") == true)
     }
+
+    @Test
+    fun `should integrate SecureTokenStorage with AuthRepository for seamless token management`() {
+        // Arrange - PLY-43: AuthRepository integration with SecureTokenStorage
+        val username = "integration@example.com"
+        val password = "test123"
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        
+        // Clear any existing state
+        authRepository.clearAuthenticationState()
+        
+        // Act - Authenticate through AuthRepository which should use SecureTokenStorage internally
+        val loginResult = authRepository.authenticateWithSecureStorage(username, password) // Method doesn't exist yet - will cause compilation failure
+        
+        // Assert - Authentication should succeed and use secure storage
+        assertTrue("Should authenticate successfully with secure storage", loginResult.isSuccess)
+        val authResponse = loginResult.getOrNull()
+        assertNotNull("Should have auth response", authResponse)
+        
+        // Act - Verify token is stored securely (should be accessible through repository)
+        val isAuthenticated = authRepository.isAuthenticatedWithSecureStorage() // Method doesn't exist yet
+        assertTrue("Should show authenticated state from secure storage", isAuthenticated)
+        
+        // Act - Retrieve token through secure storage integration
+        val secureToken = authRepository.getSecureAuthToken() // Method doesn't exist yet  
+        assertNotNull("Should have secure auth token", secureToken)
+        assertEquals("Token should match auth response", authResponse?.authToken, secureToken)
+        
+        // Act - Test token expiration integration
+        val tokenValid = authRepository.isSecureTokenValid() // Method doesn't exist yet
+        assertTrue("Token should be valid after authentication", tokenValid)
+        
+        // Act - Test logout integration with secure storage
+        authRepository.logoutWithSecureStorage() // Method doesn't exist yet
+        
+        // Assert - Logout should clear secure storage
+        val afterLogoutAuth = authRepository.isAuthenticatedWithSecureStorage()
+        assertFalse("Should not be authenticated after secure logout", afterLogoutAuth)
+        
+        val afterLogoutToken = authRepository.getSecureAuthToken()
+        assertNull("Should not have token after secure logout", afterLogoutToken)
+    }
 }
