@@ -121,4 +121,41 @@ class MusicDiscoveryTest {
         assertTrue("Should have different audio files on second page", 
             secondPage!!.audioFiles != firstPage.audioFiles)
     }
+    
+    @Test
+    fun `should cache directory listings for performance optimization`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Act - call the same method twice to test caching
+        val firstCallResult = musicDiscoveryService.listAudioFilesWithCache("/Music")
+        val secondCallResult = musicDiscoveryService.listAudioFilesWithCache("/Music")
+        
+        // Assert - verify caching functionality
+        assertTrue("First call should return successful result", firstCallResult.isSuccess)
+        assertTrue("Second call should return successful result", secondCallResult.isSuccess)
+        
+        val firstResponse = firstCallResult.getOrNull()
+        val secondResponse = secondCallResult.getOrNull()
+        
+        assertNotNull("First response should not be null", firstResponse)
+        assertNotNull("Second response should not be null", secondResponse)
+        
+        // Verify cache behavior
+        assertTrue("Second call should indicate data was served from cache", 
+            secondResponse!!.servedFromCache)
+        assertFalse("First call should indicate data was NOT served from cache", 
+            firstResponse!!.servedFromCache)
+        
+        // Verify cached data is identical
+        assertEquals("Cached data should be identical to original", 
+            firstResponse.audioFiles, secondResponse.audioFiles)
+        
+        // Verify cache has reduced API call count
+        assertTrue("Cache should reduce total API calls", 
+            secondResponse.totalApiCallsMade == 1) // Only one actual API call despite two method calls
+    }
 }
