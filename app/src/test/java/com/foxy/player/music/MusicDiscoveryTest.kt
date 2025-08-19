@@ -43,4 +43,25 @@ class MusicDiscoveryTest {
         assertTrue("API response should contain auth token confirmation", 
             apiResponse!!.containsAuthToken("test_auth_token"))
     }
+    
+    @Test
+    fun `should call real pCloud listfolder API with recursive directory traversal`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Act - call the method that should recursively traverse directories
+        val result = musicDiscoveryService.listPCloudFoldersRecursively("/")
+        
+        // Assert - verify recursive traversal functionality
+        assertTrue("Should return successful result from recursive API call", result.isSuccess)
+        val recursiveResponse = result.getOrNull()
+        assertNotNull("Recursive response should not be null", recursiveResponse)
+        assertTrue("Should have processed multiple directory levels", 
+            recursiveResponse!!.totalDirectoriesTraversed > 0)
+        assertTrue("Should include subdirectories in results", 
+            recursiveResponse.allFolders.isNotEmpty())
+    }
 }
