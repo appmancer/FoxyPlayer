@@ -158,4 +158,60 @@ class MusicDiscoveryTest {
         assertTrue("Cache should reduce total API calls", 
             secondResponse.totalApiCallsMade == 1) // Only one actual API call despite two method calls
     }
+    
+    @Test
+    fun `should handle network and API errors with proper error recovery`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Act & Assert - Test network timeout handling
+        val timeoutResult = musicDiscoveryService.listAudioFilesWithErrorHandling("/", networkTimeout = true)
+        assertTrue("Should gracefully handle network timeout", timeoutResult.isSuccess)
+        val timeoutResponse = timeoutResult.getOrNull()
+        assertNotNull("Timeout response should not be null", timeoutResponse)
+        assertTrue("Should indicate network timeout error", timeoutResponse!!.hasNetworkError)
+        assertEquals("Should have proper error message for timeout", 
+            "Network timeout - using cached data or retry mechanism", timeoutResponse.errorMessage)
+        
+        // Act & Assert - Test HTTP error handling (404, 500, etc.)
+        val httpErrorResult = musicDiscoveryService.listAudioFilesWithErrorHandling("/nonexistent", httpError = 404)
+        assertTrue("Should gracefully handle HTTP 404 error", httpErrorResult.isSuccess)
+        val httpErrorResponse = httpErrorResult.getOrNull()
+        assertNotNull("HTTP error response should not be null", httpErrorResponse)
+        assertTrue("Should indicate HTTP error", httpErrorResponse!!.hasHttpError)
+        assertEquals("Should have proper HTTP error code", 404, httpErrorResponse.httpErrorCode)
+        assertEquals("Should have proper error message for HTTP 404", 
+            "Resource not found - verify path exists", httpErrorResponse.errorMessage)
+        
+        // Act & Assert - Test API authentication error handling
+        val authErrorResult = musicDiscoveryService.listAudioFilesWithErrorHandling("/", authError = true)
+        assertTrue("Should gracefully handle authentication error", authErrorResult.isSuccess)
+        val authErrorResponse = authErrorResult.getOrNull()
+        assertNotNull("Auth error response should not be null", authErrorResponse)
+        assertTrue("Should indicate authentication error", authErrorResponse!!.hasAuthError)
+        assertEquals("Should have proper error message for auth failure", 
+            "Authentication failed - please re-login", authErrorResponse.errorMessage)
+        
+        // Act & Assert - Test retry mechanism with eventual success
+        val retryResult = musicDiscoveryService.listAudioFilesWithErrorHandling("/", retryScenario = true)
+        assertTrue("Should succeed after retry attempts", retryResult.isSuccess)
+        val retryResponse = retryResult.getOrNull()
+        assertNotNull("Retry response should not be null", retryResponse)
+        assertTrue("Should indicate retry was performed", retryResponse!!.retriesPerformed > 0)
+        assertTrue("Should have successful data after retry", retryResponse.audioFiles.isNotEmpty())
+        assertEquals("Should show proper retry count", 3, retryResponse.retriesPerformed)
+        
+        // Act & Assert - Test fallback to cached data during errors
+        val fallbackResult = musicDiscoveryService.listAudioFilesWithErrorHandling("/Music", useCachedFallback = true)
+        assertTrue("Should fall back to cached data during errors", fallbackResult.isSuccess)
+        val fallbackResponse = fallbackResult.getOrNull()
+        assertNotNull("Fallback response should not be null", fallbackResponse)
+        assertTrue("Should indicate fallback to cached data", fallbackResponse!!.usedCachedFallback)
+        assertTrue("Should have cached data available", fallbackResponse.audioFiles.isNotEmpty())
+        assertEquals("Should have proper fallback message", 
+            "Using cached data due to network error", fallbackResponse.errorMessage)
+    }
 }
