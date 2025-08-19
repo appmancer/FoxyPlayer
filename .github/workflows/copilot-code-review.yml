@@ -1,0 +1,77 @@
+name: Copilot Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [dev, main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  copilot-review:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Get changed files
+      id: changed-files
+      uses: tj-actions/changed-files@v44
+      with:
+        files: |
+          **/*.kt
+          **/*.java
+          **/*.xml
+          **/*.gradle
+          **/*.gradle.kts
+          
+    - name: Run Copilot Code Review
+      if: steps.changed-files.outputs.any_changed == 'true'
+      uses: github/copilot-code-review-action@v1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        files: ${{ steps.changed-files.outputs.all_changed_files }}
+        review-level: "detailed"
+        focus-areas: |
+          - Security vulnerabilities and authentication issues
+          - Android best practices and performance
+          - Kotlin code style and idioms
+          - Test coverage and quality
+          - Error handling and edge cases
+          - Code documentation and clarity
+        exclude-patterns: |
+          - "**/*.generated.*"
+          - "**/build/**"
+          - "**/.gradle/**"
+        comment-mode: "review"
+        
+    - name: Add review summary comment
+      if: steps.changed-files.outputs.any_changed == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo, number } = context.issue;
+          
+          await github.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: number,
+            body: `## 🤖 Copilot Code Review Complete
+            
+            GitHub Copilot has completed an automated code review of this PR focusing on:
+            - 🔒 Security and authentication patterns
+            - 📱 Android development best practices  
+            - 🎯 Kotlin code quality and style
+            - 🧪 Test coverage and reliability
+            - 📝 Code documentation
+            
+            Please review the detailed feedback above and address any suggestions before merging.
+            
+            *This is an automated review to supplement human code review, not replace it.*`
+          });
