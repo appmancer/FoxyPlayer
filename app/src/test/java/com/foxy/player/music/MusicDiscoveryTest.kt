@@ -64,4 +64,29 @@ class MusicDiscoveryTest {
         assertTrue("Should include subdirectories in results", 
             recursiveResponse.allFolders.isNotEmpty())
     }
+    
+    @Test
+    fun `should filter results to audio file types MP3 FLAC WAV etc`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Act - call the method that should filter for audio files
+        val result = musicDiscoveryService.listAudioFiles("/")
+        
+        // Assert - verify audio file filtering functionality
+        assertTrue("Should return successful result with audio files", result.isSuccess)
+        val audioFilesResponse = result.getOrNull()
+        assertNotNull("Audio files response should not be null", audioFilesResponse)
+        assertTrue("Should contain MP3 files", 
+            audioFilesResponse!!.audioFiles.any { it.endsWith(".mp3") })
+        assertTrue("Should contain FLAC files", 
+            audioFilesResponse.audioFiles.any { it.endsWith(".flac") })
+        assertTrue("Should contain WAV files", 
+            audioFilesResponse.audioFiles.any { it.endsWith(".wav") })
+        assertTrue("Should filter out non-audio files", 
+            audioFilesResponse.audioFiles.none { it.endsWith(".txt") || it.endsWith(".jpg") })
+    }
 }
