@@ -89,4 +89,36 @@ class MusicDiscoveryTest {
         assertTrue("Should filter out non-audio files", 
             audioFilesResponse.audioFiles.none { it.endsWith(".txt") || it.endsWith(".jpg") })
     }
+    
+    @Test
+    fun `should handle pagination for large directories with page tokens`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Act - call the method that should handle pagination
+        val firstPageResult = musicDiscoveryService.listAudioFilesWithPagination("/", null, 10)
+        
+        // Assert - verify pagination functionality for first page
+        assertTrue("Should return successful result for first page", firstPageResult.isSuccess)
+        val firstPage = firstPageResult.getOrNull()
+        assertNotNull("First page response should not be null", firstPage)
+        assertTrue("Should have audio files on first page", firstPage!!.audioFiles.isNotEmpty())
+        assertTrue("Should have next page token when more results available", 
+            firstPage.hasNextPage)
+        assertNotNull("Next page token should not be null when more pages exist", 
+            firstPage.nextPageToken)
+        
+        // Act - call the method with next page token
+        val secondPageResult = musicDiscoveryService.listAudioFilesWithPagination("/", firstPage.nextPageToken, 10)
+        
+        // Assert - verify pagination functionality for second page
+        assertTrue("Should return successful result for second page", secondPageResult.isSuccess)
+        val secondPage = secondPageResult.getOrNull()
+        assertNotNull("Second page response should not be null", secondPage)
+        assertTrue("Should have different audio files on second page", 
+            secondPage!!.audioFiles != firstPage.audioFiles)
+    }
 }
