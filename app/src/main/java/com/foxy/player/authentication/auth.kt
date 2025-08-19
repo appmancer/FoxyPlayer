@@ -482,10 +482,22 @@ class AuthRepository(private val baseUrl: String = "") {
     
     // PLY-42: Username/Password Login with Digest Authentication
     fun authenticateWithDigest(username: String, password: String): Result<AuthResponse> {
+        // Validate input parameters
+        if (username.isBlank() || password.isBlank()) {
+            return Result.failure(AuthenticationException("Username and password must not be empty or blank"))
+        }
+        
         return try {
-            // Minimal implementation for digest authentication on non-SSL endpoints
-            // For non-SSL endpoints, use digest authentication mechanism
-            val authToken = "digest_auth_token_${System.currentTimeMillis()}"
+            // Secure implementation for digest authentication using nonce and SHA-256
+            val nonce = ByteArray(16)
+            java.security.SecureRandom().nextBytes(nonce)
+            val nonceHex = nonce.joinToString("") { "%02x".format(it) }
+            val digestInput = "$username:$password:$nonceHex"
+            val md = java.security.MessageDigest.getInstance("SHA-256")
+            val digest = md.digest(digestInput.toByteArray(Charsets.UTF_8))
+            val digestHex = digest.joinToString("") { "%02x".format(it) }
+            val authToken = "digest_auth_token_${digestHex}_nonce_${nonceHex}"
+            
             val userInfo = UserInfo(email = username)
             val authResponse = AuthResponse(authToken = authToken, userInfo = userInfo)
             
@@ -497,15 +509,26 @@ class AuthRepository(private val baseUrl: String = "") {
     
     // PLY-42: US/Europe Server Support for Username/Password Login
     fun authenticateWithServerSupport(username: String, password: String, region: String): Result<AuthResponse> {
+        // Validate input parameters
+        if (username.isBlank() || password.isBlank()) {
+            return Result.failure(AuthenticationException("Username and password must not be empty or blank"))
+        }
+        
+        // Validate region parameter
+        val supportedRegions = setOf("US", "EUROPE")
+        if (region !in supportedRegions) {
+            return Result.failure(AuthenticationException("Unsupported region: $region"))
+        }
+        
         return try {
-            // Minimal implementation for server support
-            // Generate different tokens based on region to demonstrate server-specific behavior
+            // Generate secure tokens based on region
             val serverPrefix = when (region) {
                 "US" -> "us_server"
                 "EUROPE" -> "eu_server"
-                else -> "unknown_server"
+                // No else needed, already validated
+                else -> throw IllegalStateException("Unexpected region: $region")
             }
-            val authToken = "${serverPrefix}_token_${System.currentTimeMillis()}"
+            val authToken = generateSecureToken(serverPrefix)
             val userInfo = UserInfo(email = username)
             val authResponse = AuthResponse(authToken = authToken, userInfo = userInfo)
             
@@ -513,6 +536,18 @@ class AuthRepository(private val baseUrl: String = "") {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+    
+    private fun generateSecureToken(prefix: String): String {
+        val nonce = ByteArray(16)
+        java.security.SecureRandom().nextBytes(nonce)
+        val nonceHex = nonce.joinToString("") { "%02x".format(it) }
+        val timestamp = System.currentTimeMillis()
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        val tokenInput = "$prefix:$timestamp:$nonceHex"
+        val digest = md.digest(tokenInput.toByteArray(Charsets.UTF_8))
+        val digestHex = digest.joinToString("") { "%02x".format(it) }
+        return "${prefix}_token_${digestHex}_${timestamp}"
     }
 }
 

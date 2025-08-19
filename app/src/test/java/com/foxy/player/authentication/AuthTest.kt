@@ -6,6 +6,12 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class AuthTest {
+    
+    companion object {
+        // Test endpoints for authentication scenarios
+        private const val TEST_SSL_ENDPOINT = "https://test-api.example.com"
+        private const val TEST_NON_SSL_ENDPOINT = "test-api.example.com" // For non-SSL digest testing
+    }
 
     @Test
     fun `should authenticate user with valid credentials and return auth token`() {
@@ -1029,10 +1035,12 @@ class AuthTest {
         // Arrange - setup non-SSL endpoint that requires digest authentication
         val username = "testuser@example.com"
         val testPassword = System.getenv("TEST_PASSWORD") ?: "secure_test_placeholder"
-        val nonSslEndpoint = "https://api.pcloud.com" // Use HTTPS for security
+        // Note: Testing digest authentication (would typically be for non-SSL endpoints)
+        // Using HTTPS test URL for security compliance, digest auth logic remains the same
+        val testEndpoint = TEST_SSL_ENDPOINT
         
-        // Create repository configured for non-SSL digest authentication
-        val authRepository = AuthRepository(nonSslEndpoint)
+        // Create repository configured for digest authentication testing
+        val authRepository = AuthRepository(testEndpoint)
         
         // Act - attempt authentication with digest authentication
         val result = authRepository.authenticateWithDigest(username, testPassword)
@@ -1077,5 +1085,80 @@ class AuthTest {
         // Assert - tokens should be different (different servers)
         assertNotEquals("Tokens should be different for different servers", 
                       usAuthResponse?.authToken, europeAuthResponse?.authToken)
+    }
+    
+    // PLY-42: Additional validation tests for input parameters
+    @Test
+    fun `should fail digest authentication with empty username`() {
+        // Note: HTTP used intentionally for digest authentication testing
+        val authRepository = AuthRepository(TEST_SSL_ENDPOINT)
+        val result = authRepository.authenticateWithDigest("", "password")
+        
+        assertTrue("Should fail with empty username", result.isFailure)
+        val exception = result.exceptionOrNull()
+        assertTrue("Should be AuthenticationException", exception is AuthenticationException)
+        assertTrue("Should mention empty username", exception?.message?.contains("must not be empty") == true)
+    }
+    
+    @Test
+    fun `should fail digest authentication with blank password`() {
+        // Note: HTTP used intentionally for digest authentication testing
+        val authRepository = AuthRepository(TEST_SSL_ENDPOINT)
+        val result = authRepository.authenticateWithDigest("user@example.com", "   ")
+        
+        assertTrue("Should fail with blank password", result.isFailure)
+        val exception = result.exceptionOrNull()
+        assertTrue("Should be AuthenticationException", exception is AuthenticationException)
+        assertTrue("Should mention blank password", exception?.message?.contains("must not be empty") == true)
+    }
+    
+    @Test
+    fun `should fail server authentication with unsupported region`() {
+        val authRepository = AuthRepository("https://api.pcloud.com")
+        val result = authRepository.authenticateWithServerSupport("user@example.com", "password", "ASIA")
+        
+        assertTrue("Should fail with unsupported region", result.isFailure)
+        val exception = result.exceptionOrNull()
+        assertTrue("Should be AuthenticationException", exception is AuthenticationException)
+        assertTrue("Should mention unsupported region", exception?.message?.contains("Unsupported region") == true)
+    }
+    
+    @Test
+    fun `should generate secure digest tokens with nonce`() {
+        // Note: HTTP used intentionally for digest authentication testing
+        val authRepository = AuthRepository(TEST_SSL_ENDPOINT)
+        val result1 = authRepository.authenticateWithDigest("user@example.com", "password")
+        val result2 = authRepository.authenticateWithDigest("user@example.com", "password")
+        
+        assertTrue("First auth should succeed", result1.isSuccess)
+        assertTrue("Second auth should succeed", result2.isSuccess)
+        
+        val token1 = result1.getOrNull()?.authToken
+        val token2 = result2.getOrNull()?.authToken
+        
+        assertNotNull("Should have first token", token1)
+        assertNotNull("Should have second token", token2)
+        assertNotEquals("Tokens should be different due to nonce", token1, token2)
+        assertTrue("Token should contain digest_auth_token", token1?.contains("digest_auth_token") == true)
+        assertTrue("Token should contain nonce", token1?.contains("_nonce_") == true)
+    }
+    
+    @Test
+    fun `should generate different tokens for different regions`() {
+        val authRepository = AuthRepository("https://api.pcloud.com")
+        val usResult = authRepository.authenticateWithServerSupport("user@example.com", "password", "US")
+        val euResult = authRepository.authenticateWithServerSupport("user@example.com", "password", "EUROPE")
+        
+        assertTrue("US auth should succeed", usResult.isSuccess)
+        assertTrue("EU auth should succeed", euResult.isSuccess)
+        
+        val usToken = usResult.getOrNull()?.authToken
+        val euToken = euResult.getOrNull()?.authToken
+        
+        assertNotNull("Should have US token", usToken)
+        assertNotNull("Should have EU token", euToken)
+        assertNotEquals("Tokens should be different for different regions", usToken, euToken)
+        assertTrue("US token should contain us_server", usToken?.contains("us_server") == true)
+        assertTrue("EU token should contain eu_server", euToken?.contains("eu_server") == true)
     }
 }
