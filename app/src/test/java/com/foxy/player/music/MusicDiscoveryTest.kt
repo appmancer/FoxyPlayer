@@ -786,4 +786,49 @@ class MusicDiscoveryTest {
         assertTrue("Should track last sync timestamp", monitoringResponse.lastSyncTimestamp != null)
         assertTrue("Should indicate if sync is in progress", !monitoringResponse.syncInProgress || monitoringResponse.syncInProgress)
     }
+    
+    @Test
+    fun `should_provide_progress_indicators_for_library_scanning_operations`() {
+        // Arrange - setup test data with authenticated state and progress indicator service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicLibraryScanService = MusicLibraryScanService(authenticatedApiClient)
+        
+        // Create large music library for scanning progress simulation
+        val libraryPaths = listOf(
+            "/Music/Rock", "/Music/Pop", "/Music/Jazz", "/Music/Classical", "/Music/Electronic"
+        )
+        
+        // Act - start library scanning with progress tracking
+        val scanResult = musicLibraryScanService.startLibraryScan(libraryPaths)
+        
+        // Assert - verify progress tracking functionality
+        assertTrue("Should successfully start library scan", scanResult.isSuccess)
+        val scanResponse = scanResult.getOrNull()
+        assertNotNull("Library scan response should not be null", scanResponse)
+        assertTrue("Should provide scan progress tracking", scanResponse!!.progressTrackingEnabled)
+        assertTrue("Should estimate total items", scanResponse.totalItemsEstimate > 0)
+        assertTrue("Should track current progress", scanResponse.currentProgress >= 0)
+        
+        // Test progress update during scanning
+        val progressUpdateResult = musicLibraryScanService.updateScanProgress(150, 1000)
+        assertTrue("Should update scan progress", progressUpdateResult.isSuccess)
+        val progressResponse = progressUpdateResult.getOrNull()
+        assertNotNull("Progress update response should not be null", progressResponse)
+        assertEquals("Should track scanned items", 150, progressResponse!!.itemsScanned)
+        assertEquals("Should track total items", 1000, progressResponse.totalItems)
+        assertEquals("Should calculate progress percentage", 15, progressResponse.progressPercentage)
+        assertTrue("Should provide ETA estimation", progressResponse.estimatedTimeRemaining > 0)
+        
+        // Test scan completion notification
+        val completionResult = musicLibraryScanService.completeScan(1000, 1000)
+        assertTrue("Should complete scan successfully", completionResult.isSuccess)
+        val completionResponse = completionResult.getOrNull()
+        assertNotNull("Scan completion response should not be null", completionResponse)
+        assertTrue("Should indicate scan completion", completionResponse!!.scanCompleted)
+        assertEquals("Should show 100% progress", 100, completionResponse.finalProgressPercentage)
+        assertTrue("Should provide scan duration", completionResponse.totalScanDurationMs > 0)
+        assertTrue("Should report total items found", completionResponse.totalItemsFound > 0)
+    }
 }
