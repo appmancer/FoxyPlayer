@@ -96,6 +96,7 @@ music-player-core/
 .agent
 AGENTS.md
 .spectrum/
+pcloud.txt
 
 # Additional files to ignore
 .idea/

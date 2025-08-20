@@ -1,0 +1,96 @@
+#!/bin/bash
+
+echo "🌐 Testing Real pCloud Integration - Current Status"
+echo "=================================================="
+
+echo ""
+echo "🔍 Available Test Methods:"
+echo ""
+
+echo "1. 📋 Test Real pCloud Response Parsing:"
+echo "   - We have REAL pCloud JSON response format in auth.kt"
+echo "   - Tests parseAuthResponse() with actual pCloud data structure"
+echo ""
+
+echo "2. 🔐 Test Real HTTP Authentication:"
+echo "   - authenticateWithRealHTTP() makes actual HTTP calls"
+echo "   - Uses real credentials from pcloud.txt"
+echo "   - Returns real auth tokens from pCloud servers"
+echo ""
+
+echo "3. 🌍 Test Auto Server Detection:"
+echo "   - authenticateWithAutoServerDetection() tries real EU/US servers"
+echo "   - Automatically finds working server for your account"
+echo ""
+
+echo "4. 📡 Test Real API Client Requests:"
+echo "   - AuthenticatedApiClient makes real HTTP calls"
+echo "   - Uses real auth tokens for authenticated requests"
+echo ""
+
+echo "❌ What's Still Mock:"
+echo "   - MusicDiscoveryService folder listing (returns hardcoded data)"
+echo "   - Audio file filtering (returns test MP3/FLAC files)"
+echo "   - Pagination (returns fake page tokens)"
+echo ""
+
+echo "✅ What Uses Real Data:"
+echo "   - Authentication with pCloud API"
+echo "   - HTTP request/response handling"
+echo "   - Real auth token generation and validation"
+echo "   - Real server detection and routing"
+echo ""
+
+echo ""
+echo "🧪 To Test Real Data Integration:"
+echo ""
+
+if [ -f "pcloud.txt" ]; then
+    echo "✅ Found pcloud.txt with real credentials"
+    
+    echo ""
+    echo "Run this Kotlin code to test real authentication:"
+    echo ""
+    echo "val authRepository = AuthRepository(\"https://eapi.pcloud.com\")"
+    echo "val credentials = File(\"pcloud.txt\").readLines()"
+    echo "val email = credentials[2].trim()"
+    echo "val password = credentials[3].trim()"
+    echo ""
+    echo "// Test 1: Real HTTP authentication"
+    echo "val realAuth = authRepository.authenticateWithRealHTTP(email, password)"
+    echo "println(\"Real auth result: \${realAuth.isSuccess}\")"
+    echo ""
+    echo "// Test 2: Real API client requests"
+    echo "val apiClient = AuthenticatedApiClient(authRepository)"
+    echo "val apiResult = apiClient.makeAuthenticatedRequest(\"/listfolder\")"
+    echo "println(\"Real API result: \${apiResult.isSuccess}\")"
+    echo ""
+    
+else
+    echo "❌ pcloud.txt not found"
+    echo "💡 Create pcloud.txt with format:"
+    echo "   Line 1: This file is in .gitignore so these credentials are protected"
+    echo "   Line 2: (empty)"
+    echo "   Line 3: your-email@example.com"
+    echo "   Line 4: your-password"
+fi
+
+echo ""
+echo "🎯 Next Steps to Enable Full Real Data:"
+echo ""
+echo "1. Modify MusicDiscoveryService.listPCloudFoldersWithAPI() to:"
+echo "   - Parse real JSON response from pCloud /listfolder API"
+echo "   - Extract actual file/folder names from response"
+echo "   - Return real folder structure instead of mock data"
+echo ""
+echo "2. Update audio file filtering to:"
+echo "   - Check real file extensions from API response"
+echo "   - Filter actual files by MIME type or extension"
+echo ""
+echo "3. Implement real pagination using:"
+echo "   - pCloud API pagination parameters"
+echo "   - Real page tokens from API responses"
+echo ""
+
+echo "📚 Current Real Data Test Available:"
+echo "   ./gradlew testDebugUnitTest  # Includes real response parsing test"
