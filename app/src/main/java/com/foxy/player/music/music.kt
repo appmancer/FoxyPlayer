@@ -983,45 +983,6 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
         val syncDurationMs: Long,
         val dataIntegrityVerified: Boolean
     )
-
-// PLY-62 Background Sync Service
-
-    class MusicBackgroundSyncService(private val authenticatedApiClient: AuthenticatedApiClient) {
-
-        fun startIncrementalSync(tracks: List<MusicTrackSyncable>): Result<BackgroundSyncResponse> {
-            val startTime = System.currentTimeMillis()
-
-            // Identify tracks that need syncing (only those with PENDING status or recent modifications)
-            val tracksToSync = tracks.filter { track ->
-                track.syncStatus == SyncStatus.PENDING || track.lastModified > (System.currentTimeMillis() - 86400000) // Within last 24 hours
-            }
-
-            // Simulate background processing (efficient incremental sync)
-            val processedTracks = tracksToSync.size
-
-            // Simulate background execution characteristics
-            val endTime = System.currentTimeMillis()
-            val syncDuration = endTime - startTime
-
-            // Verify data integrity - ensure all pending tracks are identified
-            val dataIntegrity = tracksToSync.all { track ->
-                track.syncStatus == SyncStatus.PENDING || track.lastModified > 0
-            }
-
-            return Result.success(
-                BackgroundSyncResponse(
-                    usedIncrementalSync = true,
-                    tracksProcessed = processedTracks,
-                    backgroundExecution = true,
-                    nonBlockingOperation = true,
-                    scalableForLargeDatasets = true,
-                    finalSyncStatus = SyncStatus.COMPLETED,
-                    syncDurationMs = syncDuration,
-                    dataIntegrityVerified = dataIntegrity
-                )
-            )
-        }
-    }
 }
 
 // Music Search and Browse Service

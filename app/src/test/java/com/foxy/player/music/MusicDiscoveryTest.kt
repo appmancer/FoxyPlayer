@@ -1129,4 +1129,36 @@ class MusicDiscoveryTest {
         // This minimal test just verifies the classes can be instantiated
         assertTrue("This test passes to verify compilation works", true)
     }
+
+    @Test
+    fun `should_have_only_one_MusicBackgroundSyncService_class_definition`() {
+        // Arrange - setup test data to verify class definition uniqueness
+        val possiblePaths = listOf(
+            "app/src/main/java/com/foxy/player/music/music.kt",
+            "../app/src/main/java/com/foxy/player/music/music.kt",
+            "./app/src/main/java/com/foxy/player/music/music.kt",
+            "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/music.kt"
+        )
+
+        var musicFileContent = ""
+        for (path in possiblePaths) {
+            val file = java.io.File(path)
+            if (file.exists()) {
+                musicFileContent = file.readText()
+                break
+            }
+        }
+
+        // Skip test if file not found (environment-dependent)
+        if (musicFileContent.isEmpty()) {
+            org.junit.Assume.assumeTrue("music.kt file not found in test environment", false)
+        }
+
+        // Act - count occurrences of MusicBackgroundSyncService class definition
+        val classDefinitionPattern = "class MusicBackgroundSyncService"
+        val occurrences = musicFileContent.split(classDefinitionPattern).size - 1
+
+        // Assert - verify exactly one class definition exists
+        assertEquals("Should have exactly one MusicBackgroundSyncService class definition", 1, occurrences)
+    }
 }
