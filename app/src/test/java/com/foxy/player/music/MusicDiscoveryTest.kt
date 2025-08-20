@@ -1161,4 +1161,57 @@ class MusicDiscoveryTest {
         // Assert - verify exactly one class definition exists
         assertEquals("Should have exactly one MusicBackgroundSyncService class definition", 1, occurrences)
     }
+
+    @Test
+    fun `should_have_consistent_indentation_without_mixed_spaces_and_tabs`() {
+        // Arrange - setup test data to verify indentation consistency
+        val possiblePaths = listOf(
+            "app/src/main/java/com/foxy/player/music/music.kt",
+            "../app/src/main/java/com/foxy/player/music/music.kt",
+            "./app/src/main/java/com/foxy/player/music/music.kt",
+            "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/music.kt"
+        )
+
+        var musicFileContent = ""
+        for (path in possiblePaths) {
+            val file = java.io.File(path)
+            if (file.exists()) {
+                musicFileContent = file.readText()
+                break
+            }
+        }
+
+        // Skip test if file not found (environment-dependent)
+        if (musicFileContent.isEmpty()) {
+            org.junit.Assume.assumeTrue("music.kt file not found in test environment", false)
+        }
+
+        // Act - check for inconsistent indentation patterns
+        val lines = musicFileContent.split("\n")
+        var hasInconsistentIndentation = false
+        var inconsistentLineCount = 0
+
+        for ((lineNumber, line) in lines.withIndex()) {
+            // Skip empty lines
+            if (line.trim().isEmpty()) continue
+
+            // Check for lines that have both leading spaces and tabs (mixed indentation)
+            val leadingChars = line.takeWhile { it.isWhitespace() }
+            if (leadingChars.contains(' ') && leadingChars.contains('\t')) {
+                hasInconsistentIndentation = true
+                inconsistentLineCount++
+            }
+
+            // Check for improper class nesting - classes starting with exactly 4 spaces (incorrectly nested)
+            if (line.startsWith("    ") && !line.startsWith("        ") && (line.trim().startsWith("enum class") || line.trim().startsWith("data class") || (line.trim().startsWith("class ") && !line.trim().startsWith("class MusicBackgroundSyncService")))) {
+                hasInconsistentIndentation = true
+                inconsistentLineCount++
+            }
+        }
+
+        // Assert - verify consistent indentation
+        assertFalse(
+            "Should have consistent indentation without mixed spaces/tabs. Found $inconsistentLineCount problematic lines", hasInconsistentIndentation
+        )
+    }
 }
