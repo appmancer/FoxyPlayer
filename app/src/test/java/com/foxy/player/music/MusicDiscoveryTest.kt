@@ -582,4 +582,52 @@ class MusicDiscoveryTest {
         assertTrue("Second track should be before third", 
             sortedResponse.tracks[1].dateAdded.isBefore(sortedResponse.tracks[2].dateAdded))
     }
+    
+    @Test
+    fun `should cache music metadata efficiently`() {
+        // Arrange - setup test data with metadata cache service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val metadataCacheService = MusicMetadataCacheService(authenticatedApiClient)
+        
+        val testAudioFile = AudioFile(
+            fileId = "audio123",
+            fileName = "test-song.mp3",
+            filePath = "/Music/test-song.mp3",
+            fileSizeBytes = 5000000,
+            pCloudUrl = "https://eapi.pcloud.com/audio123"
+        )
+        
+        // Act - call metadata extraction twice to test caching
+        val firstCallResult = metadataCacheService.getMetadataWithCache(testAudioFile)
+        val secondCallResult = metadataCacheService.getMetadataWithCache(testAudioFile)
+        
+        // Assert - verify caching efficiency
+        assertTrue("First call should return successful result", firstCallResult.isSuccess)
+        assertTrue("Second call should return successful result", secondCallResult.isSuccess)
+        
+        val firstMetadata = firstCallResult.getOrNull()
+        val secondMetadata = secondCallResult.getOrNull()
+        
+        assertNotNull("First metadata should not be null", firstMetadata)
+        assertNotNull("Second metadata should not be null", secondMetadata)
+        
+        // Verify cache behavior for efficiency
+        assertFalse("First call should NOT be served from cache", firstMetadata!!.servedFromCache)
+        assertTrue("Second call should be served from cache", secondMetadata!!.servedFromCache)
+        
+        // Verify cached data integrity
+        assertEquals("Cached metadata should be identical", firstMetadata.title, secondMetadata.title)
+        assertEquals("Cached metadata should be identical", firstMetadata.artist, secondMetadata.artist)
+        assertEquals("Cached metadata should be identical", firstMetadata.album, secondMetadata.album)
+        assertEquals("Cached metadata should be identical", firstMetadata.durationMs, secondMetadata.durationMs)
+        
+        // Verify performance improvement
+        assertTrue("Cache should significantly reduce processing time", 
+            secondMetadata.processingTimeMs < firstMetadata.processingTimeMs / 2)
+        assertTrue("Cache should track API call reduction", 
+            secondMetadata.totalApiCalls == 0) // No API calls on cached result
+        assertEquals("First call should make exactly 1 API call", 1, firstMetadata.totalApiCalls)
+    }
 }
