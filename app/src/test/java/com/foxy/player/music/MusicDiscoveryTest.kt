@@ -6,6 +6,7 @@ import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.UserInfo
 import com.foxy.player.authentication.AuthResponse
+import java.time.LocalDateTime
 
 class MusicDiscoveryTest {
     
@@ -454,11 +455,11 @@ class MusicDiscoveryTest {
         // Create test music tracks with sorting metadata
         val testTracks = listOf(
             MusicTrackWithMetadata("1", "Zebra Song", "Artist A", "Album Z", "rock", 
-                durationMs = 180000, fileSizeBytes = 5000000, dateAdded = "2023-01-01"),
+                durationMs = 180000, fileSizeBytes = 5000000, dateAdded = LocalDateTime.of(2023, 1, 1, 0, 0)),
             MusicTrackWithMetadata("2", "Alpha Song", "Artist B", "Album A", "pop", 
-                durationMs = 240000, fileSizeBytes = 3000000, dateAdded = "2023-03-01"),
+                durationMs = 240000, fileSizeBytes = 3000000, dateAdded = LocalDateTime.of(2023, 3, 1, 0, 0)),
             MusicTrackWithMetadata("3", "Beta Song", "Artist A", "Album B", "rock", 
-                durationMs = 120000, fileSizeBytes = 8000000, dateAdded = "2023-02-01")
+                durationMs = 120000, fileSizeBytes = 8000000, dateAdded = LocalDateTime.of(2023, 2, 1, 0, 0))
         )
         
         // Test alphabetical sorting by title
@@ -516,5 +517,29 @@ class MusicDiscoveryTest {
         val newState = updatedState.getOrNull()!!
         assertEquals("Should update search query", searchQuery, newState.searchQuery)
         assertTrue("Should show loading when search query is updated", newState.isLoading)
+    }
+    
+    @Test
+    fun `MusicTrack_should_use_proper_date_type_for_dateAdded_field`() {
+        // Arrange - setup test data using LocalDateTime instead of String
+        val testDate = LocalDateTime.of(2023, 3, 15, 10, 30, 0)
+        
+        // Act - create MusicTrackWithMetadata with LocalDateTime dateAdded
+        val track = MusicTrackWithMetadata(
+            id = "1", 
+            title = "Test Song", 
+            artist = "Test Artist", 
+            album = "Test Album", 
+            genre = "rock",
+            durationMs = 180000, 
+            fileSizeBytes = 5000000, 
+            dateAdded = testDate  // This should be LocalDateTime, not String
+        )
+        
+        // Assert - verify date type functionality
+        assertTrue("Should accept LocalDateTime for dateAdded", track.dateAdded is LocalDateTime)
+        assertEquals("Should preserve date value correctly", testDate, track.dateAdded)
+        assertEquals("Should allow date comparison", 2023, track.dateAdded.year)
+        assertEquals("Should allow date comparison", 3, track.dateAdded.monthValue)
     }
 }

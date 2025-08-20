@@ -7,6 +7,7 @@ import com.foxy.player.authentication.AuthenticatedRequestResult
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import java.io.IOException
+import java.time.LocalDateTime
 
 // Real pCloud API Response Models
 
@@ -126,7 +127,7 @@ data class MusicTrackWithMetadata(
     val genre: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
-    val dateAdded: String
+    val dateAdded: LocalDateTime
 )
 
 // Sort criteria enum
