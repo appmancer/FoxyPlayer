@@ -957,36 +957,6 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
             )
         }
     }
-
-// PLY-62 Background Sync and Incremental Updates - Domain Models
-
-    enum class SyncStatus {
-        PENDING,
-        SYNCED,
-        COMPLETED,
-        FAILED
-    }
-
-    data class MusicTrackSyncable(
-        val id: String,
-        val title: String,
-        val artist: String,
-        val album: String,
-        val filePath: String,
-        val lastModified: Long,
-        val syncStatus: SyncStatus
-    )
-
-    data class BackgroundSyncResponse(
-        val usedIncrementalSync: Boolean,
-        val tracksProcessed: Int,
-        val backgroundExecution: Boolean,
-        val nonBlockingOperation: Boolean,
-        val scalableForLargeDatasets: Boolean,
-        val finalSyncStatus: SyncStatus,
-        val syncDurationMs: Long,
-        val dataIntegrityVerified: Boolean
-    )
 }
 
 // Music Search and Browse Service
