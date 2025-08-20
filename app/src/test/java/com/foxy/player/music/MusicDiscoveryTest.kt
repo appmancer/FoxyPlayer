@@ -400,4 +400,46 @@ class MusicDiscoveryTest {
         assertFalse("Should not contain non-rock tracks", 
             searchResponse.tracks.any { it.genre != "rock" })
     }
+    
+    @Test
+    fun `should browse music tracks by artist grouping`() {
+        // Arrange - setup test data with authenticated state and music browse service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music tracks with multiple artists
+        val testTracks = listOf(
+            MusicTrack("1", "Bohemian Rhapsody", "Queen", "A Night at the Opera", "rock"),
+            MusicTrack("2", "We Will Rock You", "Queen", "News of the World", "rock"),
+            MusicTrack("3", "Hotel California", "Eagles", "Hotel California", "rock"),
+            MusicTrack("4", "Take It Easy", "Eagles", "Eagles", "rock"),
+            MusicTrack("5", "Imagine", "John Lennon", "Imagine", "pop"),
+            MusicTrack("6", "Like a Rolling Stone", "Bob Dylan", "Highway 61 Revisited", "folk")
+        )
+        
+        // Act - call the browse by artist method that doesn't exist yet
+        val result = musicSearchService.browseByArtist(testTracks)
+        
+        // Assert - verify browse functionality
+        assertTrue("Should return successful result with artist groups", result.isSuccess)
+        val browseResponse = result.getOrNull()
+        assertNotNull("Browse response should not be null", browseResponse)
+        assertEquals("Should group tracks by 4 different artists", 4, browseResponse!!.artistGroups.size)
+        
+        // Verify Queen group
+        val queenGroup = browseResponse.artistGroups.find { it.artist == "Queen" }
+        assertNotNull("Should contain Queen group", queenGroup)
+        assertEquals("Queen should have 2 tracks", 2, queenGroup!!.tracks.size)
+        assertTrue("Queen group should contain Bohemian Rhapsody", 
+            queenGroup.tracks.any { it.title == "Bohemian Rhapsody" })
+        assertTrue("Queen group should contain We Will Rock You", 
+            queenGroup.tracks.any { it.title == "We Will Rock You" })
+        
+        // Verify Eagles group
+        val eaglesGroup = browseResponse.artistGroups.find { it.artist == "Eagles" }
+        assertNotNull("Should contain Eagles group", eaglesGroup)
+        assertEquals("Eagles should have 2 tracks", 2, eaglesGroup!!.tracks.size)
+    }
 }

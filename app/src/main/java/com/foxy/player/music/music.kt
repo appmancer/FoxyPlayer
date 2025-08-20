@@ -130,6 +130,16 @@ data class SearchCriteria(
     val genre: String? = null
 )
 
+// Browse functionality models
+data class ArtistGroup(
+    val artist: String,
+    val tracks: List<MusicTrack>
+)
+
+data class MusicBrowseResponse(
+    val artistGroups: List<ArtistGroup>
+)
+
 // Error handling metadata extraction response
 data class MetadataExtractionErrorResponse(
     val metadata: AudioMetadata? = null,
@@ -724,5 +734,16 @@ class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiCli
         }
         
         return Result.success(MusicSearchResponse(tracks = filteredTracks))
+    }
+    
+    fun browseByArtist(tracks: List<MusicTrack>): Result<MusicBrowseResponse> {
+        // Minimal implementation - group tracks by artist
+        val artistGroups = tracks
+            .groupBy { it.artist }
+            .map { (artist, trackList) ->
+                ArtistGroup(artist = artist, tracks = trackList)
+            }
+        
+        return Result.success(MusicBrowseResponse(artistGroups = artistGroups))
     }
 }
