@@ -214,4 +214,31 @@ class MusicDiscoveryTest {
         assertEquals("Should have proper fallback message", 
             "Using cached data due to network error", fallbackResponse.errorMessage)
     }
+    
+    @Test
+    fun `should extract basic metadata from MP3 file`() {
+        // Arrange - setup test data with authenticated state and metadata extractor
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Create test audio file data
+        val audioFileUrl = "https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3"
+        val audioFileName = "SampleAudio_0.4mb_mp3.mp3"
+        
+        // Act - call the metadata extraction method that doesn't exist yet
+        val result = musicDiscoveryService.extractMetadata(audioFileUrl, audioFileName)
+        
+        // Assert - verify metadata extraction functionality
+        assertTrue("Should return successful result with extracted metadata", result.isSuccess)
+        val metadata = result.getOrNull()
+        assertNotNull("Metadata should not be null", metadata)
+        assertNotNull("Should extract title from MP3 file", metadata!!.title)
+        assertNotNull("Should extract artist from MP3 file", metadata.artist)
+        assertNotNull("Should extract album from MP3 file", metadata.album)
+        assertTrue("Should extract duration from MP3 file", metadata.durationMs > 0)
+        assertEquals("Should identify correct file format", "MP3", metadata.format)
+        assertTrue("Should extract bitrate from MP3 file", metadata.bitrate > 0)
+    }
 }
