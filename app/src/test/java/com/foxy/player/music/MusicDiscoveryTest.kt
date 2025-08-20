@@ -276,4 +276,55 @@ class MusicDiscoveryTest {
         assertTrue("WAV should have valid duration", wavMetadata.durationMs > 0)
         assertTrue("AAC should have valid duration", aacMetadata.durationMs > 0)
     }
+    
+    @Test
+    fun `should handle corrupted files and missing metadata gracefully`() {
+        // Arrange - setup test data with authenticated state and metadata extractor
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Test corrupted file handling
+        val corruptedResult = musicDiscoveryService.extractMetadataWithErrorHandling(
+            "https://sample.com/corrupted.mp3", 
+            "corrupted.mp3",
+            simulateCorruption = true
+        )
+        assertTrue("Should handle corrupted files gracefully", corruptedResult.isSuccess)
+        val corruptedResponse = corruptedResult.getOrNull()
+        assertNotNull("Corrupted file response should not be null", corruptedResponse)
+        assertTrue("Should indicate file corruption", corruptedResponse!!.hasFileCorruption)
+        assertTrue("Should provide fallback metadata", corruptedResponse.hasFallbackMetadata)
+        assertEquals("Should have proper error message", 
+            "File corrupted - using fallback metadata", corruptedResponse.errorMessage)
+        
+        // Test missing metadata handling
+        val missingMetadataResult = musicDiscoveryService.extractMetadataWithErrorHandling(
+            "https://sample.com/nometa.mp3", 
+            "nometa.mp3",
+            simulateMissingMetadata = true
+        )
+        assertTrue("Should handle missing metadata gracefully", missingMetadataResult.isSuccess)
+        val missingResponse = missingMetadataResult.getOrNull()
+        assertNotNull("Missing metadata response should not be null", missingResponse)
+        assertTrue("Should indicate missing metadata", missingResponse!!.hasMissingMetadata)
+        assertTrue("Should provide fallback metadata", missingResponse.hasFallbackMetadata)
+        assertEquals("Should have proper error message", 
+            "Metadata not found - using fallback values", missingResponse.errorMessage)
+        
+        // Test unsupported format handling  
+        val unsupportedResult = musicDiscoveryService.extractMetadataWithErrorHandling(
+            "https://sample.com/video.mp4", 
+            "video.mp4",
+            simulateUnsupportedFormat = true
+        )
+        assertTrue("Should handle unsupported format gracefully", unsupportedResult.isSuccess)
+        val unsupportedResponse = unsupportedResult.getOrNull()
+        assertNotNull("Unsupported format response should not be null", unsupportedResponse)
+        assertTrue("Should indicate unsupported format", unsupportedResponse!!.hasUnsupportedFormat)
+        assertFalse("Should not provide metadata for unsupported format", unsupportedResponse.hasFallbackMetadata)
+        assertEquals("Should have proper error message", 
+            "Unsupported audio format", unsupportedResponse.errorMessage)
+    }
 }

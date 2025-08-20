@@ -105,6 +105,16 @@ data class AudioMetadata(
     val bitrate: Int
 )
 
+// Error handling metadata extraction response
+data class MetadataExtractionErrorResponse(
+    val metadata: AudioMetadata? = null,
+    val hasFileCorruption: Boolean = false,
+    val hasMissingMetadata: Boolean = false,
+    val hasUnsupportedFormat: Boolean = false,
+    val hasFallbackMetadata: Boolean = false,
+    val errorMessage: String = ""
+)
+
 // Paginated audio files response
 data class PaginatedAudioFilesResponse(
     val authToken: String,
@@ -508,6 +518,84 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
             durationMs = 24000,
             format = format,
             bitrate = 128
+        ))
+    }
+    
+    fun extractMetadataWithErrorHandling(
+        audioFileUrl: String, 
+        audioFileName: String,
+        simulateCorruption: Boolean = false,
+        simulateMissingMetadata: Boolean = false,
+        simulateUnsupportedFormat: Boolean = false
+    ): Result<MetadataExtractionErrorResponse> {
+        // Simulate corruption scenario
+        if (simulateCorruption) {
+            val fallbackMetadata = AudioMetadata(
+                title = "Unknown Title",
+                artist = "Unknown Artist",
+                album = "Unknown Album", 
+                durationMs = 0,
+                format = "Unknown",
+                bitrate = 0
+            )
+            return Result.success(MetadataExtractionErrorResponse(
+                metadata = fallbackMetadata,
+                hasFileCorruption = true,
+                hasFallbackMetadata = true,
+                errorMessage = "File corrupted - using fallback metadata"
+            ))
+        }
+        
+        // Simulate missing metadata scenario
+        if (simulateMissingMetadata) {
+            val fallbackMetadata = AudioMetadata(
+                title = "Untitled",
+                artist = "Unknown Artist",
+                album = "Unknown Album",
+                durationMs = 30000,
+                format = "MP3",
+                bitrate = 128
+            )
+            return Result.success(MetadataExtractionErrorResponse(
+                metadata = fallbackMetadata,
+                hasMissingMetadata = true,
+                hasFallbackMetadata = true,
+                errorMessage = "Metadata not found - using fallback values"
+            ))
+        }
+        
+        // Simulate unsupported format scenario
+        if (simulateUnsupportedFormat) {
+            return Result.success(MetadataExtractionErrorResponse(
+                hasUnsupportedFormat = true,
+                hasFallbackMetadata = false,
+                errorMessage = "Unsupported audio format"
+            ))
+        }
+        
+        // Default successful response
+        val format = when {
+            audioFileName.lowercase().endsWith(".mp3") -> "MP3"
+            audioFileName.lowercase().endsWith(".flac") -> "FLAC"
+            audioFileName.lowercase().endsWith(".wav") -> "WAV"
+            audioFileName.lowercase().endsWith(".aac") -> "AAC"
+            audioFileName.lowercase().endsWith(".m4a") -> "AAC"
+            else -> "MP3"
+        }
+        
+        val successMetadata = AudioMetadata(
+            title = "Sample Audio",
+            artist = "Sample Artist",
+            album = "Sample Album",
+            durationMs = 24000,
+            format = format,
+            bitrate = 128
+        )
+        
+        return Result.success(MetadataExtractionErrorResponse(
+            metadata = successMetadata,
+            hasFallbackMetadata = false,
+            errorMessage = ""
         ))
     }
 }
