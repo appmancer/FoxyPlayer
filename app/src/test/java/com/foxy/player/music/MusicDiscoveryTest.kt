@@ -1208,7 +1208,8 @@ class MusicDiscoveryTest {
 
         // Assert - verify consistent indentation (focus on mixed tabs/spaces which ktlint doesn't auto-fix)
         assertFalse(
-            "Should not have mixed spaces and tabs indentation. Found $inconsistentLineCount problematic lines", hasInconsistentIndentation
+            "Should not have mixed spaces and tabs indentation. Found $inconsistentLineCount problematic lines",
+            hasInconsistentIndentation
         )
     }
 
