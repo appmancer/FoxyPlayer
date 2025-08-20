@@ -582,4 +582,48 @@ class MusicDiscoveryTest {
         assertTrue("Second track should be before third", 
             sortedResponse.tracks[1].dateAdded.isBefore(sortedResponse.tracks[2].dateAdded))
     }
+    
+    @Test
+    fun `should_cache_music_metadata_efficiently_for_fast_retrieval`() {
+        // Arrange - setup test data with authenticated state and metadata caching service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicMetadataCacheService = MusicMetadataCacheService(authenticatedApiClient)
+        
+        val audioFileUrl = "https://sample.com/test.mp3"
+        val audioFileName = "test.mp3"
+        
+        // Act - call metadata extraction twice to test caching efficiency
+        val firstCallResult = musicMetadataCacheService.getMetadataWithCache(audioFileUrl, audioFileName)
+        val secondCallResult = musicMetadataCacheService.getMetadataWithCache(audioFileUrl, audioFileName)
+        
+        // Assert - verify caching efficiency and fast retrieval
+        assertTrue("First call should return successful result", firstCallResult.isSuccess)
+        assertTrue("Second call should return successful result", secondCallResult.isSuccess)
+        
+        val firstResponse = firstCallResult.getOrNull()
+        val secondResponse = secondCallResult.getOrNull()
+        
+        assertNotNull("First response should not be null", firstResponse)
+        assertNotNull("Second response should not be null", secondResponse)
+        
+        // Verify cache efficiency behavior
+        assertFalse("First call should NOT be served from cache", firstResponse!!.servedFromCache)
+        assertTrue("Second call should be served from cache for efficiency", secondResponse!!.servedFromCache)
+        
+        // Verify metadata is cached and identical
+        assertEquals("Cached metadata should be identical to original", 
+            firstResponse.metadata, secondResponse.metadata)
+        
+        // Verify caching improves performance
+        assertTrue("First call should take longer (needs metadata extraction)", 
+            firstResponse.processingTimeMs > 0)
+        assertTrue("Second call should be faster (served from cache)", 
+            secondResponse.processingTimeMs < firstResponse.processingTimeMs)
+        
+        // Verify cache reduces metadata extraction operations
+        assertEquals("Should perform metadata extraction only once despite two calls", 
+            1, secondResponse.totalMetadataExtractions)
+    }
 }
