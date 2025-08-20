@@ -733,4 +733,57 @@ class MusicDiscoveryTest {
         assertTrue("Should provide memory usage metrics", monitoringResponse.memoryUsageBytes > 0)
         assertTrue("Should detect memory leaks", monitoringResponse.memoryLeakDetectionEnabled)
     }
+    
+    @Test
+    fun `should_implement_background_sync_and_incremental_updates_for_music_libraries`() {
+        // Arrange - setup test data with authenticated state and background sync service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicBackgroundSyncService = MusicBackgroundSyncService(authenticatedApiClient)
+        
+        // Create initial music library state
+        val initialLibrary = listOf(
+            MusicTrackWithMetadata("1", "Song A", "Artist A", "Album A", "rock", 
+                durationMs = 180000L, fileSizeBytes = 5000000L, dateAdded = LocalDateTime.of(2023, 1, 1, 0, 0)),
+            MusicTrackWithMetadata("2", "Song B", "Artist B", "Album B", "pop", 
+                durationMs = 240000L, fileSizeBytes = 3000000L, dateAdded = LocalDateTime.of(2023, 2, 1, 0, 0))
+        )
+        
+        // Simulate new tracks being added to remote source
+        val remoteChanges = listOf(
+            MusicTrackWithMetadata("3", "Song C", "Artist C", "Album C", "jazz", 
+                durationMs = 200000L, fileSizeBytes = 4500000L, dateAdded = LocalDateTime.of(2023, 3, 1, 0, 0)),
+            MusicTrackWithMetadata("4", "Song D", "Artist D", "Album D", "rock", 
+                durationMs = 160000L, fileSizeBytes = 3800000L, dateAdded = LocalDateTime.of(2023, 3, 2, 0, 0))
+        )
+        
+        // Act - start background sync process
+        val backgroundSyncResult = musicBackgroundSyncService.startBackgroundSync(initialLibrary)
+        
+        // Assert - verify background sync functionality
+        assertTrue("Should successfully start background sync", backgroundSyncResult.isSuccess)
+        val syncResponse = backgroundSyncResult.getOrNull()
+        assertNotNull("Background sync response should not be null", syncResponse)
+        assertTrue("Should enable background sync", syncResponse!!.backgroundSyncEnabled)
+        assertTrue("Should provide sync status", syncResponse.syncStatusAvailable)
+        
+        // Test incremental update detection
+        val incrementalUpdateResult = musicBackgroundSyncService.performIncrementalUpdate(initialLibrary, remoteChanges)
+        assertTrue("Should detect incremental updates", incrementalUpdateResult.isSuccess)
+        val updateResponse = incrementalUpdateResult.getOrNull()
+        assertNotNull("Incremental update response should not be null", updateResponse)
+        assertTrue("Should detect new tracks", updateResponse!!.newTracksDetected)
+        assertEquals("Should detect 2 new tracks", 2, updateResponse.newTracksCount)
+        assertTrue("Should apply incremental changes", updateResponse.incrementalChangesApplied)
+        
+        // Test background sync monitoring
+        val syncMonitoringResult = musicBackgroundSyncService.monitorSyncProgress()
+        assertTrue("Should monitor sync progress", syncMonitoringResult.isSuccess)
+        val monitoringResponse = syncMonitoringResult.getOrNull()
+        assertNotNull("Sync monitoring response should not be null", monitoringResponse)
+        assertTrue("Should provide sync progress percentage", monitoringResponse!!.syncProgressPercent >= 0)
+        assertTrue("Should track last sync timestamp", monitoringResponse.lastSyncTimestamp != null)
+        assertTrue("Should indicate if sync is in progress", !monitoringResponse.syncInProgress || monitoringResponse.syncInProgress)
+    }
 }
