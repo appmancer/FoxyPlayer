@@ -11,7 +11,10 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import java.io.IOException
 import java.time.LocalDateTime
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -604,7 +607,11 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
         }
     }
 
-    fun listAudioFilesWithPagination(path: String, pageToken: String?, pageSize: Int): Result<PaginatedAudioFilesResponse> {
+    fun listAudioFilesWithPagination(
+        path: String,
+        pageToken: String?,
+        pageSize: Int
+    ): Result<PaginatedAudioFilesResponse> {
         // Minimal implementation to make the pagination test pass
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
 
@@ -820,9 +827,8 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
             }
 
             // Extract real metadata using MediaMetadataRetriever
-            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) ?: audioFileName.substringBeforeLast(
-                "."
-            )
+            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                ?: audioFileName.substringBeforeLast(".")
             val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: "Unknown Artist"
             val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: "Unknown Album"
             val durationStr = retriever.extractMetadata(
@@ -952,7 +958,8 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
                 MetadataExtractionErrorResponse(
                     metadata = fallbackMetadata,
                     hasFallbackMetadata = true,
-                    errorMessage = "Failed to extract metadata - using fallback: ${metadataResult.exceptionOrNull()?.message}"
+                    errorMessage = "Failed to extract metadata - using fallback: " +
+                        "${metadataResult.exceptionOrNull()?.message}"
                 )
             )
         }
@@ -1140,7 +1147,10 @@ class MusicDatabaseIndexService(private val authenticatedApiClient: Authenticate
     private val albumIndex = mutableMapOf<String, MutableList<MusicTrackIndexed>>()
     private var indexesBuilt = false
 
-    fun searchWithDatabaseIndex(searchQuery: String, tracks: List<MusicTrackIndexed>): Result<DatabaseIndexedSearchResponse> {
+    fun searchWithDatabaseIndex(
+        searchQuery: String,
+        tracks: List<MusicTrackIndexed>
+    ): Result<DatabaseIndexedSearchResponse> {
         val startTime = System.currentTimeMillis()
 
         // Build indexes if not already built
