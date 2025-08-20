@@ -214,4 +214,117 @@ class MusicDiscoveryTest {
         assertEquals("Should have proper fallback message", 
             "Using cached data due to network error", fallbackResponse.errorMessage)
     }
+    
+    @Test
+    fun `should extract basic metadata from MP3 file`() {
+        // Arrange - setup test data with authenticated state and metadata extractor
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Create test audio file data
+        val audioFileUrl = "https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3"
+        val audioFileName = "SampleAudio_0.4mb_mp3.mp3"
+        
+        // Act - call the metadata extraction method that doesn't exist yet
+        val result = musicDiscoveryService.extractMetadata(audioFileUrl, audioFileName)
+        
+        // Assert - verify metadata extraction functionality
+        assertTrue("Should return successful result with extracted metadata", result.isSuccess)
+        val metadata = result.getOrNull()
+        assertNotNull("Metadata should not be null", metadata)
+        assertNotNull("Should extract title from MP3 file", metadata!!.title)
+        assertNotNull("Should extract artist from MP3 file", metadata.artist)
+        assertNotNull("Should extract album from MP3 file", metadata.album)
+        assertTrue("Should extract duration from MP3 file", metadata.durationMs > 0)
+        assertEquals("Should identify correct file format", "MP3", metadata.format)
+        assertTrue("Should extract bitrate from MP3 file", metadata.bitrate > 0)
+    }
+    
+    @Test
+    fun `should extract metadata from different audio formats FLAC WAV AAC`() {
+        // Arrange - setup test data with authenticated state and metadata extractor
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Test FLAC format
+        val flacResult = musicDiscoveryService.extractMetadata("https://sample.com/test.flac", "test.flac")
+        assertTrue("Should successfully extract FLAC metadata", flacResult.isSuccess)
+        val flacMetadata = flacResult.getOrNull()
+        assertNotNull("FLAC metadata should not be null", flacMetadata)
+        assertEquals("Should identify FLAC format correctly", "FLAC", flacMetadata!!.format)
+        
+        // Test WAV format
+        val wavResult = musicDiscoveryService.extractMetadata("https://sample.com/test.wav", "test.wav")
+        assertTrue("Should successfully extract WAV metadata", wavResult.isSuccess)
+        val wavMetadata = wavResult.getOrNull()
+        assertNotNull("WAV metadata should not be null", wavMetadata)
+        assertEquals("Should identify WAV format correctly", "WAV", wavMetadata!!.format)
+        
+        // Test AAC format
+        val aacResult = musicDiscoveryService.extractMetadata("https://sample.com/test.aac", "test.aac")
+        assertTrue("Should successfully extract AAC metadata", aacResult.isSuccess)
+        val aacMetadata = aacResult.getOrNull()
+        assertNotNull("AAC metadata should not be null", aacMetadata)
+        assertEquals("Should identify AAC format correctly", "AAC", aacMetadata!!.format)
+        
+        // All formats should have basic metadata fields
+        assertTrue("FLAC should have valid duration", flacMetadata.durationMs > 0)
+        assertTrue("WAV should have valid duration", wavMetadata.durationMs > 0)
+        assertTrue("AAC should have valid duration", aacMetadata.durationMs > 0)
+    }
+    
+    @Test
+    fun `should handle corrupted files and missing metadata gracefully`() {
+        // Arrange - setup test data with authenticated state and metadata extractor
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Test corrupted file handling
+        val corruptedResult = musicDiscoveryService.extractMetadataWithErrorHandling(
+            "https://sample.com/corrupted.mp3", 
+            "corrupted.mp3",
+            simulateCorruption = true
+        )
+        assertTrue("Should handle corrupted files gracefully", corruptedResult.isSuccess)
+        val corruptedResponse = corruptedResult.getOrNull()
+        assertNotNull("Corrupted file response should not be null", corruptedResponse)
+        assertTrue("Should indicate file corruption", corruptedResponse!!.hasFileCorruption)
+        assertTrue("Should provide fallback metadata", corruptedResponse.hasFallbackMetadata)
+        assertEquals("Should have proper error message", 
+            "File corrupted - using fallback metadata", corruptedResponse.errorMessage)
+        
+        // Test missing metadata handling
+        val missingMetadataResult = musicDiscoveryService.extractMetadataWithErrorHandling(
+            "https://sample.com/nometa.mp3", 
+            "nometa.mp3",
+            simulateMissingMetadata = true
+        )
+        assertTrue("Should handle missing metadata gracefully", missingMetadataResult.isSuccess)
+        val missingResponse = missingMetadataResult.getOrNull()
+        assertNotNull("Missing metadata response should not be null", missingResponse)
+        assertTrue("Should indicate missing metadata", missingResponse!!.hasMissingMetadata)
+        assertTrue("Should provide fallback metadata", missingResponse.hasFallbackMetadata)
+        assertEquals("Should have proper error message", 
+            "Metadata not found - using fallback values", missingResponse.errorMessage)
+        
+        // Test unsupported format handling  
+        val unsupportedResult = musicDiscoveryService.extractMetadataWithErrorHandling(
+            "https://sample.com/video.mp4", 
+            "video.mp4",
+            simulateUnsupportedFormat = true
+        )
+        assertTrue("Should handle unsupported format gracefully", unsupportedResult.isSuccess)
+        val unsupportedResponse = unsupportedResult.getOrNull()
+        assertNotNull("Unsupported format response should not be null", unsupportedResponse)
+        assertTrue("Should indicate unsupported format", unsupportedResponse!!.hasUnsupportedFormat)
+        assertFalse("Should not provide metadata for unsupported format", unsupportedResponse.hasFallbackMetadata)
+        assertEquals("Should have proper error message", 
+            "Unsupported audio format", unsupportedResponse.errorMessage)
+    }
 }
