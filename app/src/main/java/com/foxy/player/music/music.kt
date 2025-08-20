@@ -108,6 +108,19 @@ data class AudioMetadata(
     val bitrate: Int
 )
 
+// Music Search and Browse Interface Models
+data class MusicTrack(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val genre: String
+)
+
+data class MusicSearchResponse(
+    val tracks: List<MusicTrack>
+)
+
 // Error handling metadata extraction response
 data class MetadataExtractionErrorResponse(
     val metadata: AudioMetadata? = null,
@@ -667,5 +680,18 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
                 errorMessage = "Failed to extract metadata - using fallback: ${metadataResult.exceptionOrNull()?.message}"
             ))
         }
+    }
+}
+
+// Music Search and Browse Service
+class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiClient) {
+    
+    fun searchTracks(query: String, tracks: List<MusicTrack>): Result<MusicSearchResponse> {
+        // Minimal implementation - filter tracks by artist matching query
+        val filteredTracks = tracks.filter { track ->
+            track.artist.contains(query, ignoreCase = true)
+        }
+        
+        return Result.success(MusicSearchResponse(tracks = filteredTracks))
     }
 }

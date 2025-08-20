@@ -327,4 +327,36 @@ class MusicDiscoveryTest {
         assertEquals("Should have proper error message", 
             "Unsupported audio format", unsupportedResponse.errorMessage)
     }
+    
+    @Test
+    fun `should filter music tracks by search query`() {
+        // Arrange - setup test data with authenticated state and music search service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music tracks
+        val testTracks = listOf(
+            MusicTrack("1", "Bohemian Rhapsody", "Queen", "A Night at the Opera", "rock"),
+            MusicTrack("2", "Stairway to Heaven", "Led Zeppelin", "Led Zeppelin IV", "rock"),
+            MusicTrack("3", "Hotel California", "Eagles", "Hotel California", "rock"),
+            MusicTrack("4", "Imagine", "John Lennon", "Imagine", "pop"),
+            MusicTrack("5", "Like a Rolling Stone", "Bob Dylan", "Highway 61 Revisited", "folk")
+        )
+        
+        // Act - call the search method that doesn't exist yet
+        val result = musicSearchService.searchTracks("Queen", testTracks)
+        
+        // Assert - verify search functionality
+        assertTrue("Should return successful result with filtered tracks", result.isSuccess)
+        val searchResponse = result.getOrNull()
+        assertNotNull("Search response should not be null", searchResponse)
+        assertTrue("Should contain tracks matching 'Queen'", 
+            searchResponse!!.tracks.any { it.artist == "Queen" })
+        assertFalse("Should not contain tracks that don't match 'Queen'", 
+            searchResponse.tracks.any { it.artist == "Led Zeppelin" })
+        assertEquals("Should return exactly 1 track for 'Queen' search", 1, searchResponse.tracks.size)
+        assertEquals("Should return the correct Queen track", "Bohemian Rhapsody", searchResponse.tracks[0].title)
+    }
 }
