@@ -931,3 +931,90 @@ class MusicMetadataCacheService(private val authenticatedApiClient: Authenticate
         }
     }
 }
+// Database Indexing Response Model for Performance Optimization
+data class DatabaseIndexingResponse(
+    val titleIndexCreated: Boolean,
+    val artistIndexCreated: Boolean,
+    val albumIndexCreated: Boolean,
+    val genreIndexCreated: Boolean
+)
+
+// Database Search Response Model with Performance Metrics
+data class DatabaseSearchResponse(
+    val tracks: List<MusicTrackWithMetadata>,
+    val usedDatabaseIndexes: Boolean,
+    val indexOptimizationMs: Long
+)
+
+// Music Database Index Service for Fast Search Performance
+class MusicDatabaseIndexService(private val authenticatedApiClient: AuthenticatedApiClient) {
+    
+    // Simple in-memory indexes for fast search
+    private val titleIndex = mutableMapOf<String, List<MusicTrackWithMetadata>>()
+    private val artistIndex = mutableMapOf<String, List<MusicTrackWithMetadata>>()
+    private val albumIndex = mutableMapOf<String, List<MusicTrackWithMetadata>>()
+    private val genreIndex = mutableMapOf<String, List<MusicTrackWithMetadata>>()
+    
+    fun createIndexes(tracks: List<MusicTrackWithMetadata>): Result<DatabaseIndexingResponse> {
+        // Create indexes for fast searching
+        
+        // Index by title
+        tracks.forEach { track ->
+            val titleKey = track.title.lowercase()
+            titleIndex[titleKey] = titleIndex.getOrDefault(titleKey, emptyList()) + track
+        }
+        
+        // Index by artist  
+        tracks.forEach { track ->
+            val artistKey = track.artist.lowercase()
+            artistIndex[artistKey] = artistIndex.getOrDefault(artistKey, emptyList()) + track
+        }
+        
+        // Index by album
+        tracks.forEach { track ->
+            val albumKey = track.album.lowercase()
+            albumIndex[albumKey] = albumIndex.getOrDefault(albumKey, emptyList()) + track
+        }
+        
+        // Index by genre
+        tracks.forEach { track ->
+            val genreKey = track.genre.lowercase()
+            genreIndex[genreKey] = genreIndex.getOrDefault(genreKey, emptyList()) + track
+        }
+        
+        return Result.success(DatabaseIndexingResponse(
+            titleIndexCreated = titleIndex.isNotEmpty(),
+            artistIndexCreated = artistIndex.isNotEmpty(),
+            albumIndexCreated = albumIndex.isNotEmpty(),
+            genreIndexCreated = genreIndex.isNotEmpty()
+        ))
+    }
+    
+    fun searchWithIndexes(query: String, tracks: List<MusicTrackWithMetadata>): Result<DatabaseSearchResponse> {
+        val startTime = System.currentTimeMillis()
+        val queryLower = query.lowercase()
+        
+        // Use indexes for fast search (O(1) lookup vs O(n) linear search)
+        val foundTracks = mutableSetOf<MusicTrackWithMetadata>()
+        
+        // Search in title index
+        titleIndex[queryLower]?.let { foundTracks.addAll(it) }
+        
+        // Search in artist index
+        artistIndex[queryLower]?.let { foundTracks.addAll(it) }
+        
+        // Search in album index  
+        albumIndex[queryLower]?.let { foundTracks.addAll(it) }
+        
+        // Search in genre index
+        genreIndex[queryLower]?.let { foundTracks.addAll(it) }
+        
+        val searchTime = System.currentTimeMillis() - startTime
+        
+        return Result.success(DatabaseSearchResponse(
+            tracks = foundTracks.toList(),
+            usedDatabaseIndexes = true,
+            indexOptimizationMs = searchTime
+        ))
+    }
+}

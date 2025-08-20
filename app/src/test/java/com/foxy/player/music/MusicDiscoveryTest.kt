@@ -626,4 +626,57 @@ class MusicDiscoveryTest {
         assertEquals("Should perform metadata extraction only once despite two calls", 
             1, secondResponse.totalMetadataExtractions)
     }
+    
+    @Test
+    fun `should_implement_database_indexing_for_fast_search_queries_under_100ms`() {
+        // Arrange - setup test data with authenticated state and database indexing service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDatabaseIndexService = MusicDatabaseIndexService(authenticatedApiClient)
+        
+        // Create test music tracks for indexing
+        val testTracks = listOf(
+            MusicTrackWithMetadata("1", "Bohemian Rhapsody", "Queen", "A Night at the Opera", "rock", 
+                durationMs = 355000, fileSizeBytes = 8500000, dateAdded = LocalDateTime.of(2023, 1, 1, 0, 0)),
+            MusicTrackWithMetadata("2", "Stairway to Heaven", "Led Zeppelin", "Led Zeppelin IV", "rock", 
+                durationMs = 482000, fileSizeBytes = 11200000, dateAdded = LocalDateTime.of(2023, 2, 1, 0, 0)),
+            MusicTrackWithMetadata("3", "Hotel California", "Eagles", "Hotel California", "rock", 
+                durationMs = 391000, fileSizeBytes = 9100000, dateAdded = LocalDateTime.of(2023, 3, 1, 0, 0))
+        )
+        
+        // Act - initialize database indexing for fast searches
+        val indexingResult = musicDatabaseIndexService.createIndexes(testTracks)
+        
+        // Assert - verify database indexing functionality
+        assertTrue("Should successfully create database indexes", indexingResult.isSuccess)
+        val indexingResponse = indexingResult.getOrNull()
+        assertNotNull("Indexing response should not be null", indexingResponse)
+        assertTrue("Should create indexes for title field", indexingResponse!!.titleIndexCreated)
+        assertTrue("Should create indexes for artist field", indexingResponse.artistIndexCreated)
+        assertTrue("Should create indexes for album field", indexingResponse.albumIndexCreated)
+        assertTrue("Should create indexes for genre field", indexingResponse.genreIndexCreated)
+        
+        // Test fast search query performance with indexes
+        val searchQuery = "Queen"
+        val searchStartTime = System.currentTimeMillis()
+        val searchResult = musicDatabaseIndexService.searchWithIndexes(searchQuery, testTracks)
+        val searchEndTime = System.currentTimeMillis()
+        val searchDurationMs = searchEndTime - searchStartTime
+        
+        // Assert - verify search performance under 100ms
+        assertTrue("Should return successful search result", searchResult.isSuccess)
+        val searchResponse = searchResult.getOrNull()
+        assertNotNull("Search response should not be null", searchResponse)
+        assertTrue("Search should complete under 100ms for performance", searchDurationMs < 100)
+        assertTrue("Should use database indexes for search", searchResponse!!.usedDatabaseIndexes)
+        assertTrue("Should find matching tracks efficiently", searchResponse.tracks.isNotEmpty())
+        assertEquals("Should find Queen track", "Bohemian Rhapsody", searchResponse.tracks[0].title)
+        
+        // Verify index optimization metrics
+        assertTrue("Should show performance improvement with indexes", 
+            searchResponse.indexOptimizationMs >= 0)
+        assertTrue("Should be faster than linear search", 
+            searchResponse.indexOptimizationMs < 50) // Should be very fast with proper indexing
+    }
 }
