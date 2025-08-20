@@ -6,6 +6,7 @@ import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.UserInfo
 import com.foxy.player.authentication.AuthResponse
+import java.time.LocalDateTime
 
 class MusicDiscoveryTest {
     
@@ -326,5 +327,259 @@ class MusicDiscoveryTest {
         assertFalse("Should not provide metadata for unsupported format", unsupportedResponse.hasFallbackMetadata)
         assertEquals("Should have proper error message", 
             "Unsupported audio format", unsupportedResponse.errorMessage)
+    }
+    
+    @Test
+    fun `should filter music tracks by search query`() {
+        // Arrange - setup test data with authenticated state and music search service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music tracks
+        val testTracks = listOf(
+            MusicTrack("1", "Bohemian Rhapsody", "Queen", "A Night at the Opera", "rock"),
+            MusicTrack("2", "Stairway to Heaven", "Led Zeppelin", "Led Zeppelin IV", "rock"),
+            MusicTrack("3", "Hotel California", "Eagles", "Hotel California", "rock"),
+            MusicTrack("4", "Imagine", "John Lennon", "Imagine", "pop"),
+            MusicTrack("5", "Like a Rolling Stone", "Bob Dylan", "Highway 61 Revisited", "folk")
+        )
+        
+        // Act - call the search method that doesn't exist yet
+        val result = musicSearchService.searchTracks("Queen", testTracks)
+        
+        // Assert - verify search functionality
+        assertTrue("Should return successful result with filtered tracks", result.isSuccess)
+        val searchResponse = result.getOrNull()
+        assertNotNull("Search response should not be null", searchResponse)
+        assertTrue("Should contain tracks matching 'Queen'", 
+            searchResponse!!.tracks.any { it.artist == "Queen" })
+        assertFalse("Should not contain tracks that don't match 'Queen'", 
+            searchResponse.tracks.any { it.artist == "Led Zeppelin" })
+        assertEquals("Should return exactly 1 track for 'Queen' search", 1, searchResponse.tracks.size)
+        assertEquals("Should return the correct Queen track", "Bohemian Rhapsody", searchResponse.tracks[0].title)
+    }
+    
+    @Test
+    fun `should filter music tracks by multiple search criteria`() {
+        // Arrange - setup test data with authenticated state and music search service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music tracks with more variety
+        val testTracks = listOf(
+            MusicTrack("1", "Bohemian Rhapsody", "Queen", "A Night at the Opera", "rock"),
+            MusicTrack("2", "We Will Rock You", "Queen", "News of the World", "rock"),
+            MusicTrack("3", "Hotel California", "Eagles", "Hotel California", "rock"),
+            MusicTrack("4", "Imagine", "John Lennon", "Imagine", "pop"),
+            MusicTrack("5", "Like a Rolling Stone", "Bob Dylan", "Highway 61 Revisited", "folk"),
+            MusicTrack("6", "Hotel California Live", "Eagles", "Hell Freezes Over", "rock")
+        )
+        
+        // Act - call the enhanced search method that supports multiple criteria
+        val searchCriteria = SearchCriteria(
+            query = "Hotel",
+            searchInTitle = true,
+            searchInArtist = true,
+            searchInAlbum = true,
+            genre = "rock"
+        )
+        val result = musicSearchService.searchTracksWithCriteria(searchCriteria, testTracks)
+        
+        // Assert - verify enhanced search functionality
+        assertTrue("Should return successful result with filtered tracks", result.isSuccess)
+        val searchResponse = result.getOrNull()
+        assertNotNull("Search response should not be null", searchResponse)
+        assertEquals("Should return exactly 2 tracks matching 'Hotel' and 'rock' genre", 2, searchResponse!!.tracks.size)
+        assertTrue("Should contain 'Hotel California' track", 
+            searchResponse.tracks.any { it.title == "Hotel California" })
+        assertTrue("Should contain 'Hotel California Live' track", 
+            searchResponse.tracks.any { it.title == "Hotel California Live" })
+        assertFalse("Should not contain non-rock tracks", 
+            searchResponse.tracks.any { it.genre != "rock" })
+    }
+    
+    @Test
+    fun `should browse music tracks by artist grouping`() {
+        // Arrange - setup test data with authenticated state and music browse service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music tracks with multiple artists
+        val testTracks = listOf(
+            MusicTrack("1", "Bohemian Rhapsody", "Queen", "A Night at the Opera", "rock"),
+            MusicTrack("2", "We Will Rock You", "Queen", "News of the World", "rock"),
+            MusicTrack("3", "Hotel California", "Eagles", "Hotel California", "rock"),
+            MusicTrack("4", "Take It Easy", "Eagles", "Eagles", "rock"),
+            MusicTrack("5", "Imagine", "John Lennon", "Imagine", "pop"),
+            MusicTrack("6", "Like a Rolling Stone", "Bob Dylan", "Highway 61 Revisited", "folk")
+        )
+        
+        // Act - call the browse by artist method that doesn't exist yet
+        val result = musicSearchService.browseByArtist(testTracks)
+        
+        // Assert - verify browse functionality
+        assertTrue("Should return successful result with artist groups", result.isSuccess)
+        val browseResponse = result.getOrNull()
+        assertNotNull("Browse response should not be null", browseResponse)
+        assertEquals("Should group tracks by 4 different artists", 4, browseResponse!!.artistGroups.size)
+        
+        // Verify Queen group
+        val queenGroup = browseResponse.artistGroups.find { it.artist == "Queen" }
+        assertNotNull("Should contain Queen group", queenGroup)
+        assertEquals("Queen should have 2 tracks", 2, queenGroup!!.tracks.size)
+        assertTrue("Queen group should contain Bohemian Rhapsody", 
+            queenGroup.tracks.any { it.title == "Bohemian Rhapsody" })
+        assertTrue("Queen group should contain We Will Rock You", 
+            queenGroup.tracks.any { it.title == "We Will Rock You" })
+        
+        // Verify Eagles group
+        val eaglesGroup = browseResponse.artistGroups.find { it.artist == "Eagles" }
+        assertNotNull("Should contain Eagles group", eaglesGroup)
+        assertEquals("Eagles should have 2 tracks", 2, eaglesGroup!!.tracks.size)
+    }
+    
+    @Test
+    fun `should sort music tracks by different criteria`() {
+        // Arrange - setup test data with authenticated state and music search service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music tracks with sorting metadata
+        val testTracks = listOf(
+            MusicTrackWithMetadata("1", "Zebra Song", "Artist A", "Album Z", "rock", 
+                durationMs = 180000, fileSizeBytes = 5000000, dateAdded = LocalDateTime.of(2023, 1, 1, 0, 0)),
+            MusicTrackWithMetadata("2", "Alpha Song", "Artist B", "Album A", "pop", 
+                durationMs = 240000, fileSizeBytes = 3000000, dateAdded = LocalDateTime.of(2023, 3, 1, 0, 0)),
+            MusicTrackWithMetadata("3", "Beta Song", "Artist A", "Album B", "rock", 
+                durationMs = 120000, fileSizeBytes = 8000000, dateAdded = LocalDateTime.of(2023, 2, 1, 0, 0))
+        )
+        
+        // Test alphabetical sorting by title
+        val alphabeticalResult = musicSearchService.sortTracks(testTracks, SortCriteria.ALPHABETICAL_TITLE)
+        assertTrue("Should return successful result for alphabetical sort", alphabeticalResult.isSuccess)
+        val alphabeticalResponse = alphabeticalResult.getOrNull()!!
+        assertEquals("Should sort alphabetically by title", "Alpha Song", alphabeticalResponse.tracks[0].title)
+        assertEquals("Should sort alphabetically by title", "Beta Song", alphabeticalResponse.tracks[1].title)
+        assertEquals("Should sort alphabetically by title", "Zebra Song", alphabeticalResponse.tracks[2].title)
+        
+        // Test duration sorting
+        val durationResult = musicSearchService.sortTracks(testTracks, SortCriteria.DURATION)
+        assertTrue("Should return successful result for duration sort", durationResult.isSuccess)
+        val durationResponse = durationResult.getOrNull()!!
+        assertEquals("Should sort by duration (shortest first)", 120000, durationResponse.tracks[0].durationMs)
+        assertEquals("Should sort by duration", 180000, durationResponse.tracks[1].durationMs)
+        assertEquals("Should sort by duration (longest last)", 240000, durationResponse.tracks[2].durationMs)
+        
+        // Test file size sorting
+        val fileSizeResult = musicSearchService.sortTracks(testTracks, SortCriteria.FILE_SIZE)
+        assertTrue("Should return successful result for file size sort", fileSizeResult.isSuccess)
+        val fileSizeResponse = fileSizeResult.getOrNull()!!
+        assertEquals("Should sort by file size (smallest first)", 3000000, fileSizeResponse.tracks[0].fileSizeBytes)
+        assertEquals("Should sort by file size", 5000000, fileSizeResponse.tracks[1].fileSizeBytes)
+        assertEquals("Should sort by file size (largest last)", 8000000, fileSizeResponse.tracks[2].fileSizeBytes)
+    }
+    
+    @Test
+    fun `should display search interface with text input and results`() {
+        // Arrange - setup test data with authenticated state and UI state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music search state manager
+        val searchStateManager = MusicSearchStateManager(musicSearchService)
+        
+        // Act - initialize the search interface state
+        val uiState = searchStateManager.getInitialSearchState()
+        
+        // Assert - verify UI state for search interface
+        assertTrue("Should return successful UI state", uiState.isSuccess)
+        val searchState = uiState.getOrNull()
+        assertNotNull("Search state should not be null", searchState)
+        assertEquals("Should have empty search query initially", "", searchState!!.searchQuery)
+        assertTrue("Should show search input field", searchState.showSearchInput)
+        assertTrue("Should have empty results initially", searchState.searchResults.isEmpty())
+        assertFalse("Should not show loading initially", searchState.isLoading)
+        
+        // Test search input handling
+        val searchQuery = "test query"
+        val updatedState = searchStateManager.updateSearchQuery(searchQuery)
+        assertTrue("Should update search query successfully", updatedState.isSuccess)
+        val newState = updatedState.getOrNull()!!
+        assertEquals("Should update search query", searchQuery, newState.searchQuery)
+        assertTrue("Should show loading when search query is updated", newState.isLoading)
+    }
+    
+    @Test
+    fun `MusicTrack_should_use_proper_date_type_for_dateAdded_field`() {
+        // Arrange - setup test data using LocalDateTime instead of String
+        val testDate = LocalDateTime.of(2023, 3, 15, 10, 30, 0)
+        
+        // Act - create MusicTrackWithMetadata with LocalDateTime dateAdded
+        val track = MusicTrackWithMetadata(
+            id = "1", 
+            title = "Test Song", 
+            artist = "Test Artist", 
+            album = "Test Album", 
+            genre = "rock",
+            durationMs = 180000, 
+            fileSizeBytes = 5000000, 
+            dateAdded = testDate  // This should be LocalDateTime, not String
+        )
+        
+        // Assert - verify date type functionality
+        assertTrue("Should accept LocalDateTime for dateAdded", track.dateAdded is LocalDateTime)
+        assertEquals("Should preserve date value correctly", testDate, track.dateAdded)
+        assertEquals("Should allow date comparison", 2023, track.dateAdded.year)
+        assertEquals("Should allow date comparison", 3, track.dateAdded.monthValue)
+    }
+    
+    @Test
+    fun `MusicSearchService_should_sort_tracks_by_dateAdded_in_chronological_order`() {
+        // Arrange - setup test data with dates in non-chronological order
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create tracks with dates that would sort incorrectly lexicographically
+        val testTracks = listOf(
+            MusicTrackWithMetadata("1", "Song A", "Artist A", "Album A", "rock", 
+                durationMs = 180000, fileSizeBytes = 5000000, 
+                dateAdded = LocalDateTime.of(2023, 12, 15, 10, 0)), // Latest
+            MusicTrackWithMetadata("2", "Song B", "Artist B", "Album B", "pop", 
+                durationMs = 240000, fileSizeBytes = 3000000, 
+                dateAdded = LocalDateTime.of(2023, 2, 5, 14, 30)),  // Earliest  
+            MusicTrackWithMetadata("3", "Song C", "Artist C", "Album C", "rock", 
+                durationMs = 120000, fileSizeBytes = 8000000, 
+                dateAdded = LocalDateTime.of(2023, 11, 20, 9, 15))  // Middle
+        )
+        
+        // Act - sort tracks by dateAdded chronologically (earliest first)
+        val result = musicSearchService.sortTracks(testTracks, SortCriteria.DATE_ADDED)
+        
+        // Assert - verify chronological sorting (not lexicographic)
+        assertTrue("Should return successful result for date sorting", result.isSuccess)
+        val sortedResponse = result.getOrNull()!!
+        
+        // Verify chronological order: Feb 5 -> Nov 20 -> Dec 15
+        assertEquals("Should sort chronologically (earliest first)", "Song B", sortedResponse.tracks[0].title)
+        assertEquals("Should sort chronologically (middle)", "Song C", sortedResponse.tracks[1].title)  
+        assertEquals("Should sort chronologically (latest last)", "Song A", sortedResponse.tracks[2].title)
+        
+        // Verify specific dates are in chronological order
+        assertTrue("First track should be earliest", 
+            sortedResponse.tracks[0].dateAdded.isBefore(sortedResponse.tracks[1].dateAdded))
+        assertTrue("Second track should be before third", 
+            sortedResponse.tracks[1].dateAdded.isBefore(sortedResponse.tracks[2].dateAdded))
     }
 }
