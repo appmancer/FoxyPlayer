@@ -679,4 +679,58 @@ class MusicDiscoveryTest {
         assertTrue("Should be faster than linear search", 
             searchResponse.indexOptimizationMs < 50) // Should be very fast with proper indexing
     }
+    
+    @Test
+    fun `should_optimize_memory_usage_for_large_music_libraries`() {
+        // Arrange - setup test data with authenticated state and memory optimization service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicMemoryOptimizationService = MusicMemoryOptimizationService(authenticatedApiClient)
+        
+        // Create large music library test data (simulating 10,000+ tracks)
+        val largeMusicLibrary = mutableListOf<MusicTrackWithMetadata>()
+        for (i in 1..10000) {
+            largeMusicLibrary.add(
+                MusicTrackWithMetadata(
+                    id = i.toString(), 
+                    title = "Track $i", 
+                    artist = "Artist ${i % 100}", 
+                    album = "Album ${i % 50}", 
+                    genre = "Genre ${i % 10}",
+                    durationMs = (180000 + (i % 120000)).toLong(), 
+                    fileSizeBytes = (5000000 + (i % 3000000)).toLong(), 
+                    dateAdded = LocalDateTime.of(2023, (i % 12) + 1, (i % 28) + 1, 0, 0)
+                )
+            )
+        }
+        
+        // Act - optimize memory usage for large library
+        val memoryOptimizationResult = musicMemoryOptimizationService.optimizeMemoryForLargeLibrary(largeMusicLibrary)
+        
+        // Assert - verify memory optimization functionality
+        assertTrue("Should successfully optimize memory for large library", memoryOptimizationResult.isSuccess)
+        val optimizationResponse = memoryOptimizationResult.getOrNull()
+        assertNotNull("Memory optimization response should not be null", optimizationResponse)
+        assertTrue("Should reduce memory footprint significantly", optimizationResponse!!.memoryReductionPercent > 50)
+        assertTrue("Should maintain data integrity during optimization", optimizationResponse.dataIntegrityMaintained)
+        assertTrue("Should use memory-efficient data structures", optimizationResponse.usedMemoryEfficientStructures)
+        
+        // Test garbage collection optimization
+        val gcOptimizationResult = musicMemoryOptimizationService.optimizeGarbageCollection(largeMusicLibrary)
+        assertTrue("Should optimize garbage collection for large library", gcOptimizationResult.isSuccess)
+        val gcResponse = gcOptimizationResult.getOrNull()
+        assertNotNull("GC optimization response should not be null", gcResponse)
+        assertTrue("Should reduce GC pressure", gcResponse!!.gcPressureReduced)
+        assertTrue("Should improve memory allocation patterns", gcResponse.memoryAllocationOptimized)
+        
+        // Test memory monitoring and limits
+        val memoryMonitoringResult = musicMemoryOptimizationService.monitorMemoryUsage(largeMusicLibrary)
+        assertTrue("Should monitor memory usage effectively", memoryMonitoringResult.isSuccess)
+        val monitoringResponse = memoryMonitoringResult.getOrNull()
+        assertNotNull("Memory monitoring response should not be null", monitoringResponse)
+        assertTrue("Should stay within memory limits", monitoringResponse!!.withinMemoryLimits)
+        assertTrue("Should provide memory usage metrics", monitoringResponse.memoryUsageBytes > 0)
+        assertTrue("Should detect memory leaks", monitoringResponse.memoryLeakDetectionEnabled)
+    }
 }
