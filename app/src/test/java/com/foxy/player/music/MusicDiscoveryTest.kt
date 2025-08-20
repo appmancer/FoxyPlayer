@@ -241,4 +241,39 @@ class MusicDiscoveryTest {
         assertEquals("Should identify correct file format", "MP3", metadata.format)
         assertTrue("Should extract bitrate from MP3 file", metadata.bitrate > 0)
     }
+    
+    @Test
+    fun `should extract metadata from different audio formats FLAC WAV AAC`() {
+        // Arrange - setup test data with authenticated state and metadata extractor
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        
+        // Test FLAC format
+        val flacResult = musicDiscoveryService.extractMetadata("https://sample.com/test.flac", "test.flac")
+        assertTrue("Should successfully extract FLAC metadata", flacResult.isSuccess)
+        val flacMetadata = flacResult.getOrNull()
+        assertNotNull("FLAC metadata should not be null", flacMetadata)
+        assertEquals("Should identify FLAC format correctly", "FLAC", flacMetadata!!.format)
+        
+        // Test WAV format
+        val wavResult = musicDiscoveryService.extractMetadata("https://sample.com/test.wav", "test.wav")
+        assertTrue("Should successfully extract WAV metadata", wavResult.isSuccess)
+        val wavMetadata = wavResult.getOrNull()
+        assertNotNull("WAV metadata should not be null", wavMetadata)
+        assertEquals("Should identify WAV format correctly", "WAV", wavMetadata!!.format)
+        
+        // Test AAC format
+        val aacResult = musicDiscoveryService.extractMetadata("https://sample.com/test.aac", "test.aac")
+        assertTrue("Should successfully extract AAC metadata", aacResult.isSuccess)
+        val aacMetadata = aacResult.getOrNull()
+        assertNotNull("AAC metadata should not be null", aacMetadata)
+        assertEquals("Should identify AAC format correctly", "AAC", aacMetadata!!.format)
+        
+        // All formats should have basic metadata fields
+        assertTrue("FLAC should have valid duration", flacMetadata.durationMs > 0)
+        assertTrue("WAV should have valid duration", wavMetadata.durationMs > 0)
+        assertTrue("AAC should have valid duration", aacMetadata.durationMs > 0)
+    }
 }
