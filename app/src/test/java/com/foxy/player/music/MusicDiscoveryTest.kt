@@ -1206,7 +1206,11 @@ class MusicDiscoveryTest {
             if (line.startsWith("    ") && !line.startsWith("        ") && (
                 line.trim().startsWith("enum class") || line.trim().startsWith(
                         "data class"
-                    ) || (line.trim().startsWith("class ") && !line.trim().startsWith("class MusicBackgroundSyncService"))
+                    ) || (
+                    line.trim().startsWith("class ") && !line.trim().startsWith(
+                            "class MusicBackgroundSyncService"
+                        )
+                    )
                 )
             ) {
                 hasInconsistentIndentation = true
@@ -1248,7 +1252,8 @@ class MusicDiscoveryTest {
         // Act - check for required section separators
         val requiredSections = listOf(
             "// ===== DATA MODELS =====",
-            "// ===== SERVICE CLASSES =====", "// ===== UTILITY CLASSES ====="
+            "// ===== SERVICE CLASSES =====",
+            "// ===== UTILITY CLASSES ====="
         )
 
         var foundSections = 0
@@ -1262,6 +1267,50 @@ class MusicDiscoveryTest {
         assertTrue(
             "Should have clear section separators for code navigation. Found $foundSections of ${requiredSections.size} required sections",
             foundSections >= 2 // Require at least 2 of the 3 main sections
+        )
+    }
+
+    @Test
+    fun `should_have_minimal_ktlint_violations_for_improved_readability`() {
+        // Arrange - setup test to verify code style quality
+        val possiblePaths = listOf(
+            "app/src/main/java/com/foxy/player/music/music.kt",
+            "../app/src/main/java/com/foxy/player/music/music.kt",
+            "./app/src/main/java/com/foxy/player/music/music.kt",
+            "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/music.kt"
+        )
+
+        var musicFileContent = ""
+        for (path in possiblePaths) {
+            val file = java.io.File(path)
+            if (file.exists()) {
+                musicFileContent = file.readText()
+                break
+            }
+        }
+
+        // Skip test if file not found (environment-dependent)
+        if (musicFileContent.isEmpty()) {
+            org.junit.Assume.assumeTrue("music.kt file not found in test environment", false)
+        }
+
+        // Act - check for common ktlint violations
+        val lines = musicFileContent.split("\n")
+        var violationCount = 0
+        var longLineCount = 0
+
+        for ((lineNumber, line) in lines.withIndex()) {
+            // Check for lines longer than 120 characters
+            if (line.length > 120) {
+                longLineCount++
+                violationCount++
+            }
+        }
+
+        // Assert - verify minimal ktlint violations for readability
+        assertTrue(
+            "Should have minimal long lines (>120 chars) for readability. Found $longLineCount long lines",
+            longLineCount < 10 // Allow some long lines but keep them minimal
         )
     }
 }
