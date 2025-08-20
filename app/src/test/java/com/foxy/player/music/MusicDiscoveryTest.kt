@@ -485,4 +485,36 @@ class MusicDiscoveryTest {
         assertEquals("Should sort by file size", 5000000, fileSizeResponse.tracks[1].fileSizeBytes)
         assertEquals("Should sort by file size (largest last)", 8000000, fileSizeResponse.tracks[2].fileSizeBytes)
     }
+    
+    @Test
+    fun `should display search interface with text input and results`() {
+        // Arrange - setup test data with authenticated state and UI state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music search state manager
+        val searchStateManager = MusicSearchStateManager(musicSearchService)
+        
+        // Act - initialize the search interface state
+        val uiState = searchStateManager.getInitialSearchState()
+        
+        // Assert - verify UI state for search interface
+        assertTrue("Should return successful UI state", uiState.isSuccess)
+        val searchState = uiState.getOrNull()
+        assertNotNull("Search state should not be null", searchState)
+        assertEquals("Should have empty search query initially", "", searchState!!.searchQuery)
+        assertTrue("Should show search input field", searchState.showSearchInput)
+        assertTrue("Should have empty results initially", searchState.searchResults.isEmpty())
+        assertFalse("Should not show loading initially", searchState.isLoading)
+        
+        // Test search input handling
+        val searchQuery = "test query"
+        val updatedState = searchStateManager.updateSearchQuery(searchQuery)
+        assertTrue("Should update search query successfully", updatedState.isSuccess)
+        val newState = updatedState.getOrNull()!!
+        assertEquals("Should update search query", searchQuery, newState.searchQuery)
+        assertTrue("Should show loading when search query is updated", newState.isLoading)
+    }
 }

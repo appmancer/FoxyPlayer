@@ -166,6 +166,14 @@ data class MusicBrowseResponse(
     val artistGroups: List<ArtistGroup>
 )
 
+// UI State Management Models
+data class MusicSearchUIState(
+    val searchQuery: String = "",
+    val searchResults: List<MusicTrack> = emptyList(),
+    val showSearchInput: Boolean = true,
+    val isLoading: Boolean = false
+)
+
 // Error handling metadata extraction response
 data class MetadataExtractionErrorResponse(
     val metadata: AudioMetadata? = null,
@@ -784,5 +792,33 @@ class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiCli
         }
         
         return Result.success(MusicSortResponse(tracks = sortedTracks))
+    }
+}
+
+// UI State Manager for Music Search Interface
+class MusicSearchStateManager(private val musicSearchService: MusicSearchService) {
+    
+    fun getInitialSearchState(): Result<MusicSearchUIState> {
+        // Minimal implementation - return initial empty state
+        return Result.success(
+            MusicSearchUIState(
+                searchQuery = "",
+                searchResults = emptyList(),
+                showSearchInput = true,
+                isLoading = false
+            )
+        )
+    }
+    
+    fun updateSearchQuery(query: String): Result<MusicSearchUIState> {
+        // Minimal implementation - return state with updated query and loading
+        return Result.success(
+            MusicSearchUIState(
+                searchQuery = query,
+                searchResults = emptyList(),
+                showSearchInput = true,
+                isLoading = true
+            )
+        )
     }
 }
