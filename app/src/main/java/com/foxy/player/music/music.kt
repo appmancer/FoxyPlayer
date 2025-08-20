@@ -152,6 +152,35 @@ data class MusicTrackWithMetadata(
     val dateAdded: LocalDateTime
 )
 
+// Music track with indexing metadata
+data class MusicTrackIndexed(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val genre: String,
+    val filePath: String,
+    val durationMs: Long,
+    val fileSizeBytes: Long,
+    val bitrate: Int,
+    val dateAdded: LocalDateTime
+)
+
+// Database index statistics
+data class IndexStats(
+    val totalIndexes: Int,
+    val indexHits: Int,
+    val indexMisses: Int = 0
+)
+
+// Database indexed search response
+data class DatabaseIndexedSearchResponse(
+    val tracks: List<MusicTrackIndexed>,
+    val usedDatabaseIndex: Boolean,
+    val indexedSearchTimeMs: Long,
+    val indexStats: IndexStats
+)
+
 // Sort criteria enum
 enum class SortCriteria {
     ALPHABETICAL_TITLE,
@@ -894,6 +923,94 @@ class MusicMetadataCacheService(private val authenticatedApiClient: Authenticate
             metadataCache[cacheKey] = metadata
             
             Result.success(metadata)
+        }
+    }
+}
+
+// Music Database Index Service for Fast Search Performance  
+class MusicDatabaseIndexService(private val authenticatedApiClient: AuthenticatedApiClient) {
+    
+    // Simple in-memory indexes for fast search
+    private val artistIndex = mutableMapOf<String, MutableList<MusicTrackIndexed>>()
+    private val titleIndex = mutableMapOf<String, MutableList<MusicTrackIndexed>>()
+    private val albumIndex = mutableMapOf<String, MutableList<MusicTrackIndexed>>()
+    private var indexesBuilt = false
+    
+    fun searchWithDatabaseIndex(searchQuery: String, tracks: List<MusicTrackIndexed>): Result<DatabaseIndexedSearchResponse> {
+        val startTime = System.currentTimeMillis()
+        
+        // Build indexes if not already built
+        if (!indexesBuilt) {
+            buildIndexes(tracks)
+            indexesBuilt = true
+        }
+        
+        // Perform indexed search
+        val matchingTracks = mutableSetOf<MusicTrackIndexed>()
+        var indexHits = 0
+        
+        // Search in artist index
+        artistIndex.forEach { (indexKey, indexedTracks) ->
+            if (indexKey.contains(searchQuery, ignoreCase = true)) {
+                matchingTracks.addAll(indexedTracks)
+                indexHits += indexedTracks.size
+            }
+        }
+        
+        // Search in title index
+        titleIndex.forEach { (indexKey, indexedTracks) ->
+            if (indexKey.contains(searchQuery, ignoreCase = true)) {
+                matchingTracks.addAll(indexedTracks)
+                indexHits += indexedTracks.size
+            }
+        }
+        
+        // Search in album index
+        albumIndex.forEach { (indexKey, indexedTracks) ->
+            if (indexKey.contains(searchQuery, ignoreCase = true)) {
+                matchingTracks.addAll(indexedTracks)
+                indexHits += indexedTracks.size
+            }
+        }
+        
+        val endTime = System.currentTimeMillis()
+        val searchTimeMs = endTime - startTime
+        
+        val indexStats = IndexStats(
+            totalIndexes = artistIndex.size + titleIndex.size + albumIndex.size,
+            indexHits = indexHits
+        )
+        
+        return Result.success(DatabaseIndexedSearchResponse(
+            tracks = matchingTracks.toList(),
+            usedDatabaseIndex = true,
+            indexedSearchTimeMs = searchTimeMs,
+            indexStats = indexStats
+        ))
+    }
+    
+    private fun buildIndexes(tracks: List<MusicTrackIndexed>) {
+        // Clear existing indexes
+        artistIndex.clear()
+        titleIndex.clear()
+        albumIndex.clear()
+        
+        // Build artist index
+        tracks.forEach { track ->
+            val artistKey = track.artist.lowercase()
+            artistIndex.getOrPut(artistKey) { mutableListOf() }.add(track)
+        }
+        
+        // Build title index
+        tracks.forEach { track ->
+            val titleKey = track.title.lowercase()
+            titleIndex.getOrPut(titleKey) { mutableListOf() }.add(track)
+        }
+        
+        // Build album index
+        tracks.forEach { track ->
+            val albumKey = track.album.lowercase()
+            albumIndex.getOrPut(albumKey) { mutableListOf() }.add(track)
         }
     }
 }

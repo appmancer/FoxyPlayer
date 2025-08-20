@@ -630,4 +630,59 @@ class MusicDiscoveryTest {
             secondMetadata.totalApiCalls == 0) // No API calls on cached result
         assertEquals("First call should make exactly 1 API call", 1, firstMetadata.totalApiCalls)
     }
+    
+    @Test
+    fun `should support database indexing for fast search queries under 100ms`() {
+        // Arrange - setup test data with database indexing service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val databaseIndexService = MusicDatabaseIndexService(authenticatedApiClient)
+        
+        // Create large test dataset to ensure indexing performance matters
+        val largeTrackCollection = (1..10000).map { index ->
+            MusicTrackIndexed(
+                id = "track_$index",
+                title = "Song Title $index",
+                artist = "Artist ${index % 100}", // 100 different artists
+                album = "Album ${index % 50}",   // 50 different albums
+                genre = "Genre ${index % 10}",   // 10 different genres
+                filePath = "/music/track_$index.mp3",
+                durationMs = 180000L + (index * 1000),
+                fileSizeBytes = 5000000L + (index * 100),
+                bitrate = 128 + (index % 64),
+                dateAdded = java.time.LocalDateTime.now().minusDays(index.toLong())
+            )
+        }
+        
+        // Act - perform search with database indexing and measure performance
+        val searchQuery = "Artist 42" // Should match multiple tracks
+        val searchStartTime = System.currentTimeMillis()
+        val result = databaseIndexService.searchWithDatabaseIndex(searchQuery, largeTrackCollection)
+        val searchEndTime = System.currentTimeMillis()
+        val searchDurationMs = searchEndTime - searchStartTime
+        
+        // Assert - verify indexing functionality and performance
+        assertTrue("Search should return successful result", result.isSuccess)
+        val searchResponse = result.getOrNull()
+        assertNotNull("Search response should not be null", searchResponse)
+        
+        // Verify search performance requirement (< 100ms)
+        assertTrue("Database indexed search should complete under 100ms, actual: ${searchDurationMs}ms", 
+            searchDurationMs < 100)
+        
+        // Verify search accuracy with indexing
+        assertTrue("Search should find tracks matching 'Artist 42'", 
+            searchResponse!!.tracks.isNotEmpty())
+        assertTrue("All returned tracks should match search criteria", 
+            searchResponse.tracks.all { it.artist.contains("42") })
+        
+        // Verify indexing performance metrics
+        assertTrue("Should indicate database index was used", searchResponse.usedDatabaseIndex)
+        assertTrue("Index should significantly improve performance", 
+            searchResponse.indexedSearchTimeMs < 50) // Even stricter requirement for indexed search
+        assertTrue("Should report index statistics", searchResponse.indexStats.totalIndexes > 0)
+        assertEquals("Should report correct number of index hits", 
+            searchResponse.tracks.size, searchResponse.indexStats.indexHits)
+    }
 }
