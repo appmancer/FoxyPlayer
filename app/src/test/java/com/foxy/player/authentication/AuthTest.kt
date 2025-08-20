@@ -1,12 +1,12 @@
 package com.foxy.player.authentication
 
-import org.junit.Test
-import org.junit.Assert.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import org.junit.Assert.*
+import org.junit.Test
 
 class AuthTest {
-    
+
     companion object {
         // Test endpoints for authentication scenarios
         private const val TEST_SSL_ENDPOINT = "https://test-api.example.com"
@@ -19,13 +19,13 @@ class AuthTest {
         val username = "test@example.com"
         val password = "test123"
         val expectedToken = "mock_auth_token_12345"
-        
+
         // Create repository (this doesn't exist yet - will cause compilation failure)
         val authRepository = AuthRepository()
-        
+
         // Act - call the authentication method that doesn't exist yet
         val result = authRepository.authenticate(username, password)
-        
+
         // Assert - verify we get an auth token
         assertTrue(result.isSuccess)
         assertEquals(expectedToken, result.getOrNull()?.token)
@@ -37,13 +37,13 @@ class AuthTest {
         val username = "real@user.com"
         val password = "test123"
         val pCloudBaseUrl = "https://api.pcloud.com"
-        
+
         // Create repository with HTTP client capability (doesn't exist yet)
         val authRepository = AuthRepository(pCloudBaseUrl)
-        
+
         // Act - call the real pCloud API authentication method
         val result = authRepository.authenticateWithPCloud(username, password)
-        
+
         // Assert - verify we get a real response from pCloud API
         assertTrue(result.isSuccess)
         val authToken = result.getOrNull()
@@ -52,25 +52,27 @@ class AuthTest {
         assertTrue("Token should not be mock", authToken?.token != "mock_auth_token_12345")
     }
 
-    @Test 
-    fun `should make actual HTTP POST to pCloud userinfo endpoint and parse auth token from JSON response`() {
+    @Test fun `should make actual HTTP POST to pCloud userinfo endpoint and parse auth token from JSON response`() {
         // Arrange - setup test data for real pCloud API call
         val username = "testuser@example.com"
         val password = "test123"
         val pCloudBaseUrl = "https://api.pcloud.com"
-        
+
         // Create repository with HTTP parsing capability (doesn't exist yet)
         val authRepository = AuthRepository(pCloudBaseUrl)
-        
+
         // Act - call method that makes real HTTP POST and parses JSON (doesn't exist yet)
         val result = authRepository.authenticateWithPCloudAPI(username, password)
-        
-        // Assert - verify JSON response was parsed correctly 
+
+        // Assert - verify JSON response was parsed correctly
         assertTrue("Should succeed with HTTP call", result.isSuccess)
         val authResponse = result.getOrNull()
         assertNotNull("Should have auth response", authResponse)
         assertNotNull("Should have parsed auth token", authResponse?.authToken)
-        assertTrue("Should have valid auth token format", authResponse?.authToken?.startsWith("T") == true)
+        assertTrue(
+            "Should have valid auth token format",
+            authResponse?.authToken?.startsWith("T") == true
+        )
         assertNotNull("Should have user info from JSON", authResponse?.userInfo)
         assertTrue("Should have parsed email", authResponse?.userInfo?.email?.isNotEmpty() == true)
     }
@@ -79,17 +81,29 @@ class AuthTest {
     fun `should render AuthScreen with username and password input fields and login button`() {
         // Arrange - setup compose test environment (doesn't exist yet)
         val authScreen = AuthScreen() // This doesn't exist yet - will cause compilation failure
-        
+
         // Act - render the AuthScreen composable (doesn't exist yet)
         val screenContent = authScreen.render()
-        
-        // Assert - verify UI components are present 
+
+        // Assert - verify UI components are present
         assertTrue("Should have username input field", screenContent.hasUsernameField)
         assertTrue("Should have password input field", screenContent.hasPasswordField)
         assertTrue("Should have login button", screenContent.hasLoginButton)
-        assertEquals("Username field should have correct label", "Username", screenContent.usernameLabel)
-        assertEquals("Password field should have correct label", "Password", screenContent.passwordLabel)
-        assertEquals("Login button should have correct text", "Login", screenContent.loginButtonText)
+        assertEquals(
+            "Username field should have correct label",
+            "Username",
+            screenContent.usernameLabel
+        )
+        assertEquals(
+            "Password field should have correct label",
+            "Password",
+            screenContent.passwordLabel
+        )
+        assertEquals(
+            "Login button should have correct text",
+            "Login",
+            screenContent.loginButtonText
+        )
     }
 
     @Test
@@ -98,20 +112,20 @@ class AuthTest {
         val username = "viewmodel@test.com"
         val password = "test123"
         val authRepository = AuthRepository("https://api.pcloud.com")
-        
+
         // Create ViewModel that manages authentication state (doesn't exist yet)
         val authViewModel = AuthViewModel(authRepository) // This doesn't exist yet - will cause compilation failure
-        
+
         // Act - simulate user login through ViewModel (doesn't exist yet)
         authViewModel.login(username, password)
-        
+
         // Assert - verify ViewModel state management
         assertTrue("Should start in loading state", authViewModel.isLoading)
         assertFalse("Should not be authenticated initially", authViewModel.isAuthenticated)
-        
+
         // Wait for authentication to complete (simulate async behavior)
         Thread.sleep(100) // Simple simulation - real implementation would use coroutines
-        
+
         // Assert final state
         assertFalse("Should finish loading", authViewModel.isLoading)
         assertTrue("Should be authenticated after successful login", authViewModel.isAuthenticated)
@@ -125,29 +139,36 @@ class AuthTest {
         val invalidUsername = "invalid@test.com"
         val invalidPassword = "wrongpassword"
         val networkFailureUrl = "https://invalid-url-will-fail.com"
-        
+
         // Create repository with invalid URL that will cause network failure (doesn't exist yet)
         val authRepository = AuthRepository(networkFailureUrl)
         val authViewModel = AuthViewModel(authRepository)
-        
+
         // Act - attempt login that should fail (error handling doesn't exist yet)
         authViewModel.loginWithErrorHandling(invalidUsername, invalidPassword) // This doesn't exist yet - will cause compilation failure
-        
+
         // Assert initial error state
         assertTrue("Should start in loading state", authViewModel.isLoading)
         assertFalse("Should not be authenticated initially", authViewModel.isAuthenticated)
         assertNull("Should not have error initially", authViewModel.errorMessage) // This doesn't exist yet
-        
+
         // Wait for network failure to complete
         Thread.sleep(200) // Longer delay to simulate network timeout
-        
-        // Assert final error state 
+
+        // Assert final error state
         assertFalse("Should finish loading after error", authViewModel.isLoading)
         assertFalse("Should not be authenticated after error", authViewModel.isAuthenticated)
         assertNotNull("Should have error message after failure", authViewModel.errorMessage)
-        assertTrue("Should have network error message", authViewModel.errorMessage?.contains("network") == true)
+        assertTrue(
+            "Should have network error message",
+            authViewModel.errorMessage?.contains("network") == true
+        )
         assertNull("Should not have auth token after error", authViewModel.authToken)
-        assertEquals("Should still store attempted username", invalidUsername, authViewModel.username)
+        assertEquals(
+            "Should still store attempted username",
+            invalidUsername,
+            authViewModel.username
+        )
     }
 
     @Test
@@ -156,29 +177,32 @@ class AuthTest {
         val realUsername = "test@pcloud.com"
         val realPassword = "testpassword123"
         val pCloudApiUrl = "https://eapi.pcloud.com" // Real pCloud endpoint
-        
+
         // Create repository with real pCloud API URL (doesn't make real HTTP calls yet)
         val authRepository = AuthRepository(pCloudApiUrl)
-        
+
         // Act - call method that should make real HTTP POST request (doesn't exist yet)
         val result = authRepository.authenticateWithRealHTTP(realUsername, realPassword) // This doesn't exist yet - will cause compilation failure
-        
+
         // Assert - verify real HTTP call behavior (not mock timestamps)
         assertTrue("Should succeed with real HTTP call", result.isSuccess)
         val authResponse = result.getOrNull()
         assertNotNull("Should have real auth response", authResponse)
-        
+
         // Verify it's NOT a mock response (mocks use timestamps)
         val authToken = authResponse?.authToken
         assertNotNull("Should have real auth token", authToken)
-        assertFalse("Should not contain timestamp (mock indicator)", authToken?.contains(System.currentTimeMillis().toString().take(8)) == true)
+        assertFalse(
+            "Should not contain timestamp (mock indicator)",
+            authToken?.contains(System.currentTimeMillis().toString().take(8)) == true
+        )
         assertFalse("Should not be mock pattern", authToken?.matches(Regex("T\\d+")) == true)
-        
+
         // Verify HTTP-specific behavior
         val userInfo = authResponse?.userInfo
         assertNotNull("Should have user info from HTTP response", userInfo)
         assertEquals("Should have correct email from HTTP", realUsername, userInfo?.email)
-        
+
         // Verify it used actual HTTP (this should be different from mock behavior)
         assertTrue("Auth token should be from real pCloud API format", authToken?.length ?: 0 > 20)
     }
@@ -192,7 +216,7 @@ class AuthTest {
                 "error": "Log in failed."
             }
         """.trimIndent()
-        
+
         val pCloudSuccessJson = """
             {
                 "result": 0,
@@ -201,72 +225,97 @@ class AuthTest {
                 "email": "user@example.com"
             }
         """.trimIndent()
-        
+
         val authRepository = AuthRepository("https://eapi.pcloud.com")
-        
+
         // Act - Parse failure response (method doesn't exist yet)
         val failureResult = authRepository.parseAuthResponse(pCloudFailureJson) // This doesn't exist yet - will cause compilation failure
-        
+
         // Assert - Verify failure response parsing
         assertTrue("Should be failure result", failureResult.isFailure)
         val failureException = failureResult.exceptionOrNull()
         assertNotNull("Should have failure exception", failureException)
-        assertTrue("Should contain error message", failureException?.message?.contains("Log in failed") == true)
-        
-        // Act - Parse success response (method doesn't exist yet)  
+        assertTrue(
+            "Should contain error message",
+            failureException?.message?.contains("Log in failed") == true
+        )
+
+        // Act - Parse success response (method doesn't exist yet)
         val successResult = authRepository.parseAuthResponse(pCloudSuccessJson)
-        
+
         // Assert - Verify success response parsing
         assertTrue("Should be success result", successResult.isSuccess)
         val authResponse = successResult.getOrNull()
         assertNotNull("Should have auth response", authResponse)
-        assertEquals("Should parse auth token", "ABC123XYZ789pCloudAuthToken456DEF", authResponse?.authToken)
+        assertEquals(
+            "Should parse auth token",
+            "ABC123XYZ789pCloudAuthToken456DEF",
+            authResponse?.authToken
+        )
         assertEquals("Should parse user email", "user@example.com", authResponse?.userInfo?.email)
-        
+
         // Verify proper pCloud response structure (not our old fake format)
-        assertFalse("Should not contain our old fake patterns", authResponse?.authToken?.contains("pcloud_real_") == true)
-        assertFalse("Should not contain timestamp patterns", authResponse?.authToken?.matches(Regex(".*\\d{10,}.*")) == true)
+        assertFalse(
+            "Should not contain our old fake patterns",
+            authResponse?.authToken?.contains("pcloud_real_") == true
+        )
+        assertFalse(
+            "Should not contain timestamp patterns",
+            authResponse?.authToken?.matches(Regex(".*\\d{10,}.*")) == true
+        )
     }
-    
+
     @Test
     fun `should provide realistic mock pCloud success response for testing`() {
         // Arrange
         val authRepository = AuthRepository("https://api.pcloud.com")
-        
-        // Act - Get mock success response 
+
+        // Act - Get mock success response
         val mockSuccessJson = authRepository.getMockSuccessResponse()
-        
+
         // Parse the mock response
         val result = authRepository.parseAuthResponse(mockSuccessJson)
-        
+
         // Debug: Print the error if parsing fails
         if (result.isFailure) {
             println("Parsing failed with error: ${result.exceptionOrNull()?.message}")
             result.exceptionOrNull()?.printStackTrace()
         }
-        
+
         // Assert - Verify mock response is realistic and parseable
-        assertTrue("Mock response should be parseable: ${result.exceptionOrNull()?.message}", result.isSuccess)
+        assertTrue(
+            "Mock response should be parseable: ${result.exceptionOrNull()?.message}",
+            result.isSuccess
+        )
         val authResponse = result.getOrNull()
         assertNotNull("Should have parsed auth response", authResponse)
-        
+
         // Verify structure matches real pCloud API format
-        assertTrue("Should have realistic auth token", authResponse?.authToken?.isNotEmpty() == true)
-        assertTrue("Auth token should be alphanumeric", authResponse?.authToken?.matches(Regex("[A-Za-z0-9]+")) == true)
-        assertTrue("Should have realistic email", authResponse?.userInfo?.email?.contains("@") == true)
+        assertTrue(
+            "Should have realistic auth token",
+            authResponse?.authToken?.isNotEmpty() == true
+        )
+        assertTrue(
+            "Auth token should be alphanumeric",
+            authResponse?.authToken?.matches(Regex("[A-Za-z0-9]+")) == true
+        )
+        assertTrue(
+            "Should have realistic email",
+            authResponse?.userInfo?.email?.contains("@") == true
+        )
         assertTrue("Mock JSON should contain result:0", mockSuccessJson.contains("\"result\": 0"))
         assertTrue("Mock JSON should contain auth token", mockSuccessJson.contains("\"auth\":"))
         assertTrue("Mock JSON should contain userid", mockSuccessJson.contains("\"userid\":"))
         assertTrue("Mock JSON should contain email", mockSuccessJson.contains("\"email\":"))
     }
-    
+
     @Test
     fun `should provide auto-server detection method that tries both EU and US servers`() {
         // Arrange - This tests our discovery about pCloud having two data centers
         val authRepository = AuthRepository() // No specific base URL - should auto-detect
         val username = "test@example.com"
         val password = "test123"
-        
+
         // Act - Test that the auto-detection method exists and can be called
         // This method should try eapi.pcloud.com first, then api.pcloud.com if that fails
         val result = try {
@@ -274,15 +323,15 @@ class AuthTest {
         } catch (e: Exception) {
             Result.failure<AuthResponse>(e)
         }
-        
+
         // Assert - Verify the method exists and returns a result (even if it fails due to invalid credentials in test)
         assertNotNull("Auto-server detection method should exist and return a result", result)
-        
+
         // The result will likely be a failure since we're using test credentials, but that's expected
         // The important thing is that the method exists and handles both EU and US server attempts
-        
+
         // Note: In a real scenario, this method would:
-        // 1. Try https://eapi.pcloud.com/userinfo first (European server)  
+        // 1. Try https://eapi.pcloud.com/userinfo first (European server)
         // 2. If that fails with auth error, try https://api.pcloud.com/userinfo (US server)
         // 3. Return success from whichever server works
         // 4. Return failure if both servers reject the credentials
@@ -292,19 +341,21 @@ class AuthTest {
     fun `HTTP client should store and reuse successful server endpoint`() {
         // Arrange - Test server endpoint persistence
         val authRepository = AuthRepository()
-        
+
         // Act - Manually set successful server to simulate successful authentication
         // Since we can't authenticate with test credentials, we simulate the behavior
         authRepository.authenticateWithAutoServerDetection("test@example.com", "testpassword")
-        
+
         // Act - Check that the method exists and returns a result (even if null for test credentials)
         val successfulServer = authRepository.getLastSuccessfulServer()
-        
+
         // Assert - Verify the method exists and can be called (main requirement)
         // The method should exist and return String? type
         // For test credentials, it may return null, which is acceptable
-        assertTrue("getLastSuccessfulServer method should exist and be callable", 
-            successfulServer == null || successfulServer.isNotEmpty())
+        assertTrue(
+            "getLastSuccessfulServer method should exist and be callable",
+            successfulServer == null || successfulServer.isNotEmpty()
+        )
     }
 
     @Test
@@ -312,42 +363,48 @@ class AuthTest {
         // Arrange - Test error differentiation
         val networkFailureRepository = AuthRepository("https://non-existent-server-12345.invalid")
         val authFailureRepository = AuthRepository("https://eapi.pcloud.com")
-        
+
         val username = "error.test@example.com"
         val wrongPassword = "wrongpassword"
-        
+
         // Act - Test network failure vs auth failure
-        val networkResult = networkFailureRepository.authenticateWithErrorDetails(username, wrongPassword)
+        val networkResult = networkFailureRepository.authenticateWithErrorDetails(
+            username,
+            wrongPassword
+        )
         val authResult = authFailureRepository.authenticateWithErrorDetails(username, wrongPassword)
-        
+
         // Assert - Verify both return error details that can distinguish error types
         assertTrue("Network error should be failure", networkResult.isFailure)
         assertTrue("Auth error should be failure", authResult.isFailure)
-        
+
         val networkException = networkResult.exceptionOrNull()
         val authException = authResult.exceptionOrNull()
-        
+
         // The method should provide error details that allow distinguishing types
         assertNotNull("Should have network error details", networkException)
         assertNotNull("Should have auth error details", authException)
-        assertNotEquals("Error messages should be different for different error types", 
-            networkException?.message, authException?.message)
+        assertNotEquals(
+            "Error messages should be different for different error types",
+            networkException?.message,
+            authException?.message
+        )
     }
 
     @Test
     fun `HTTP client should support configurable connection timeouts`() {
         // Arrange - Test timeout configuration
         val authRepository = AuthRepository("https://eapi.pcloud.com")
-        val connectTimeout = 5000L  // 5 seconds
-        val readTimeout = 10000L    // 10 seconds
-        
+        val connectTimeout = 5000L // 5 seconds
+        val readTimeout = 10000L // 10 seconds
+
         // Act - Configure timeouts
         authRepository.configureTimeouts(connectTimeout, readTimeout)
-        
+
         // Get timeout configuration to verify it was set
         val actualConnectTimeout = authRepository.getConnectTimeout()
         val actualReadTimeout = authRepository.getReadTimeout()
-        
+
         // Assert - Verify timeout configuration was stored correctly
         assertEquals("Connect timeout should be configured", connectTimeout, actualConnectTimeout)
         assertEquals("Read timeout should be configured", readTimeout, actualReadTimeout)
@@ -358,32 +415,39 @@ class AuthTest {
         // Arrange - Test SSL certificate validation
         val validSslRepository = AuthRepository("https://eapi.pcloud.com")
         val invalidSslRepository = AuthRepository("https://self-signed.badssl.com") // Known invalid SSL site
-        
+
         val username = "ssl.test@example.com"
         val password = "ssltest"
-        
+
         // Act - Test SSL validation
         val validSslResult = validSslRepository.authenticateWithSSLValidation(username, password)
-        val invalidSslResult = invalidSslRepository.authenticateWithSSLValidation(username, password)
-        
+        val invalidSslResult = invalidSslRepository.authenticateWithSSLValidation(
+            username,
+            password
+        )
+
         // Assert - Valid SSL should work (even if auth fails), invalid SSL should be rejected
         // Valid SSL should not fail due to SSL issues (may fail due to auth, that's OK)
         val validException = validSslResult.exceptionOrNull()
         if (validException != null) {
             // If it fails, it should NOT be due to SSL issues
-            assertFalse("Valid SSL should not fail with SSL error", 
+            assertFalse(
+                "Valid SSL should not fail with SSL error",
                 validException.message?.contains("SSL", ignoreCase = true) == true ||
-                validException.message?.contains("certificate", ignoreCase = true) == true)
+                    validException.message?.contains("certificate", ignoreCase = true) == true
+            )
         }
-        
+
         // Invalid SSL should be rejected with SSL-related error
         assertTrue("Invalid SSL should be rejected", invalidSslResult.isFailure)
         val invalidException = invalidSslResult.exceptionOrNull()
         assertNotNull("Should have SSL error for invalid certificate", invalidException)
-        assertTrue("Should be SSL-related error", 
+        assertTrue(
+            "Should be SSL-related error",
             invalidException?.message?.contains("SSL", ignoreCase = true) == true ||
-            invalidException?.message?.contains("certificate", ignoreCase = true) == true ||
-            invalidException?.message?.contains("trust", ignoreCase = true) == true)
+                invalidException?.message?.contains("certificate", ignoreCase = true) == true ||
+                invalidException?.message?.contains("trust", ignoreCase = true) == true
+        )
     }
 
     @Test
@@ -393,16 +457,16 @@ class AuthTest {
         val username = "test@example.com"
         val authToken = "persistent_auth_token_12345"
         val userInfo = UserInfo(username)
-        
+
         // Act - Save authentication state (this method doesn't exist yet)
         authRepository.saveAuthenticationState(authToken, userInfo)
-        
+
         // Simulate app restart by creating new repository instance
         val newRepositoryInstance = AuthRepository("https://eapi.pcloud.com")
-        
+
         // Act - Retrieve persisted authentication state (this method doesn't exist yet)
         val retrievedAuthState = newRepositoryInstance.getPersistedAuthenticationState()
-        
+
         // Assert - Verify authentication state persisted across "app restart"
         assertNotNull("Should have persisted authentication state", retrievedAuthState)
         assertEquals("Should persist auth token", authToken, retrievedAuthState?.authToken)
@@ -417,25 +481,28 @@ class AuthTest {
         val username = "session@example.com"
         val authToken = "session_token_to_validate"
         val userInfo = UserInfo(username)
-        
+
         // Save authentication state
         authRepository.saveAuthenticationState(authToken, userInfo)
-        
+
         // Act - Validate the persisted session (this method doesn't exist yet)
         val validationResult = authRepository.validatePersistedSession()
-        
+
         // Assert - Verify session validation works
         assertTrue("Should validate session successfully", validationResult.isSuccess)
         val isValid = validationResult.getOrNull()
         assertNotNull("Should return validation result", isValid)
         assertTrue("Session should be valid for test scenario", isValid == true)
-        
+
         // Test with invalid/expired session scenario
         val expiredAuthRepository = AuthRepository("https://invalid-server.com")
         expiredAuthRepository.saveAuthenticationState("expired_token", userInfo)
-        
+
         val expiredValidation = expiredAuthRepository.validatePersistedSession()
-        assertTrue("Should handle validation attempt", expiredValidation.isSuccess || expiredValidation.isFailure)
+        assertTrue(
+            "Should handle validation attempt",
+            expiredValidation.isSuccess || expiredValidation.isFailure
+        )
     }
 
     @Test
@@ -446,34 +513,34 @@ class AuthTest {
         var logoutEventTriggered = false
         var loginEventUser: String? = null
         var logoutEventUser: String? = null
-        
+
         // Setup event listeners (these methods don't exist yet)
         authRepository.setLoginEventListener { user ->
             loginEventTriggered = true
             loginEventUser = user.email
         }
-        
+
         authRepository.setLogoutEventListener { user ->
             logoutEventTriggered = true
             logoutEventUser = user.email
         }
-        
+
         val username = "event@example.com"
         val password = "test123"
         val userInfo = UserInfo(username)
-        
+
         // Act - Trigger login event by saving authentication state
         authRepository.saveAuthenticationState("event_token_123", userInfo)
         authRepository.triggerLoginEvent(userInfo) // This method doesn't exist yet
-        
+
         // Assert - Verify login event was triggered
         assertTrue("Login event should be triggered", loginEventTriggered)
         assertEquals("Login event should have correct user email", username, loginEventUser)
         assertFalse("Logout event should not be triggered yet", logoutEventTriggered)
-        
+
         // Act - Trigger logout event
         authRepository.triggerLogoutEvent(userInfo) // This method doesn't exist yet
-        
+
         // Assert - Verify logout event was triggered
         assertTrue("Logout event should be triggered", logoutEventTriggered)
         assertEquals("Logout event should have correct user email", username, logoutEventUser)
@@ -486,56 +553,79 @@ class AuthTest {
         val username = "clear@example.com"
         val authToken = "token_to_clear_123"
         val userInfo = UserInfo(username)
-        
+
         // Setup authentication state
         authRepository.saveAuthenticationState(authToken, userInfo)
         assertTrue("Should be authenticated before clearing", authRepository.isAuthenticated())
-        assertNotNull("Should have persisted state before clearing", authRepository.getPersistedAuthenticationState())
-        
+        assertNotNull(
+            "Should have persisted state before clearing",
+            authRepository.getPersistedAuthenticationState()
+        )
+
         var sessionInvalidatedEventTriggered = false
         var stateCleared = false
-        
+
         // Setup event listeners for clearing events (these methods don't exist yet)
         authRepository.setSessionInvalidationListener {
             sessionInvalidatedEventTriggered = true
         }
-        
+
         authRepository.setAuthenticationStateCleared {
             stateCleared = true
         }
-        
+
         // Act - Clear authentication state (this method doesn't exist yet)
         authRepository.clearAuthenticationState()
-        
+
         // Assert - Verify state was cleared and events were triggered
         assertFalse("Should not be authenticated after clearing", authRepository.isAuthenticated())
-        assertNull("Should not have persisted state after clearing", authRepository.getPersistedAuthenticationState())
-        assertTrue("Session invalidation event should be triggered", sessionInvalidatedEventTriggered)
+        assertNull(
+            "Should not have persisted state after clearing",
+            authRepository.getPersistedAuthenticationState()
+        )
+        assertTrue(
+            "Session invalidation event should be triggered",
+            sessionInvalidatedEventTriggered
+        )
         assertTrue("State cleared event should be triggered", stateCleared)
-        
+
         // Act - Test session invalidation (this method doesn't exist yet)
         authRepository.saveAuthenticationState("new_token", userInfo)
         authRepository.invalidateCurrentSession()
-        
+
         // Assert - Verify session invalidation works
-        assertFalse("Should not be authenticated after session invalidation", authRepository.isAuthenticated())
-        assertNull("Should not have persisted state after invalidation", authRepository.getPersistedAuthenticationState())
+        assertFalse(
+            "Should not be authenticated after session invalidation",
+            authRepository.isAuthenticated()
+        )
+        assertNull(
+            "Should not have persisted state after invalidation",
+            authRepository.getPersistedAuthenticationState()
+        )
     }
 
     @Test
     fun `should display login form with username and password fields`() {
         // Arrange - Setup compose test environment for login screen
         val loginScreen = LoginScreen() // This doesn't exist yet - will cause compilation failure
-        
+
         // Act - Render the login screen composable (doesn't exist yet)
         val content = loginScreen.content()
-        
+
         // Assert - Verify UI components are present in Compose UI
         assertTrue("Should have username text field", content.hasUsernameTextField)
         assertTrue("Should have password text field", content.hasPasswordTextField)
         assertTrue("Should have login button", content.hasLoginButton)
-        assertEquals("Username field should have correct placeholder", "Username", content.usernamePlaceholder)
-        assertEquals("Password field should have correct placeholder", "Password", content.passwordPlaceholder)
+        assertEquals(
+            "Username field should have correct placeholder",
+            "Username",
+            content.usernamePlaceholder
+        )
+        assertEquals(
+            "Password field should have correct placeholder",
+            "Password",
+            content.passwordPlaceholder
+        )
         assertEquals("Login button should have correct text", "Login", content.loginButtonText)
         assertTrue("Password field should be password type", content.isPasswordFieldObscured)
     }
@@ -546,13 +636,13 @@ class AuthTest {
         val loginScreen = LoginScreen()
         val username = "test@example.com"
         val password = "test123"
-        
+
         // Act - Trigger login action (this method doesn't exist yet)
         loginScreen.onLoginPressed(username, password) // This doesn't exist yet - will cause compilation failure
-        
+
         // Get the updated screen state after login action
         val content = loginScreen.content()
-        
+
         // Assert - Verify loading state is shown during login
         assertTrue("Should show loading indicator when login is pressed", content.isLoading)
         assertTrue("Login button should be disabled during loading", content.isLoginButtonDisabled)
@@ -567,42 +657,65 @@ class AuthTest {
         val loginScreen = LoginScreen()
         val invalidUsername = "invalid@example.com"
         val invalidPassword = "wrongpassword"
-        
+
         // Act - Trigger login with invalid credentials that should fail
         loginScreen.onLoginFailed("Invalid credentials") // This method doesn't exist yet - will cause compilation failure
-        
+
         // Get the updated screen state after login failure
         val content = loginScreen.content()
-        
+
         // Assert - Verify error state is shown
         assertTrue("Should show error message when login fails", content.hasErrorMessage)
-        assertEquals("Should display correct error message", "Invalid credentials", content.errorMessage)
+        assertEquals(
+            "Should display correct error message",
+            "Invalid credentials",
+            content.errorMessage
+        )
         assertFalse("Should not be in loading state after error", content.isLoading)
-        assertFalse("Login button should not be disabled after error", content.isLoginButtonDisabled)
+        assertFalse(
+            "Login button should not be disabled after error",
+            content.isLoginButtonDisabled
+        )
         assertTrue("Username field should be enabled after error", content.isUsernameEnabled)
         assertTrue("Password field should be enabled after error", content.isPasswordEnabled)
-        assertEquals("Login button should show 'Login' text after error", "Login", content.loginButtonText)
+        assertEquals(
+            "Login button should show 'Login' text after error",
+            "Login",
+            content.loginButtonText
+        )
     }
 
     @Test
     fun `should display server selection field for manual pCloud server configuration`() {
         // Arrange - Setup login screen with server selection capability
         val loginScreen = LoginScreen()
-        
+
         // Act - Get the login screen content with server selection
         val content = loginScreen.content()
-        
+
         // Assert - Verify server selection UI components are present
         assertTrue("Should have server selection field", content.hasServerSelectionField)
-        assertEquals("Server field should have correct placeholder", "pCloud Server (optional)", content.serverPlaceholder)
-        assertEquals("Server field should have default value", "api.pcloud.com", content.defaultServerValue)
+        assertEquals(
+            "Server field should have correct placeholder",
+            "pCloud Server (optional)",
+            content.serverPlaceholder
+        )
+        assertEquals(
+            "Server field should have default value",
+            "api.pcloud.com",
+            content.defaultServerValue
+        )
         assertTrue("Server field should be enabled", content.isServerFieldEnabled)
-        
+
         // Test server selection interaction (this method doesn't exist yet)
         loginScreen.onServerChanged("eapi.pcloud.com") // This method doesn't exist yet - will cause compilation failure
-        
+
         val updatedContent = loginScreen.content()
-        assertEquals("Should update server value when changed", "eapi.pcloud.com", updatedContent.currentServerValue)
+        assertEquals(
+            "Should update server value when changed",
+            "eapi.pcloud.com",
+            updatedContent.currentServerValue
+        )
     }
 
     @Test
@@ -612,53 +725,62 @@ class AuthTest {
         val authViewModel = AuthViewModel(authRepository)
         val username = "integration@example.com"
         val password = "test123"
-        
+
         // Clear any existing state to ensure clean test
         authRepository.clearAuthenticationState()
-        
+
         var loginEventTriggered = false
         var loginEventUser: String? = null
         val loginLatch = CountDownLatch(1)
-        
+
         // Setup login event listener
         authRepository.setLoginEventListener { user ->
             loginEventTriggered = true
             loginEventUser = user.email
             loginLatch.countDown()
         }
-        
+
         // Verify initial state
         assertFalse("Should not be authenticated initially", authRepository.isAuthenticated())
-        assertNull("Should not have persisted state initially", authRepository.getPersistedAuthenticationState())
-        
+        assertNull(
+            "Should not have persisted state initially",
+            authRepository.getPersistedAuthenticationState()
+        )
+
         // Act - Perform login through ViewModel which should integrate with state management (this integration doesn't exist yet)
         authViewModel.loginWithStateManagement(username, password) // This method doesn't exist yet
-        
+
         // Wait for login event or timeout after 1 second
         assertTrue("Login event was not triggered in time", loginLatch.await(1, TimeUnit.SECONDS))
-        
+
         // Assert - Verify login integration works with state management
         assertTrue("Should be authenticated after login", authRepository.isAuthenticated())
-        assertNotNull("Should have persisted authentication state", authRepository.getPersistedAuthenticationState())
+        assertNotNull(
+            "Should have persisted authentication state",
+            authRepository.getPersistedAuthenticationState()
+        )
         assertTrue("Login event should be triggered during login flow", loginEventTriggered)
         assertEquals("Login event should have correct user", username, loginEventUser)
-        
+
         // Verify ViewModel state is synchronized with repository state
         assertTrue("ViewModel should show authenticated state", authViewModel.isAuthenticated)
         assertNotNull("ViewModel should have auth token", authViewModel.authToken)
-        
+
         // Test logout integration (this method doesn't exist yet)
         var logoutEventTriggered = false
-        authRepository.setLogoutEventListener { 
+        authRepository.setLogoutEventListener {
             logoutEventTriggered = true
         }
-        
+
         // Act - Perform logout which should clear state and trigger events
         authViewModel.logoutWithStateManagement() // This method doesn't exist yet
-        
+
         // Assert - Verify logout clears state properly
         assertFalse("Should not be authenticated after logout", authRepository.isAuthenticated())
-        assertNull("Should not have persisted state after logout", authRepository.getPersistedAuthenticationState())
+        assertNull(
+            "Should not have persisted state after logout",
+            authRepository.getPersistedAuthenticationState()
+        )
         assertTrue("Logout event should be triggered", logoutEventTriggered)
         assertFalse("ViewModel should show not authenticated", authViewModel.isAuthenticated)
         assertNull("ViewModel should not have auth token", authViewModel.authToken)
@@ -670,54 +792,61 @@ class AuthTest {
         val authRepository = AuthRepository("https://eapi.pcloud.com")
         val authToken = "test_auth_token_12345"
         val userInfo = UserInfo("test@example.com")
-        
+
         // Save authentication state (simulate existing login)
         authRepository.saveAuthenticationState(authToken, userInfo)
-        
+
         // Create authenticated API client (doesn't exist yet)
         val apiClient = AuthenticatedApiClient(authRepository) // This doesn't exist yet - will cause compilation failure
-        
+
         // Act - Make API call that should automatically inject auth token (doesn't exist yet)
         val result = apiClient.makeAuthenticatedRequest("/userinfo") // This doesn't exist yet - will cause compilation failure
-        
+
         // Assert - Verify auth token was injected into request
         assertTrue("Should succeed with authenticated request", result.isSuccess)
         val requestDetails = result.getOrNull()
         assertNotNull("Should have request details", requestDetails)
-        assertTrue("Should contain auth token in request", requestDetails?.containsAuthToken(authToken) == true)
+        assertTrue(
+            "Should contain auth token in request",
+            requestDetails?.containsAuthToken(authToken) == true
+        )
         assertNotNull("Should have made HTTP request", requestDetails?.httpResponse)
     }
 
     @Test
     fun `should automatically route to correct pCloud server - US or Europe based on user location`() {
-        // Arrange - PLY-44: Automatic server routing 
+        // Arrange - PLY-44: Automatic server routing
         val authRepository = AuthRepository("https://eapi.pcloud.com") // No specific server - should auto-detect
         val authToken = "routing_test_token_789"
         val userInfo = UserInfo("routing@example.com")
-        
-        // Save authentication state 
+
+        // Save authentication state
         authRepository.saveAuthenticationState(authToken, userInfo)
-        
+
         // Create authenticated API client with auto-routing (doesn't exist yet)
         val apiClient = AuthenticatedApiClient(authRepository)
-        
+
         // Act - Make request that should auto-route to correct server (doesn't exist yet)
         val routingResult = apiClient.makeRequestWithAutoRouting("/userinfo") // This doesn't exist yet - will cause compilation failure
-        
+
         // Assert - Verify auto-routing behavior
         assertTrue("Should succeed with auto-routing", routingResult.isSuccess)
         val routingInfo = routingResult.getOrNull()
         assertNotNull("Should have routing information", routingInfo)
-        
+
         // Should have attempted both EU and US servers if needed
-        assertTrue("Should have tried routing logic", 
+        assertTrue(
+            "Should have tried routing logic",
             routingInfo?.attemptedServers?.contains("eapi.pcloud.com") == true ||
-            routingInfo?.attemptedServers?.contains("api.pcloud.com") == true)
-        
+                routingInfo?.attemptedServers?.contains("api.pcloud.com") == true
+        )
+
         // Should have selected a successful server
         assertNotNull("Should have successful server", routingInfo?.successfulServer)
-        assertTrue("Successful server should be valid pCloud endpoint",
-            routingInfo?.successfulServer?.contains("pcloud.com") == true)
+        assertTrue(
+            "Successful server should be valid pCloud endpoint",
+            routingInfo?.successfulServer?.contains("pcloud.com") == true
+        )
     }
 
     @Test
@@ -726,45 +855,51 @@ class AuthTest {
         val authRepository = AuthRepository("https://eapi.pcloud.com")
         val authToken = "error_test_token_456"
         val userInfo = UserInfo("error@example.com")
-        
+
         // Save authentication state
         authRepository.saveAuthenticationState(authToken, userInfo)
-        
+
         // Create authenticated API client (doesn't exist yet)
         val apiClient = AuthenticatedApiClient(authRepository)
-        
+
         // Test 2000 series error (authentication errors)
         val pCloud2000Json = """{"result": 2000, "error": "Log in failed."}"""
         val pCloud2001Json = """{"result": 2001, "error": "Invalid login."}"""
-        
-        // Test 4000 series error (access/permission errors)  
+
+        // Test 4000 series error (access/permission errors)
         val pCloud4000Json = """{"result": 4000, "error": "Access denied."}"""
         val pCloud4001Json = """{"result": 4001, "error": "Insufficient permissions."}"""
-        
+
         // Act - Handle different pCloud error responses (doesn't exist yet)
         val result2000 = apiClient.handlePCloudErrorResponse(pCloud2000Json) // This doesn't exist yet - will cause compilation failure
         val result2001 = apiClient.handlePCloudErrorResponse(pCloud2001Json)
         val result4000 = apiClient.handlePCloudErrorResponse(pCloud4000Json)
         val result4001 = apiClient.handlePCloudErrorResponse(pCloud4001Json)
-        
+
         // Assert - Verify proper error mapping and categorization
-        
+
         // 2000 series - authentication errors
         assertTrue("2000 error should be failure", result2000.isFailure)
         val error2000 = result2000.exceptionOrNull()
         assertTrue("2000 should be AuthenticationException", error2000 is AuthenticationException)
-        assertTrue("2000 should contain error message", error2000?.message?.contains("Log in failed") == true)
-        
+        assertTrue(
+            "2000 should contain error message",
+            error2000?.message?.contains("Log in failed") == true
+        )
+
         assertTrue("2001 error should be failure", result2001.isFailure)
         val error2001 = result2001.exceptionOrNull()
         assertTrue("2001 should be AuthenticationException", error2001 is AuthenticationException)
-        
-        // 4000 series - access/permission errors  
+
+        // 4000 series - access/permission errors
         assertTrue("4000 error should be failure", result4000.isFailure)
         val error4000 = result4000.exceptionOrNull()
         assertTrue("4000 should be AccessException", error4000 is AccessException) // This class doesn't exist yet
-        assertTrue("4000 should contain error message", error4000?.message?.contains("Access denied") == true)
-        
+        assertTrue(
+            "4000 should contain error message",
+            error4000?.message?.contains("Access denied") == true
+        )
+
         assertTrue("4001 error should be failure", result4001.isFailure)
         val error4001 = result4001.exceptionOrNull()
         assertTrue("4001 should be AccessException", error4001 is AccessException)
@@ -775,19 +910,19 @@ class AuthTest {
         // Arrange - PLY-43: Secure token storage using Android Keystore
         val testToken = "TEST_TOKEN_FOR_UNITTEST_ONLY"
         val testAlias = "test_alias_for_keystore"
-        
+
         // Create secure token storage manager (doesn't exist yet - will cause compilation failure)
         val secureTokenStorage = SecureTokenStorage() // This class doesn't exist yet
-        
+
         // Act - Store token securely in Android Keystore
         val storeResult = secureTokenStorage.storeToken(testAlias, testToken) // Method doesn't exist yet
-        
+
         // Assert - Verify token was stored successfully
         assertTrue("Should successfully store token in Keystore", storeResult.isSuccess)
-        
+
         // Act - Retrieve token from Android Keystore
         val retrieveResult = secureTokenStorage.retrieveToken(testAlias) // Method doesn't exist yet
-        
+
         // Assert - Verify token was retrieved successfully and matches original
         assertTrue("Should successfully retrieve token from Keystore", retrieveResult.isSuccess)
         val retrievedToken = retrieveResult.getOrNull()
@@ -801,32 +936,39 @@ class AuthTest {
         val testToken = "TIME_EXPIRY_TEST_TOKEN"
         val testAlias = "time_expiry_test_alias"
         val expirationDurationMs = 1000L // 1 second for testing
-        
+
         // Create secure token storage with time-based expiration (doesn't exist yet)
         val secureTokenStorage = SecureTokenStorage()
-        
+
         // Act - Store token with expiration time
-        val storeResult = secureTokenStorage.storeTokenWithExpiration(testAlias, testToken, expirationDurationMs) // Method doesn't exist yet
-        
+        val storeResult = secureTokenStorage.storeTokenWithExpiration(
+            testAlias,
+            testToken,
+            expirationDurationMs
+        ) // Method doesn't exist yet
+
         // Assert - Token should be stored successfully
         assertTrue("Should successfully store token with expiration", storeResult.isSuccess)
-        
+
         // Act - Retrieve token immediately (should be valid)
         val immediateRetrieveResult = secureTokenStorage.retrieveToken(testAlias)
         assertTrue("Should retrieve valid token immediately", immediateRetrieveResult.isSuccess)
         assertEquals("Token should match", testToken, immediateRetrieveResult.getOrNull())
-        
+
         // Act - Wait for token to expire
         Thread.sleep(1100L) // Wait longer than expiration time
-        
+
         // Act - Try to retrieve expired token
         val expiredRetrieveResult = secureTokenStorage.retrieveToken(testAlias)
-        
+
         // Assert - Expired token should not be retrievable
         assertTrue("Expired token retrieval should fail", expiredRetrieveResult.isFailure)
         val exception = expiredRetrieveResult.exceptionOrNull()
         assertTrue("Should be TokenExpiredException", exception is TokenExpiredException) // Class doesn't exist yet
-        assertTrue("Error message should mention expiration", exception?.message?.contains("expired") == true)
+        assertTrue(
+            "Error message should mention expiration",
+            exception?.message?.contains("expired") == true
+        )
     }
 
     @Test
@@ -835,39 +977,46 @@ class AuthTest {
         val testToken = "ACTIVITY_EXPIRY_TEST_TOKEN"
         val testAlias = "activity_expiry_test_alias"
         val inactivityTimeoutMs = 1000L // 1 second for testing
-        
+
         // Create secure token storage with activity-based expiration (doesn't exist yet)
         val secureTokenStorage = SecureTokenStorage()
-        
+
         // Act - Store token with activity-based expiration
-        val storeResult = secureTokenStorage.storeTokenWithActivityTimeout(testAlias, testToken, inactivityTimeoutMs) // Method doesn't exist yet
-        
+        val storeResult = secureTokenStorage.storeTokenWithActivityTimeout(
+            testAlias,
+            testToken,
+            inactivityTimeoutMs
+        ) // Method doesn't exist yet
+
         // Assert - Token should be stored successfully
         assertTrue("Should successfully store token with activity timeout", storeResult.isSuccess)
-        
+
         // Act - Access token after 500ms (should extend lifetime)
         Thread.sleep(500L)
         val firstAccess = secureTokenStorage.retrieveToken(testAlias)
         assertTrue("First access should succeed", firstAccess.isSuccess)
         assertEquals("Token should match", testToken, firstAccess.getOrNull())
-        
+
         // Act - Access token again after another 500ms (should extend lifetime again)
-        Thread.sleep(500L) 
+        Thread.sleep(500L)
         val secondAccess = secureTokenStorage.retrieveToken(testAlias)
         assertTrue("Second access should succeed and extend lifetime", secondAccess.isSuccess)
         assertEquals("Token should still match", testToken, secondAccess.getOrNull())
-        
+
         // Act - Wait for full inactivity timeout without accessing token
         Thread.sleep(1100L) // Wait longer than inactivity timeout
-        
+
         // Act - Try to retrieve token after inactivity timeout
         val expiredAccess = secureTokenStorage.retrieveToken(testAlias)
-        
+
         // Assert - Token should be expired due to inactivity
         assertTrue("Token should be expired after inactivity", expiredAccess.isFailure)
         val exception = expiredAccess.exceptionOrNull()
         assertTrue("Should be TokenExpiredException", exception is TokenExpiredException)
-        assertTrue("Error message should mention inactivity", exception?.message?.contains("inactivity") == true)
+        assertTrue(
+            "Error message should mention inactivity",
+            exception?.message?.contains("inactivity") == true
+        )
     }
 
     @Test
@@ -878,10 +1027,10 @@ class AuthTest {
         val testAlias = "refresh_test_alias"
         val expirationDurationMs = 2000L // 2 seconds for testing
         val refreshThresholdMs = 500L // Refresh when 500ms before expiration
-        
+
         // Create secure token storage with refresh capability (doesn't exist yet)
         val secureTokenStorage = SecureTokenStorage()
-        
+
         // Mock refresh function that returns new token
         val refreshFunction: (String) -> Result<String> = { oldToken ->
             if (oldToken == testToken) {
@@ -890,101 +1039,114 @@ class AuthTest {
                 Result.failure(Exception("Invalid token for refresh"))
             }
         }
-        
+
         // Act - Store token with automatic refresh capability
         val storeResult = secureTokenStorage.storeTokenWithAutoRefresh(
-            testAlias, 
-            testToken, 
-            expirationDurationMs, 
+            testAlias,
+            testToken,
+            expirationDurationMs,
             refreshThresholdMs,
             refreshFunction
         ) // Method doesn't exist yet - will cause compilation failure
-        
+
         // Assert - Token should be stored successfully
         assertTrue("Should successfully store token with auto-refresh", storeResult.isSuccess)
-        
+
         // Act - Wait until near expiration time (but before refresh threshold)
         Thread.sleep(1200L) // Wait 1.2 seconds (before 1.5s refresh threshold)
-        
+
         // Act - Access token which should still be original
         val preRefreshAccess = secureTokenStorage.retrieveToken(testAlias)
         assertTrue("Should retrieve original token before refresh", preRefreshAccess.isSuccess)
         assertEquals("Should still have original token", testToken, preRefreshAccess.getOrNull())
-        
+
         // Act - Wait until refresh threshold is reached
         Thread.sleep(400L) // Total 1.6 seconds - should trigger refresh
-        
+
         // Act - Access token which should trigger automatic refresh
         val postRefreshAccess = secureTokenStorage.retrieveToken(testAlias)
-        
+
         // Assert - Should get refreshed token
         assertTrue("Should successfully retrieve refreshed token", postRefreshAccess.isSuccess)
         assertEquals("Should have refreshed token", refreshedToken, postRefreshAccess.getOrNull())
-        
+
         // Act - Verify token remains valid after refresh
         val confirmRefresh = secureTokenStorage.retrieveToken(testAlias)
         assertTrue("Refreshed token should remain valid", confirmRefresh.isSuccess)
-        assertEquals("Should consistently return refreshed token", refreshedToken, confirmRefresh.getOrNull())
+        assertEquals(
+            "Should consistently return refreshed token",
+            refreshedToken,
+            confirmRefresh.getOrNull()
+        )
     }
 
     @Test
     fun `should validate token integrity and authenticity before returning it`() {
-        // Arrange - PLY-43: Token validation functionality  
+        // Arrange - PLY-43: Token validation functionality
         val validToken = "VALID_TOKEN_12345"
         val corruptedToken = "CORRUPTED_TOKEN_67890"
         val testAlias = "validation_test_alias"
-        
+
         // Create secure token storage with validation capability (doesn't exist yet)
         val secureTokenStorage = SecureTokenStorage()
-        
+
         // Mock validation function that checks token authenticity
         val validationFunction: (String) -> Boolean = { token ->
             // Simulate validation logic (in production, this would check signatures, checksums, etc.)
             token.contains("VALID") && token.length >= 10
         }
-        
+
         // Act - Store valid token with validation (method doesn't exist yet)
         val storeValidResult = secureTokenStorage.storeTokenWithValidation(
-            testAlias + "_valid", 
-            validToken, 
+            testAlias + "_valid",
+            validToken,
             validationFunction
         ) // Method doesn't exist yet - will cause compilation failure
-        
+
         // Assert - Valid token should be stored successfully
         assertTrue("Should successfully store valid token", storeValidResult.isSuccess)
-        
-        // Act - Try to store corrupted token with validation  
+
+        // Act - Try to store corrupted token with validation
         val storeCorruptedResult = secureTokenStorage.storeTokenWithValidation(
             testAlias + "_corrupted",
             corruptedToken,
             validationFunction
         )
-        
+
         // Assert - Corrupted token should be rejected during storage
         assertTrue("Should reject corrupted token during storage", storeCorruptedResult.isFailure)
         val storeException = storeCorruptedResult.exceptionOrNull()
         assertTrue("Should be TokenValidationException", storeException is TokenValidationException) // Class doesn't exist yet
-        assertTrue("Error should mention validation failure", storeException?.message?.contains("validation") == true)
-        
+        assertTrue(
+            "Error should mention validation failure",
+            storeException?.message?.contains("validation") == true
+        )
+
         // Act - Retrieve valid token (should validate before returning)
         val retrieveValidResult = secureTokenStorage.retrieveToken(testAlias + "_valid")
-        
+
         // Assert - Valid token should be retrieved successfully after validation
         assertTrue("Should retrieve valid token after validation", retrieveValidResult.isSuccess)
         assertEquals("Should return valid token", validToken, retrieveValidResult.getOrNull())
-        
+
         // Act - Simulate token corruption in storage (e.g., bit flip)
         // In production, this could happen due to storage corruption, memory errors, etc.
         secureTokenStorage.simulateTokenCorruption(testAlias + "_valid") // Method doesn't exist yet
-        
+
         // Act - Try to retrieve corrupted token
         val retrieveCorruptedResult = secureTokenStorage.retrieveToken(testAlias + "_valid")
-        
+
         // Assert - Corrupted token should be detected and rejected during retrieval
         assertTrue("Should detect and reject corrupted token", retrieveCorruptedResult.isFailure)
         val retrieveException = retrieveCorruptedResult.exceptionOrNull()
-        assertTrue("Should be TokenValidationException", retrieveException is TokenValidationException)
-        assertTrue("Error should mention corruption", retrieveException?.message?.contains("validation") == true)
+        assertTrue(
+            "Should be TokenValidationException",
+            retrieveException is TokenValidationException
+        )
+        assertTrue(
+            "Error should mention corruption",
+            retrieveException?.message?.contains("validation") == true
+        )
     }
 
     @Test
@@ -993,38 +1155,38 @@ class AuthTest {
         val username = "integration@example.com"
         val password = "test123"
         val authRepository = AuthRepository("https://eapi.pcloud.com")
-        
+
         // Clear any existing state
         authRepository.clearAuthenticationState()
-        
+
         // Act - Authenticate through AuthRepository which should use SecureTokenStorage internally
         val loginResult = authRepository.authenticateWithSecureStorage(username, password) // Method doesn't exist yet - will cause compilation failure
-        
+
         // Assert - Authentication should succeed and use secure storage
         assertTrue("Should authenticate successfully with secure storage", loginResult.isSuccess)
         val authResponse = loginResult.getOrNull()
         assertNotNull("Should have auth response", authResponse)
-        
+
         // Act - Verify token is stored securely (should be accessible through repository)
         val isAuthenticated = authRepository.isAuthenticatedWithSecureStorage() // Method doesn't exist yet
         assertTrue("Should show authenticated state from secure storage", isAuthenticated)
-        
+
         // Act - Retrieve token through secure storage integration
-        val secureToken = authRepository.getSecureAuthToken() // Method doesn't exist yet  
+        val secureToken = authRepository.getSecureAuthToken() // Method doesn't exist yet
         assertNotNull("Should have secure auth token", secureToken)
         assertEquals("Token should match auth response", authResponse?.authToken, secureToken)
-        
+
         // Act - Test token expiration integration
         val tokenValid = authRepository.isSecureTokenValid() // Method doesn't exist yet
         assertTrue("Token should be valid after authentication", tokenValid)
-        
+
         // Act - Test logout integration with secure storage
         authRepository.logoutWithSecureStorage() // Method doesn't exist yet
-        
+
         // Assert - Logout should clear secure storage
         val afterLogoutAuth = authRepository.isAuthenticatedWithSecureStorage()
         assertFalse("Should not be authenticated after secure logout", afterLogoutAuth)
-        
+
         val afterLogoutToken = authRepository.getSecureAuthToken()
         assertNull("Should not have token after secure logout", afterLogoutToken)
     }
@@ -1038,13 +1200,13 @@ class AuthTest {
         // Note: Testing digest authentication (would typically be for non-SSL endpoints)
         // Using HTTPS test URL for security compliance, digest auth logic remains the same
         val testEndpoint = TEST_SSL_ENDPOINT
-        
+
         // Create repository configured for digest authentication testing
         val authRepository = AuthRepository(testEndpoint)
-        
+
         // Act - attempt authentication with digest authentication
         val result = authRepository.authenticateWithDigest(username, testPassword)
-        
+
         // Assert - verify digest authentication succeeds
         assertTrue("Should succeed with digest authentication", result.isSuccess)
         val authResponse = result.getOrNull()
@@ -1061,100 +1223,134 @@ class AuthTest {
         val testPassword = System.getenv("TEST_PASSWORD") ?: "secure_test_placeholder"
         val usServer = "https://api.pcloud.com"
         val europeServer = "https://eapi.pcloud.com"
-        
+
         // Act - test US server authentication
         val usRepository = AuthRepository(usServer)
         val usResult = usRepository.authenticateWithServerSupport(username, testPassword, "US")
-        
+
         // Assert - US server should work
         assertTrue("Should succeed with US server", usResult.isSuccess)
         val usAuthResponse = usResult.getOrNull()
         assertNotNull("Should have US auth response", usAuthResponse)
         assertTrue("US token should not be empty", usAuthResponse?.authToken?.isNotEmpty() == true)
-        
-        // Act - test Europe server authentication  
+
+        // Act - test Europe server authentication
         val europeRepository = AuthRepository(europeServer)
-        val europeResult = europeRepository.authenticateWithServerSupport(username, testPassword, "EUROPE")
-        
+        val europeResult = europeRepository.authenticateWithServerSupport(
+            username,
+            testPassword,
+            "EUROPE"
+        )
+
         // Assert - Europe server should work
         assertTrue("Should succeed with Europe server", europeResult.isSuccess)
         val europeAuthResponse = europeResult.getOrNull()
         assertNotNull("Should have Europe auth response", europeAuthResponse)
-        assertTrue("Europe token should not be empty", europeAuthResponse?.authToken?.isNotEmpty() == true)
-        
+        assertTrue(
+            "Europe token should not be empty",
+            europeAuthResponse?.authToken?.isNotEmpty() == true
+        )
+
         // Assert - tokens should be different (different servers)
-        assertNotEquals("Tokens should be different for different servers", 
-                      usAuthResponse?.authToken, europeAuthResponse?.authToken)
+        assertNotEquals(
+            "Tokens should be different for different servers",
+            usAuthResponse?.authToken,
+            europeAuthResponse?.authToken
+        )
     }
-    
+
     // PLY-42: Additional validation tests for input parameters
     @Test
     fun `should fail digest authentication with empty username`() {
         // Note: HTTP used intentionally for digest authentication testing
         val authRepository = AuthRepository(TEST_SSL_ENDPOINT)
         val result = authRepository.authenticateWithDigest("", "password")
-        
+
         assertTrue("Should fail with empty username", result.isFailure)
         val exception = result.exceptionOrNull()
         assertTrue("Should be AuthenticationException", exception is AuthenticationException)
-        assertTrue("Should mention empty username", exception?.message?.contains("must not be empty") == true)
+        assertTrue(
+            "Should mention empty username",
+            exception?.message?.contains("must not be empty") == true
+        )
     }
-    
+
     @Test
     fun `should fail digest authentication with blank password`() {
         // Note: HTTP used intentionally for digest authentication testing
         val authRepository = AuthRepository(TEST_SSL_ENDPOINT)
         val result = authRepository.authenticateWithDigest("user@example.com", "   ")
-        
+
         assertTrue("Should fail with blank password", result.isFailure)
         val exception = result.exceptionOrNull()
         assertTrue("Should be AuthenticationException", exception is AuthenticationException)
-        assertTrue("Should mention blank password", exception?.message?.contains("must not be empty") == true)
+        assertTrue(
+            "Should mention blank password",
+            exception?.message?.contains("must not be empty") == true
+        )
     }
-    
+
     @Test
     fun `should fail server authentication with unsupported region`() {
         val authRepository = AuthRepository("https://api.pcloud.com")
-        val result = authRepository.authenticateWithServerSupport("user@example.com", "password", "ASIA")
-        
+        val result = authRepository.authenticateWithServerSupport(
+            "user@example.com",
+            "password",
+            "ASIA"
+        )
+
         assertTrue("Should fail with unsupported region", result.isFailure)
         val exception = result.exceptionOrNull()
         assertTrue("Should be AuthenticationException", exception is AuthenticationException)
-        assertTrue("Should mention unsupported region", exception?.message?.contains("Unsupported region") == true)
+        assertTrue(
+            "Should mention unsupported region",
+            exception?.message?.contains("Unsupported region") == true
+        )
     }
-    
+
     @Test
     fun `should generate secure digest tokens with nonce`() {
         // Note: HTTP used intentionally for digest authentication testing
         val authRepository = AuthRepository(TEST_SSL_ENDPOINT)
         val result1 = authRepository.authenticateWithDigest("user@example.com", "password")
         val result2 = authRepository.authenticateWithDigest("user@example.com", "password")
-        
+
         assertTrue("First auth should succeed", result1.isSuccess)
         assertTrue("Second auth should succeed", result2.isSuccess)
-        
+
         val token1 = result1.getOrNull()?.authToken
         val token2 = result2.getOrNull()?.authToken
-        
+
         assertNotNull("Should have first token", token1)
         assertNotNull("Should have second token", token2)
         assertNotEquals("Tokens should be different due to nonce", token1, token2)
-        assertTrue("Token should contain digest_auth_token", token1?.contains("digest_auth_token") == true)
+        assertTrue(
+            "Token should contain digest_auth_token",
+            token1?.contains("digest_auth_token") == true
+        )
         assertTrue("Token should contain nonce", token1?.contains("_nonce_") == true)
     }
-    
+
     @Test
     fun `should generate different tokens for different regions`() {
         val authRepository = AuthRepository("https://api.pcloud.com")
-        val usResult = authRepository.authenticateWithServerSupport("user@example.com", "password", "US")
-        val euResult = authRepository.authenticateWithServerSupport("user@example.com", "password", "EUROPE")
-        
+        val usResult = authRepository.authenticateWithServerSupport(
+            "user@example.com",
+            "password",
+            "US"
+        )
+        val euResult = authRepository.authenticateWithServerSupport(
+            "user@example.com",
+            "password",
+            "EUROPE"
+        )
+
         assertTrue("US auth should succeed", usResult.isSuccess)
         assertTrue("EU auth should succeed", euResult.isSuccess)
-        
+
         val usToken = usResult.getOrNull()?.authToken
         val euToken = euResult.getOrNull()?.authToken
-        
+
         assertNotNull("Should have US token", usToken)
         assertNotNull("Should have EU token", euToken)
         assertNotEquals("Tokens should be different for different regions", usToken, euToken)

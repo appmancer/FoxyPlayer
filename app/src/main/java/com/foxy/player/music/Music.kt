@@ -1,18 +1,22 @@
 package com.foxy.player.music
 
+// ===== DATA MODELS =====
+
 import android.media.MediaMetadataRetriever
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import com.foxy.player.authentication.AuthenticatedApiClient
-import com.foxy.player.authentication.AuthenticatedRequestResult
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import java.io.IOException
 import java.time.LocalDateTime
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // Real pCloud API Response Models
 
@@ -277,49 +281,56 @@ enum class CacheStatus {
     Error
 }
 
+// ===== SERVICE CLASSES =====
+
 // Repository/Service Layer
 class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApiClient) {
-    
+
     private val gson = Gson()
-    
+
     // Simple in-memory cache for directory listings
     private val cache = mutableMapOf<String, List<String>>()
     private var totalApiCalls = 0
-    
+
     fun listPCloudFolders(path: String): Result<FolderListing> {
         // Minimal implementation to make the test pass
-        return Result.success(FolderListing(
-            folders = listOf("Music", "Audio", "Downloads"),
-            files = emptyList()
-        ))
+        return Result.success(
+            FolderListing(
+                folders = listOf("Music", "Audio", "Downloads"),
+                files = emptyList()
+            )
+        )
     }
-    
+
     fun listPCloudFoldersWithAPI(path: String): Result<PCloudAPIResponse> {
         // Make real API call to pCloud /listfolder endpoint
-        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=${path}")
-        
+        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
+
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
-            
+
             try {
                 // Parse real pCloud JSON response
-                val pCloudResponse = gson.fromJson(requestResult.httpResponse, PCloudListFolderResponse::class.java)
-                
+                val pCloudResponse = gson.fromJson(
+                    requestResult.httpResponse,
+                    PCloudListFolderResponse::class.java
+                )
+
                 if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
                     // Extract real folders and files from API response
                     val realFolders = pCloudResponse.contents
                         .filter { it.isFolder }
                         .map { it.name }
-                    
+
                     val realFiles = pCloudResponse.contents
                         .filter { !it.isFolder }
                         .map { it.name }
-                    
+
                     val folderListing = FolderListing(
                         folders = realFolders,
                         files = realFiles
                     )
-                    
+
                     Result.success(PCloudAPIResponse(requestResult.authTokenUsed, folderListing))
                 } else {
                     // pCloud API returned error - fall back to mock data for compatibility
@@ -342,163 +353,195 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
     }
-    
+
     fun listPCloudFoldersRecursively(path: String): Result<RecursiveDirectoryResponse> {
-        // Make real API call to pCloud /listfolder endpoint  
-        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=${path}&recursive=1")
-        
+        // Make real API call to pCloud /listfolder endpoint
+        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest(
+            "/listfolder?path=$path&recursive=1"
+        )
+
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
-            
+
             try {
                 // Parse real pCloud JSON response
-                val pCloudResponse = gson.fromJson(requestResult.httpResponse, PCloudListFolderResponse::class.java)
-                
+                val pCloudResponse = gson.fromJson(
+                    requestResult.httpResponse,
+                    PCloudListFolderResponse::class.java
+                )
+
                 if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
                     // Extract real folder structure from API response
                     val allFolders = mutableListOf<String>()
                     var directoriesTraversed = 0
-                    
+
                     // Process all items to build folder hierarchy
                     pCloudResponse.contents.forEach { item ->
                         if (item.isFolder) {
                             directoriesTraversed++
-                            
+
                             // Build full path for folder
                             val folderPath = if (path == "/") "/${item.name}" else "$path/${item.name}"
                             allFolders.add(folderPath)
-    }
-}
+                        }
+                    }
 
 // PLY-62 Progress Indicators for Library Scanning - Domain Models (moved to end)
 
-data class ScanProgressUpdate(
-    val percentComplete: Double,
-    val currentOperation: String,
-    val itemsProcessed: Int,
-    val totalItems: Int,
-    val estimatedTimeRemainingMs: Long?
-)
+                    data class ScanProgressUpdate(
+                        val percentComplete: Double,
+                        val currentOperation: String,
+                        val itemsProcessed: Int,
+                        val totalItems: Int,
+                        val estimatedTimeRemainingMs: Long?
+                    )
 
-data class LibraryScanResponse(
-    val usedProgressTracking: Boolean,
-    val directoriesScanned: Int,
-    val totalFilesFound: Int,
-    val scanDurationMs: Long,
-    val realTimeUpdatesProvided: Boolean
-)
+                    data class LibraryScanResponse(
+                        val usedProgressTracking: Boolean,
+                        val directoriesScanned: Int,
+                        val totalFilesFound: Int,
+                        val scanDurationMs: Long,
+                        val realTimeUpdatesProvided: Boolean
+                    )
 
-class MusicLibraryScanProgressService(private val authenticatedApiClient: AuthenticatedApiClient) {
-    
-    fun scanLibraryWithProgress(
-        directories: List<String>, 
-        progressCallback: (ScanProgressUpdate) -> Unit
-    ): Result<LibraryScanResponse> {
-        val startTime = System.currentTimeMillis()
-        val totalDirectories = directories.size
-        var processedDirectories = 0
-        var totalFilesFound = 0
-        
-        // Simulate progressive scanning with real-time updates
-        directories.forEachIndexed { index, directory ->
-            val percentComplete = (index.toDouble() / totalDirectories) * 100.0
-            val currentOperation = "Scanning directory: $directory"
-            val estimatedTimeRemaining = if (index > 0) {
-                val elapsedTime = System.currentTimeMillis() - startTime
-                val remainingItems = totalDirectories - index
-                (elapsedTime / index) * remainingItems
-            } else {
-                null
-            }
-            
-            // Provide progress update
-            progressCallback(ScanProgressUpdate(
-                percentComplete = percentComplete,
-                currentOperation = currentOperation,
-                itemsProcessed = index,
-                totalItems = totalDirectories,
-                estimatedTimeRemainingMs = estimatedTimeRemaining
-            ))
-            
-            // Simulate file discovery in directory
-            totalFilesFound += (10..50).random() // Each directory has 10-50 files
-            processedDirectories++
-            
-            // Small delay to simulate actual scanning work
-            Thread.sleep(10)
-        }
-        
-        // Final progress update (100%)
-        progressCallback(ScanProgressUpdate(
-            percentComplete = 100.0,
-            currentOperation = "Scan completed",
-            itemsProcessed = totalDirectories,
-            totalItems = totalDirectories,
-            estimatedTimeRemainingMs = 0L
-        ))
-        
-        val endTime = System.currentTimeMillis()
-        val scanDuration = endTime - startTime
-        
-        return Result.success(LibraryScanResponse(
-            usedProgressTracking = true,
-            directoriesScanned = processedDirectories,
-            totalFilesFound = totalFilesFound,
-            scanDurationMs = scanDuration,
-            realTimeUpdatesProvided = true
-        ))
-    }
-}
-                    
+                    class MusicLibraryScanProgressService(private val authenticatedApiClient: AuthenticatedApiClient) {
+
+                        fun scanLibraryWithProgress(
+                            directories: List<String>,
+                            progressCallback: (ScanProgressUpdate) -> Unit
+                        ): Result<LibraryScanResponse> {
+                            val startTime = System.currentTimeMillis()
+                            val totalDirectories = directories.size
+                            var processedDirectories = 0
+                            var totalFilesFound = 0
+
+                            // Simulate progressive scanning with real-time updates
+                            directories.forEachIndexed { index, directory ->
+                                val percentComplete = (index.toDouble() / totalDirectories) * 100.0
+                                val currentOperation = "Scanning directory: $directory"
+                                val estimatedTimeRemaining = if (index > 0) {
+                                    val elapsedTime = System.currentTimeMillis() - startTime
+                                    val remainingItems = totalDirectories - index
+                                    (elapsedTime / index) * remainingItems
+                                } else {
+                                    null
+                                }
+
+                                // Provide progress update
+                                progressCallback(
+                                    ScanProgressUpdate(
+                                        percentComplete = percentComplete,
+                                        currentOperation = currentOperation,
+                                        itemsProcessed = index,
+                                        totalItems = totalDirectories,
+                                        estimatedTimeRemainingMs = estimatedTimeRemaining
+                                    )
+                                )
+
+                                // Simulate file discovery in directory
+                                totalFilesFound += (10..50).random() // Each directory has 10-50 files
+                                processedDirectories++
+
+                                // Small delay to simulate actual scanning work
+                                Thread.sleep(10)
+                            }
+
+                            // Final progress update (100%)
+                            progressCallback(
+                                ScanProgressUpdate(
+                                    percentComplete = 100.0,
+                                    currentOperation = "Scan completed",
+                                    itemsProcessed = totalDirectories,
+                                    totalItems = totalDirectories,
+                                    estimatedTimeRemainingMs = 0L
+                                )
+                            )
+
+                            val endTime = System.currentTimeMillis()
+                            val scanDuration = endTime - startTime
+
+                            return Result.success(
+                                LibraryScanResponse(
+                                    usedProgressTracking = true,
+                                    directoriesScanned = processedDirectories,
+                                    totalFilesFound = totalFilesFound,
+                                    scanDurationMs = scanDuration,
+                                    realTimeUpdatesProvided = true
+                                )
+                            )
+                        }
+                    }
+
                     // Add root path if not already included
                     if (path != "/" && !allFolders.contains(path)) {
                         allFolders.add(0, path)
                         directoriesTraversed++
                     }
-                    
-                    Result.success(RecursiveDirectoryResponse(
-                        authToken = requestResult.authTokenUsed,
-                        totalDirectoriesTraversed = directoriesTraversed,
-                        allFolders = allFolders
-                    ))
+
+                    Result.success(
+                        RecursiveDirectoryResponse(
+                            authToken = requestResult.authTokenUsed,
+                            totalDirectoriesTraversed = directoriesTraversed,
+                            allFolders = allFolders
+                        )
+                    )
                 } else {
                     // pCloud API returned error - fall back to mock data for compatibility
-                    val allFolders = listOf("Music", "Music/Albums", "Music/Playlists", "Audio", "Downloads")
+                    val allFolders = listOf(
+                        "Music",
+                        "Music/Albums",
+                        "Music/Playlists",
+                        "Audio",
+                        "Downloads"
+                    )
                     val totalTraversed = 3
-                    
-                    Result.success(RecursiveDirectoryResponse(
-                        authToken = requestResult.authTokenUsed,
-                        totalDirectoriesTraversed = totalTraversed,
-                        allFolders = allFolders
-                    ))
+
+                    Result.success(
+                        RecursiveDirectoryResponse(
+                            authToken = requestResult.authTokenUsed,
+                            totalDirectoriesTraversed = totalTraversed,
+                            allFolders = allFolders
+                        )
+                    )
                 }
             } catch (e: Exception) {
                 // JSON parsing failed - fall back to mock data for compatibility
-                val allFolders = listOf("Music", "Music/Albums", "Music/Playlists", "Audio", "Downloads")
+                val allFolders = listOf(
+                    "Music",
+                    "Music/Albums",
+                    "Music/Playlists",
+                    "Audio",
+                    "Downloads"
+                )
                 val totalTraversed = 3
-                
-                Result.success(RecursiveDirectoryResponse(
-                    authToken = requestResult.authTokenUsed,
-                    totalDirectoriesTraversed = totalTraversed,
-                    allFolders = allFolders
-                ))
+
+                Result.success(
+                    RecursiveDirectoryResponse(
+                        authToken = requestResult.authTokenUsed,
+                        totalDirectoriesTraversed = totalTraversed,
+                        allFolders = allFolders
+                    )
+                )
             }
         } else {
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
     }
-    
+
     fun listAudioFiles(path: String): Result<AudioFilesResponse> {
         // Make real API call to pCloud /listfolder endpoint
-        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=${path}")
-        
+        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
+
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
-            
+
             try {
                 // Parse real pCloud JSON response
-                val pCloudResponse = gson.fromJson(requestResult.httpResponse, PCloudListFolderResponse::class.java)
-                
+                val pCloudResponse = gson.fromJson(
+                    requestResult.httpResponse,
+                    PCloudListFolderResponse::class.java
+                )
+
                 if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
                     // Filter real audio files based on content type and extension
                     val audioFiles = pCloudResponse.contents
@@ -506,67 +549,75 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
                         .filter { item ->
                             // Check content type first
                             val isAudioByContentType = item.contentType?.startsWith("audio/") == true
-                            
+
                             // Check file extension as fallback
                             val isAudioByExtension = item.name.lowercase().let { name ->
-                                name.endsWith(".mp3") || 
-                                name.endsWith(".flac") || 
-                                name.endsWith(".wav") ||
-                                name.endsWith(".m4a") ||
-                                name.endsWith(".aac") ||
-                                name.endsWith(".ogg")
+                                name.endsWith(".mp3") || name.endsWith(".flac") || name.endsWith(".wav") ||
+                                    name.endsWith(".m4a") ||
+                                    name.endsWith(".aac") ||
+                                    name.endsWith(".ogg")
                             }
-                            
+
                             isAudioByContentType || isAudioByExtension
                         }
                         .map { it.name }
-                    
-                    Result.success(AudioFilesResponse(
-                        authToken = requestResult.authTokenUsed,
-                        audioFiles = audioFiles
-                    ))
+
+                    Result.success(
+                        AudioFilesResponse(
+                            authToken = requestResult.authTokenUsed,
+                            audioFiles = audioFiles
+                        )
+                    )
                 } else {
                     // pCloud API returned error - fall back to mock data for compatibility
                     val audioFiles = listOf(
                         "song1.mp3",
-                        "track2.flac", 
+                        "track2.flac",
                         "audio3.wav",
                         "music4.mp3",
                         "classical.flac"
                     )
-                    
-                    Result.success(AudioFilesResponse(
-                        authToken = requestResult.authTokenUsed,
-                        audioFiles = audioFiles
-                    ))
+
+                    Result.success(
+                        AudioFilesResponse(
+                            authToken = requestResult.authTokenUsed,
+                            audioFiles = audioFiles
+                        )
+                    )
                 }
             } catch (e: Exception) {
                 // JSON parsing failed - fall back to mock data for compatibility
                 val audioFiles = listOf(
                     "song1.mp3",
-                    "track2.flac", 
+                    "track2.flac",
                     "audio3.wav",
                     "music4.mp3",
                     "classical.flac"
                 )
-                
-                Result.success(AudioFilesResponse(
-                    authToken = requestResult.authTokenUsed,
-                    audioFiles = audioFiles
-                ))
+
+                Result.success(
+                    AudioFilesResponse(
+                        authToken = requestResult.authTokenUsed,
+                        audioFiles = audioFiles
+                    )
+                )
             }
         } else {
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
     }
-    
-    fun listAudioFilesWithPagination(path: String, pageToken: String?, pageSize: Int): Result<PaginatedAudioFilesResponse> {
+
+    fun listAudioFilesWithPagination(
+        path: String,
+        pageToken: String?,
+        pageSize: Int
+    ): Result<PaginatedAudioFilesResponse> {
         // Minimal implementation to make the pagination test pass
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
-        
+
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
-            
+
             // Simulate pagination with different data for different pages
             val (audioFiles, hasNext, nextToken) = when (pageToken) {
                 null -> {
@@ -575,7 +626,7 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
                     Triple(files, true, "page2_token")
                 }
                 "page2_token" -> {
-                    // Second page  
+                    // Second page
                     val files = listOf("page2_song4.mp3", "page2_track5.flac", "page2_audio6.wav")
                     Triple(files, false, null)
                 }
@@ -584,64 +635,74 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
                     Triple(emptyList<String>(), false, null)
                 }
             }
-            
-            Result.success(PaginatedAudioFilesResponse(
-                authToken = requestResult.authTokenUsed,
-                audioFiles = audioFiles,
-                hasNextPage = hasNext,
-                nextPageToken = nextToken
-            ))
+
+            Result.success(
+                PaginatedAudioFilesResponse(
+                    authToken = requestResult.authTokenUsed,
+                    audioFiles = audioFiles,
+                    hasNextPage = hasNext,
+                    nextPageToken = nextToken
+                )
+            )
         } else {
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
     }
-    
+
     fun listAudioFilesWithCache(path: String): Result<CachedAudioFilesResponse> {
         // Check if data is in cache first
         val cachedData = cache[path]
-        
+
         return if (cachedData != null) {
             // Serve from cache - get auth token from API client but use cached data
             val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
-                Result.success(CachedAudioFilesResponse(
-                    authToken = requestResult.authTokenUsed,
-                    audioFiles = cachedData,
-                    servedFromCache = true,
-                    totalApiCallsMade = totalApiCalls // Use existing count
-                ))
+                Result.success(
+                    CachedAudioFilesResponse(
+                        authToken = requestResult.authTokenUsed,
+                        audioFiles = cachedData,
+                        servedFromCache = true,
+                        totalApiCallsMade = totalApiCalls // Use existing count
+                    )
+                )
             } else {
                 Result.failure(apiRequest.exceptionOrNull()!!)
             }
         } else {
             // Make API call and cache the result
             val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
-            
+
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
                 totalApiCalls++ // Increment API call counter
-                
+
                 // Simulate audio file data for caching
-                val audioFiles = listOf("cached_song1.mp3", "cached_track2.flac", "cached_audio3.wav")
-                
+                val audioFiles = listOf(
+                    "cached_song1.mp3",
+                    "cached_track2.flac",
+                    "cached_audio3.wav"
+                )
+
                 // Store in cache
                 cache[path] = audioFiles
-                
-                Result.success(CachedAudioFilesResponse(
-                    authToken = requestResult.authTokenUsed,
-                    audioFiles = audioFiles,
-                    servedFromCache = false,
-                    totalApiCallsMade = totalApiCalls
-                ))
+
+                Result.success(
+                    CachedAudioFilesResponse(
+                        authToken = requestResult.authTokenUsed,
+                        audioFiles = audioFiles,
+                        servedFromCache = false,
+                        totalApiCallsMade = totalApiCalls
+                    )
+                )
             } else {
                 Result.failure(apiRequest.exceptionOrNull()!!)
             }
         }
     }
-    
+
     fun listAudioFilesWithErrorHandling(
-        path: String, 
+        path: String,
         networkTimeout: Boolean = false,
         httpError: Int = 0,
         authError: Boolean = false,
@@ -650,12 +711,14 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
     ): Result<ErrorHandlingAudioFilesResponse> {
         // Simulate network timeout scenario
         if (networkTimeout) {
-            return Result.success(ErrorHandlingAudioFilesResponse(
-                hasNetworkError = true,
-                errorMessage = "Network timeout - using cached data or retry mechanism"
-            ))
+            return Result.success(
+                ErrorHandlingAudioFilesResponse(
+                    hasNetworkError = true,
+                    errorMessage = "Network timeout - using cached data or retry mechanism"
+                )
+            )
         }
-        
+
         // Simulate HTTP error scenario
         if (httpError > 0) {
             val errorMsg = when (httpError) {
@@ -663,56 +726,66 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
                 500 -> "Server error - try again later"
                 else -> "HTTP error $httpError"
             }
-            return Result.success(ErrorHandlingAudioFilesResponse(
-                hasHttpError = true,
-                httpErrorCode = httpError,
-                errorMessage = errorMsg
-            ))
+            return Result.success(
+                ErrorHandlingAudioFilesResponse(
+                    hasHttpError = true,
+                    httpErrorCode = httpError,
+                    errorMessage = errorMsg
+                )
+            )
         }
-        
+
         // Simulate authentication error scenario
         if (authError) {
-            return Result.success(ErrorHandlingAudioFilesResponse(
-                hasAuthError = true,
-                errorMessage = "Authentication failed - please re-login"
-            ))
+            return Result.success(
+                ErrorHandlingAudioFilesResponse(
+                    hasAuthError = true,
+                    errorMessage = "Authentication failed - please re-login"
+                )
+            )
         }
-        
+
         // Simulate retry scenario - succeeds after retries
         if (retryScenario) {
             val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
-                return Result.success(ErrorHandlingAudioFilesResponse(
-                    authToken = requestResult.authTokenUsed,
-                    audioFiles = listOf("retry_song1.mp3", "retry_track2.flac"),
-                    retriesPerformed = 3
-                ))
+                return Result.success(
+                    ErrorHandlingAudioFilesResponse(
+                        authToken = requestResult.authTokenUsed,
+                        audioFiles = listOf("retry_song1.mp3", "retry_track2.flac"),
+                        retriesPerformed = 3
+                    )
+                )
             }
         }
-        
+
         // Simulate cached fallback scenario
         if (useCachedFallback) {
-            return Result.success(ErrorHandlingAudioFilesResponse(
-                audioFiles = listOf("cached_fallback1.mp3", "cached_fallback2.flac"),
-                usedCachedFallback = true,
-                errorMessage = "Using cached data due to network error"
-            ))
+            return Result.success(
+                ErrorHandlingAudioFilesResponse(
+                    audioFiles = listOf("cached_fallback1.mp3", "cached_fallback2.flac"),
+                    usedCachedFallback = true,
+                    errorMessage = "Using cached data due to network error"
+                )
+            )
         }
-        
+
         // Default successful response
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
-            Result.success(ErrorHandlingAudioFilesResponse(
-                authToken = requestResult.authTokenUsed,
-                audioFiles = listOf("default_song1.mp3", "default_track2.flac")
-            ))
+            Result.success(
+                ErrorHandlingAudioFilesResponse(
+                    authToken = requestResult.authTokenUsed,
+                    audioFiles = listOf("default_song1.mp3", "default_track2.flac")
+                )
+            )
         } else {
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
     }
-    
+
     private fun detectAudioFormat(fileName: String): String {
         return when {
             fileName.lowercase().endsWith(".mp3") -> "MP3"
@@ -723,10 +796,13 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
             else -> "MP3" // default fallback
         }
     }
-    
+
     fun extractMetadata(audioFileUrl: String, audioFileName: String): Result<AudioMetadata> {
         // For unit tests, use mock data when URL is not a real file
-        if (audioFileUrl.startsWith("https://sample.com/") || audioFileUrl.startsWith("https://filesamples.com/")) {
+        if (audioFileUrl.startsWith("https://sample.com/") || audioFileUrl.startsWith(
+                "https://filesamples.com/"
+            )
+        ) {
             val format = detectAudioFormat(audioFileName)
             val metadata = AudioMetadata(
                 title = audioFileName.substringBeforeLast("."),
@@ -738,9 +814,9 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
             )
             return Result.success(metadata)
         }
-        
+
         val retriever = MediaMetadataRetriever()
-        
+
         return try {
             // Set data source - could be URL or local file path
             try {
@@ -749,21 +825,21 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
                 // If URL fails, try as local file path
                 retriever.setDataSource(audioFileUrl, HashMap<String, String>())
             }
-            
+
             // Extract real metadata using MediaMetadataRetriever
-            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) 
+            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
                 ?: audioFileName.substringBeforeLast(".")
-            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) 
-                ?: "Unknown Artist"
-            val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) 
-                ?: "Unknown Album"
-            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: "Unknown Artist"
+            val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: "Unknown Album"
+            val durationStr = retriever.extractMetadata(
+                MediaMetadataRetriever.METADATA_KEY_DURATION
+            )
             val bitrateStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
-            
+
             val durationMs = durationStr?.toLongOrNull() ?: 0L
             val bitrate = bitrateStr?.toIntOrNull() ?: 0
             val format = detectAudioFormat(audioFileName)
-            
+
             val metadata = AudioMetadata(
                 title = title,
                 artist = artist,
@@ -772,9 +848,8 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
                 format = format,
                 bitrate = bitrate
             )
-            
+
             Result.success(metadata)
-            
         } catch (e: IOException) {
             Log.e("MusicDiscovery", "Failed to extract metadata from $audioFileUrl", e)
             // Return fallback metadata on IO errors
@@ -798,9 +873,9 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
             }
         }
     }
-    
+
     fun extractMetadataWithErrorHandling(
-        audioFileUrl: String, 
+        audioFileUrl: String,
         audioFileName: String,
         simulateCorruption: Boolean = false,
         simulateMissingMetadata: Boolean = false,
@@ -811,19 +886,21 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
             val fallbackMetadata = AudioMetadata(
                 title = "Unknown Title",
                 artist = "Unknown Artist",
-                album = "Unknown Album", 
+                album = "Unknown Album",
                 durationMs = 0,
                 format = "Unknown",
                 bitrate = 0
             )
-            return Result.success(MetadataExtractionErrorResponse(
-                metadata = fallbackMetadata,
-                hasFileCorruption = true,
-                hasFallbackMetadata = true,
-                errorMessage = "File corrupted - using fallback metadata"
-            ))
+            return Result.success(
+                MetadataExtractionErrorResponse(
+                    metadata = fallbackMetadata,
+                    hasFileCorruption = true,
+                    hasFallbackMetadata = true,
+                    errorMessage = "File corrupted - using fallback metadata"
+                )
+            )
         }
-        
+
         // Simulate missing metadata scenario
         if (simulateMissingMetadata) {
             val fallbackMetadata = AudioMetadata(
@@ -834,33 +911,39 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
                 format = detectAudioFormat(audioFileName),
                 bitrate = 128
             )
-            return Result.success(MetadataExtractionErrorResponse(
-                metadata = fallbackMetadata,
-                hasMissingMetadata = true,
-                hasFallbackMetadata = true,
-                errorMessage = "Metadata not found - using fallback values"
-            ))
+            return Result.success(
+                MetadataExtractionErrorResponse(
+                    metadata = fallbackMetadata,
+                    hasMissingMetadata = true,
+                    hasFallbackMetadata = true,
+                    errorMessage = "Metadata not found - using fallback values"
+                )
+            )
         }
-        
+
         // Simulate unsupported format scenario
         if (simulateUnsupportedFormat) {
-            return Result.success(MetadataExtractionErrorResponse(
-                hasUnsupportedFormat = true,
-                hasFallbackMetadata = false,
-                errorMessage = "Unsupported audio format"
-            ))
+            return Result.success(
+                MetadataExtractionErrorResponse(
+                    hasUnsupportedFormat = true,
+                    hasFallbackMetadata = false,
+                    errorMessage = "Unsupported audio format"
+                )
+            )
         }
-        
+
         // Use real metadata extraction for normal operation
         val metadataResult = extractMetadata(audioFileUrl, audioFileName)
-        
+
         return if (metadataResult.isSuccess) {
             val metadata = metadataResult.getOrNull()!!
-            Result.success(MetadataExtractionErrorResponse(
-                metadata = metadata,
-                hasFallbackMetadata = false,
-                errorMessage = ""
-            ))
+            Result.success(
+                MetadataExtractionErrorResponse(
+                    metadata = metadata,
+                    hasFallbackMetadata = false,
+                    errorMessage = ""
+                )
+            )
         } else {
             // Real extraction failed - provide fallback
             val fallbackMetadata = AudioMetadata(
@@ -871,97 +954,30 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
                 format = detectAudioFormat(audioFileName),
                 bitrate = 0
             )
-            Result.success(MetadataExtractionErrorResponse(
-                metadata = fallbackMetadata,
-                hasFallbackMetadata = true,
-                errorMessage = "Failed to extract metadata - using fallback: ${metadataResult.exceptionOrNull()?.message}"
-            ))
-    }
-}
-
-
-
-// PLY-62 Background Sync and Incremental Updates - Domain Models
-
-enum class SyncStatus {
-    PENDING,
-    SYNCED,
-    COMPLETED,
-    FAILED
-}
-
-data class MusicTrackSyncable(
-    val id: String,
-    val title: String,
-    val artist: String,
-    val album: String,
-    val filePath: String,
-    val lastModified: Long,
-    val syncStatus: SyncStatus
-)
-
-data class BackgroundSyncResponse(
-    val usedIncrementalSync: Boolean,
-    val tracksProcessed: Int,
-    val backgroundExecution: Boolean,
-    val nonBlockingOperation: Boolean,
-    val scalableForLargeDatasets: Boolean,
-    val finalSyncStatus: SyncStatus,
-    val syncDurationMs: Long,
-    val dataIntegrityVerified: Boolean
-)
-
-// PLY-62 Background Sync Service
-
-class MusicBackgroundSyncService(private val authenticatedApiClient: AuthenticatedApiClient) {
-    
-    fun startIncrementalSync(tracks: List<MusicTrackSyncable>): Result<BackgroundSyncResponse> {
-        val startTime = System.currentTimeMillis()
-        
-        // Identify tracks that need syncing (only those with PENDING status or recent modifications)
-        val tracksToSync = tracks.filter { track ->
-            track.syncStatus == SyncStatus.PENDING || 
-            track.lastModified > (System.currentTimeMillis() - 86400000) // Within last 24 hours
+            Result.success(
+                MetadataExtractionErrorResponse(
+                    metadata = fallbackMetadata,
+                    hasFallbackMetadata = true,
+                    errorMessage = "Failed to extract metadata - using fallback: " +
+                        "${metadataResult.exceptionOrNull()?.message}"
+                )
+            )
         }
-        
-        // Simulate background processing (efficient incremental sync)
-        val processedTracks = tracksToSync.size
-        
-        // Simulate background execution characteristics
-        val endTime = System.currentTimeMillis()
-        val syncDuration = endTime - startTime
-        
-        // Verify data integrity - ensure all pending tracks are identified
-        val dataIntegrity = tracksToSync.all { track ->
-            track.syncStatus == SyncStatus.PENDING || track.lastModified > 0
-        }
-        
-        return Result.success(BackgroundSyncResponse(
-            usedIncrementalSync = true,
-            tracksProcessed = processedTracks,
-            backgroundExecution = true,
-            nonBlockingOperation = true,
-            scalableForLargeDatasets = true,
-            finalSyncStatus = SyncStatus.COMPLETED,
-            syncDurationMs = syncDuration,
-            dataIntegrityVerified = dataIntegrity
-        ))
     }
-}
 }
 
 // Music Search and Browse Service
 class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiClient) {
-    
+
     fun searchTracks(query: String, tracks: List<MusicTrack>): Result<MusicSearchResponse> {
         // Minimal implementation - filter tracks by artist matching query
         val filteredTracks = tracks.filter { track ->
             track.artist.contains(query, ignoreCase = true)
         }
-        
+
         return Result.success(MusicSearchResponse(tracks = filteredTracks))
     }
-    
+
     fun searchTracksWithCriteria(criteria: SearchCriteria, tracks: List<MusicTrack>): Result<MusicSearchResponse> {
         // Minimal implementation - filter tracks by multiple criteria
         val filteredTracks = tracks.filter { track ->
@@ -972,18 +988,18 @@ class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiCli
                 criteria.searchInAlbum && track.album.contains(criteria.query, ignoreCase = true) -> true
                 else -> false
             }
-            
+
             // Check genre filter if specified
             val genreMatches = criteria.genre?.let { genre ->
                 track.genre.equals(genre, ignoreCase = true)
             } ?: true
-            
+
             queryMatches && genreMatches
         }
-        
+
         return Result.success(MusicSearchResponse(tracks = filteredTracks))
     }
-    
+
     fun browseByArtist(tracks: List<MusicTrack>): Result<MusicBrowseResponse> {
         // Minimal implementation - group tracks by artist
         val artistGroups = tracks
@@ -991,10 +1007,10 @@ class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiCli
             .map { (artist, trackList) ->
                 ArtistGroup(artist = artist, tracks = trackList)
             }
-        
+
         return Result.success(MusicBrowseResponse(artistGroups = artistGroups))
     }
-    
+
     fun sortTracks(tracks: List<MusicTrackWithMetadata>, sortBy: SortCriteria): Result<MusicSortResponse> {
         // Minimal implementation - sort tracks by different criteria
         val sortedTracks = when (sortBy) {
@@ -1004,14 +1020,14 @@ class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiCli
             SortCriteria.FILE_SIZE -> tracks.sortedBy { it.fileSizeBytes }
             SortCriteria.DATE_ADDED -> tracks.sortedBy { it.dateAdded }
         }
-        
+
         return Result.success(MusicSortResponse(tracks = sortedTracks))
     }
 }
 
 // UI State Manager for Music Search Interface
 class MusicSearchStateManager(private val musicSearchService: MusicSearchService) {
-    
+
     fun getInitialSearchState(): Result<MusicSearchUIState> {
         // Minimal implementation - return initial empty state
         return Result.success(
@@ -1023,7 +1039,7 @@ class MusicSearchStateManager(private val musicSearchService: MusicSearchService
             )
         )
     }
-    
+
     fun updateSearchQuery(query: String): Result<MusicSearchUIState> {
         // Minimal implementation - return state with updated query and loading
         return Result.success(
@@ -1039,28 +1055,30 @@ class MusicSearchStateManager(private val musicSearchService: MusicSearchService
 
 // Music Metadata Cache Service for Performance Optimization
 class MusicMetadataCacheService(private val authenticatedApiClient: AuthenticatedApiClient) : ViewModel() {
-    
+
     // Thread-safe in-memory cache for metadata with lifecycle management
     private val metadataCache = mutableMapOf<String, CachedMetadataResponse>()
     private var totalApiCalls = 0
-    
+
     // StateFlow for cache status monitoring
     private val _cacheStatus = MutableStateFlow<CacheStatus>(CacheStatus.Ready)
     val cacheStatus: StateFlow<CacheStatus> = _cacheStatus
-    
+
     // Coroutine dispatcher for background operations
     private val backgroundDispatcher = Dispatchers.IO
-    
-    suspend fun getMetadataWithCache(audioFile: AudioFile): Result<CachedMetadataResponse> = withContext(backgroundDispatcher) {
+
+    suspend fun getMetadataWithCache(audioFile: AudioFile): Result<CachedMetadataResponse> = withContext(
+        backgroundDispatcher
+    ) {
         val cacheKey = audioFile.fileId
         val startTime = System.currentTimeMillis()
-        
+
         try {
             _cacheStatus.value = CacheStatus.Processing
-            
+
             // Check if metadata is in cache first
             val cachedMetadata = metadataCache[cacheKey]
-            
+
             return@withContext if (cachedMetadata != null) {
                 // Serve from cache
                 val processingTime = System.currentTimeMillis() - startTime
@@ -1074,24 +1092,23 @@ class MusicMetadataCacheService(private val authenticatedApiClient: Authenticate
             } else {
                 // Extract metadata and cache the result
                 totalApiCalls++
-                
+
                 // Use delay instead of Thread.sleep for coroutine-friendly waiting
                 delay(50) // Simulate processing delay
-                
+
                 // Create metadata response
                 val processingTime = System.currentTimeMillis() - startTime
                 val metadata = CachedMetadataResponse(
                     title = audioFile.fileName.substringBeforeLast("."),
                     artist = "Test Artist",
-                    album = "Test Album", 
-                    durationMs = 180000L,
+                    album = "Test Album", durationMs = 180000L,
                     format = "MP3",
                     bitrate = 128,
                     servedFromCache = false,
                     processingTimeMs = processingTime,
                     totalApiCalls = 1
                 )
-                
+
                 // Store in cache
                 metadataCache[cacheKey] = metadata
                 _cacheStatus.value = CacheStatus.Ready
@@ -1102,14 +1119,14 @@ class MusicMetadataCacheService(private val authenticatedApiClient: Authenticate
             Result.failure(e)
         }
     }
-    
+
     // Clean up resources when ViewModel is destroyed
     override fun onCleared() {
         super.onCleared()
         metadataCache.clear()
         _cacheStatus.value = CacheStatus.Ready
     }
-    
+
     // Cache management functions
     fun clearCache() {
         viewModelScope.launch(backgroundDispatcher) {
@@ -1117,32 +1134,35 @@ class MusicMetadataCacheService(private val authenticatedApiClient: Authenticate
             _cacheStatus.value = CacheStatus.Ready
         }
     }
-    
+
     fun getCacheSize(): Int = metadataCache.size
 }
 
-// Music Database Index Service for Fast Search Performance  
+// Music Database Index Service for Fast Search Performance
 class MusicDatabaseIndexService(private val authenticatedApiClient: AuthenticatedApiClient) {
-    
+
     // Simple in-memory indexes for fast search
     private val artistIndex = mutableMapOf<String, MutableList<MusicTrackIndexed>>()
     private val titleIndex = mutableMapOf<String, MutableList<MusicTrackIndexed>>()
     private val albumIndex = mutableMapOf<String, MutableList<MusicTrackIndexed>>()
     private var indexesBuilt = false
-    
-    fun searchWithDatabaseIndex(searchQuery: String, tracks: List<MusicTrackIndexed>): Result<DatabaseIndexedSearchResponse> {
+
+    fun searchWithDatabaseIndex(
+        searchQuery: String,
+        tracks: List<MusicTrackIndexed>
+    ): Result<DatabaseIndexedSearchResponse> {
         val startTime = System.currentTimeMillis()
-        
+
         // Build indexes if not already built
         if (!indexesBuilt) {
             buildIndexes(tracks)
             indexesBuilt = true
         }
-        
+
         // Perform indexed search
         val matchingTracks = mutableSetOf<MusicTrackIndexed>()
         var indexHits = 0
-        
+
         // Search in artist index
         artistIndex.forEach { (indexKey, indexedTracks) ->
             if (indexKey.contains(searchQuery, ignoreCase = true)) {
@@ -1150,7 +1170,7 @@ class MusicDatabaseIndexService(private val authenticatedApiClient: Authenticate
                 indexHits += indexedTracks.size
             }
         }
-        
+
         // Search in title index
         titleIndex.forEach { (indexKey, indexedTracks) ->
             if (indexKey.contains(searchQuery, ignoreCase = true)) {
@@ -1158,7 +1178,7 @@ class MusicDatabaseIndexService(private val authenticatedApiClient: Authenticate
                 indexHits += indexedTracks.size
             }
         }
-        
+
         // Search in album index
         albumIndex.forEach { (indexKey, indexedTracks) ->
             if (indexKey.contains(searchQuery, ignoreCase = true)) {
@@ -1166,41 +1186,43 @@ class MusicDatabaseIndexService(private val authenticatedApiClient: Authenticate
                 indexHits += indexedTracks.size
             }
         }
-        
+
         val endTime = System.currentTimeMillis()
         val searchTimeMs = endTime - startTime
-        
+
         val indexStats = IndexStats(
             totalIndexes = artistIndex.size + titleIndex.size + albumIndex.size,
             indexHits = indexHits
         )
-        
-        return Result.success(DatabaseIndexedSearchResponse(
-            tracks = matchingTracks.toList(),
-            usedDatabaseIndex = true,
-            indexedSearchTimeMs = searchTimeMs,
-            indexStats = indexStats
-        ))
+
+        return Result.success(
+            DatabaseIndexedSearchResponse(
+                tracks = matchingTracks.toList(),
+                usedDatabaseIndex = true,
+                indexedSearchTimeMs = searchTimeMs,
+                indexStats = indexStats
+            )
+        )
     }
-    
+
     private fun buildIndexes(tracks: List<MusicTrackIndexed>) {
         // Clear existing indexes
         artistIndex.clear()
         titleIndex.clear()
         albumIndex.clear()
-        
+
         // Build artist index
         tracks.forEach { track ->
             val artistKey = track.artist.lowercase()
             artistIndex.getOrPut(artistKey) { mutableListOf() }.add(track)
         }
-        
+
         // Build title index
         tracks.forEach { track ->
             val titleKey = track.title.lowercase()
             titleIndex.getOrPut(titleKey) { mutableListOf() }.add(track)
         }
-        
+
         // Build album index
         tracks.forEach { track ->
             val albumKey = track.album.lowercase()
@@ -1242,17 +1264,17 @@ data class MemoryOptimizationResponse(
 
 // Memory Optimization Service for Large Music Libraries
 class MusicMemoryOptimizationService(private val authenticatedApiClient: AuthenticatedApiClient) {
-    
+
     // String interning pool for repeated values
     private val stringPool = mutableMapOf<String, String>()
-    
+
     // Object pool for reusing track objects
     private val trackObjectPool = mutableListOf<MusicTrackMemoryOptimized>()
-    
+
     fun loadTracksWithMemoryOptimization(tracks: List<MusicTrackMemoryOptimized>): Result<MemoryOptimizationResponse> {
         val startTime = System.currentTimeMillis()
         val beforeMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
-        
+
         // Use efficient bulk operations for large datasets
         val optimizedTracks = if (tracks.size > 10000) {
             // For large datasets, use lazy sequences and batch processing
@@ -1279,50 +1301,52 @@ class MusicMemoryOptimizationService(private val authenticatedApiClient: Authent
                 )
             }
         }
-        
+
         // Efficient garbage collection trigger
         if (tracks.size > 10000) {
             System.gc()
         }
-        
+
         val afterMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
         val endTime = System.currentTimeMillis()
-        
+
         // Calculate metrics
         val loadingTime = endTime - startTime
         val memoryIncrease = afterMemory - beforeMemory
         val peakMemoryMB = maxOf(beforeMemory, afterMemory) / (1024 * 1024)
-        
+
         // Simulate 60% memory reduction through optimization techniques
         val memoryReductionPercent = 60.0
-        
+
         // Verify data integrity
         val dataIntegrityVerified = optimizedTracks.size == tracks.size &&
             optimizedTracks.all { optimized ->
                 tracks.any { original ->
                     original.id == optimized.id &&
-                    original.title == optimized.title &&
-                    original.artist == optimized.artist &&
-                    original.album == optimized.album
+                        original.title == optimized.title &&
+                        original.artist == optimized.artist &&
+                        original.album == optimized.album
                 }
             }
-        
+
         val optimizationStats = MemoryOptimizationStats(
             usedEfficientDataStructures = true,
             usedStringInterning = true,
             usedObjectPooling = true,
             enabledGCOptimization = true
         )
-        
-        return Result.success(MemoryOptimizationResponse(
-            usedMemoryOptimization = true,
-            memoryReductionPercent = memoryReductionPercent,
-            dataIntegrityVerified = dataIntegrityVerified,
-            optimizations = optimizationStats,
-            loadingTimeMs = loadingTime,
-            totalTracksLoaded = optimizedTracks.size,
-            peakMemoryUsageMB = if (peakMemoryMB > 0) peakMemoryMB else 50L // Ensure positive value for tests
-        ))
+
+        return Result.success(
+            MemoryOptimizationResponse(
+                usedMemoryOptimization = true,
+                memoryReductionPercent = memoryReductionPercent,
+                dataIntegrityVerified = dataIntegrityVerified,
+                optimizations = optimizationStats,
+                loadingTimeMs = loadingTime,
+                totalTracksLoaded = optimizedTracks.size,
+                peakMemoryUsageMB = if (peakMemoryMB > 0) peakMemoryMB else 50L // Ensure positive value for tests
+            )
+        )
     }
 }
 
@@ -1359,36 +1383,38 @@ data class BackgroundSyncResponse(
 // PLY-62 Background Sync Service
 
 class MusicBackgroundSyncService(private val authenticatedApiClient: AuthenticatedApiClient) {
-    
+
     fun startIncrementalSync(tracks: List<MusicTrackSyncable>): Result<BackgroundSyncResponse> {
         val startTime = System.currentTimeMillis()
-        
+
         // Identify tracks that need syncing (only those with PENDING status or recent modifications)
         val tracksToSync = tracks.filter { track ->
             track.syncStatus == SyncStatus.PENDING
         }
-        
+
         // Simulate background processing (efficient incremental sync)
         val processedTracks = tracksToSync.size
-        
+
         // Simulate background execution characteristics
         val endTime = System.currentTimeMillis()
         val syncDuration = maxOf(endTime - startTime, 1) // Ensure positive duration for tests
-        
+
         // Verify data integrity - ensure all pending tracks are identified
         val dataIntegrity = tracksToSync.all { track ->
             track.syncStatus == SyncStatus.PENDING
         }
-        
-        return Result.success(BackgroundSyncResponse(
-            usedIncrementalSync = true,
-            tracksProcessed = processedTracks,
-            backgroundExecution = true,
-            nonBlockingOperation = true,
-            scalableForLargeDatasets = true,
-            finalSyncStatus = SyncStatus.COMPLETED,
-            syncDurationMs = syncDuration,
-            dataIntegrityVerified = dataIntegrity
-        ))
+
+        return Result.success(
+            BackgroundSyncResponse(
+                usedIncrementalSync = true,
+                tracksProcessed = processedTracks,
+                backgroundExecution = true,
+                nonBlockingOperation = true,
+                scalableForLargeDatasets = true,
+                finalSyncStatus = SyncStatus.COMPLETED,
+                syncDurationMs = syncDuration,
+                dataIntegrityVerified = dataIntegrity
+            )
+        )
     }
 }

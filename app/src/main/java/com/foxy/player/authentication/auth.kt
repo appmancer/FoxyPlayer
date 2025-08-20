@@ -1,12 +1,12 @@
 package com.foxy.player.authentication
 
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.FormBody
 import com.google.gson.Gson
 import java.io.IOException
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 // Auth Exceptions
 class AuthenticationException(message: String) : Exception(message)
@@ -23,15 +23,15 @@ data class AuthResponse(val authToken: String, val userInfo: UserInfo)
 data class PCloudResponse(
     val result: Int,
     val error: String? = null,
-    val auth: String? = null, 
+    val auth: String? = null,
     val userid: Long? = null,
     val email: String? = null
 )
 
-// Auth UI Models  
+// Auth UI Models
 data class AuthScreenContent(
     val hasUsernameField: Boolean,
-    val hasPasswordField: Boolean, 
+    val hasPasswordField: Boolean,
     val hasLoginButton: Boolean,
     val usernameLabel: String,
     val passwordLabel: String,
@@ -44,7 +44,7 @@ data class LoginScreenContent(
     val hasPasswordTextField: Boolean,
     val hasLoginButton: Boolean,
     val usernamePlaceholder: String,
-    val passwordPlaceholder: String, 
+    val passwordPlaceholder: String,
     val loginButtonText: String,
     val isPasswordFieldObscured: Boolean,
     val isLoading: Boolean = false,
@@ -66,50 +66,50 @@ class AuthRepository(private val baseUrl: String = "") {
     private val gson = Gson()
     private var lastSuccessfulServer: String? = null
     private var connectTimeout: Long = 30000L // Default 30 seconds
-    private var readTimeout: Long = 30000L    // Default 30 seconds
-    
+    private var readTimeout: Long = 30000L // Default 30 seconds
+
     // PLY-43: Integration with SecureTokenStorage
     private val secureTokenStorage = SecureTokenStorage()
     private val secureTokenAlias = "auth_token_secure"
-    
+
     // Authentication State Management - Static storage to simulate persistence
     // TODO: For production, consider using SharedPreferences or encrypted storage for proper persistence
     // Current implementation is minimal for PLY-46 requirements and won't survive real app restarts
     companion object {
         private var persistedAuthState: AuthResponse? = null
     }
-    
+
     // Authentication Event Handling - Minimal implementation for PLY-46
     private var loginEventListener: ((UserInfo) -> Unit)? = null
     private var logoutEventListener: ((UserInfo) -> Unit)? = null
-    
+
     fun getLastSuccessfulServer(): String? = lastSuccessfulServer
-    
+
     fun configureTimeouts(connectTimeout: Long, readTimeout: Long) {
         this.connectTimeout = connectTimeout
         this.readTimeout = readTimeout
     }
-    
+
     fun getConnectTimeout(): Long = connectTimeout
-    
+
     fun getReadTimeout(): Long = readTimeout
-    
+
     // Authentication State Management - Minimal implementation for PLY-46
     fun saveAuthenticationState(authToken: String, userInfo: UserInfo) {
         // Minimal implementation - store in companion object to simulate persistence
         persistedAuthState = AuthResponse(authToken, userInfo)
     }
-    
+
     fun getPersistedAuthenticationState(): AuthResponse? {
         // Minimal implementation - return stored state from companion object
         return persistedAuthState
     }
-    
+
     fun isAuthenticated(): Boolean {
         // Minimal implementation - check if we have persisted auth state
         return persistedAuthState != null
     }
-    
+
     fun validatePersistedSession(): Result<Boolean> {
         // Minimal implementation - validate the persisted session
         return try {
@@ -126,62 +126,64 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     // Authentication Event Handling - Minimal implementation for PLY-46
     fun setLoginEventListener(listener: (UserInfo) -> Unit) {
         loginEventListener = listener
     }
-    
+
     fun setLogoutEventListener(listener: (UserInfo) -> Unit) {
         logoutEventListener = listener
     }
-    
+
     fun triggerLoginEvent(userInfo: UserInfo) {
         loginEventListener?.invoke(userInfo)
     }
-    
+
     fun triggerLogoutEvent(userInfo: UserInfo) {
         logoutEventListener?.invoke(userInfo)
     }
-    
+
     // Authentication State Clearing - Minimal implementation for PLY-46
     private var sessionInvalidationListener: (() -> Unit)? = null
     private var authenticationStateClearedListener: (() -> Unit)? = null
-    
+
     fun setSessionInvalidationListener(listener: () -> Unit) {
         sessionInvalidationListener = listener
     }
-    
+
     fun setAuthenticationStateCleared(listener: () -> Unit) {
         authenticationStateClearedListener = listener
     }
-    
+
     fun clearAuthenticationState() {
         persistedAuthState = null
         sessionInvalidationListener?.invoke()
         authenticationStateClearedListener?.invoke()
     }
-    
+
     fun invalidateCurrentSession() {
         persistedAuthState = null
         sessionInvalidationListener?.invoke()
     }
-    
+
     fun authenticateWithSSLValidation(username: String, password: String): Result<AuthResponse> {
         return try {
             // Check for known invalid SSL domains
             if (baseUrl.contains("self-signed.badssl.com") || baseUrl.contains("invalid-ssl")) {
                 // Simulate SSL certificate validation failure
-                throw SSLHandshakeException("Certificate path validation failed: self-signed certificate")
+                throw SSLHandshakeException(
+                    "Certificate path validation failed: self-signed certificate"
+                )
             }
-            
+
             // For valid SSL domains, proceed with normal authentication attempt
             if (baseUrl.contains("eapi.pcloud.com") || baseUrl.contains("api.pcloud.com")) {
                 // SSL is valid, but auth will likely fail with test credentials
                 // This simulates successful SSL validation but failed authentication
                 throw AuthenticationException("Authentication failed: Invalid credentials")
             }
-            
+
             // Default success case (should not reach here in test)
             Result.success(AuthResponse("ssl_validated_token", UserInfo("ssl@example.com")))
         } catch (e: SSLHandshakeException) {
@@ -194,7 +196,7 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     fun authenticateWithErrorDetails(username: String, password: String): Result<AuthResponse> {
         return try {
             // Check for network failure scenarios (invalid domains)
@@ -202,13 +204,13 @@ class AuthRepository(private val baseUrl: String = "") {
                 // Simulate network error
                 throw java.net.UnknownHostException("Network error: Cannot resolve host")
             }
-            
-            // For valid domains but wrong credentials, simulate auth error  
+
+            // For valid domains but wrong credentials, simulate auth error
             if (baseUrl.contains("eapi.pcloud.com") || baseUrl.contains("api.pcloud.com")) {
                 // Simulate authentication failure
                 throw AuthenticationException("Authentication error: Invalid credentials")
             }
-            
+
             // Default case - should not reach here in test
             Result.success(AuthResponse("test_token", UserInfo("test@example.com")))
         } catch (e: java.net.UnknownHostException) {
@@ -219,12 +221,12 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     fun authenticate(username: String, password: String): Result<AuthToken> {
         // Minimal implementation to make the test pass
         return Result.success(AuthToken("mock_auth_token_12345"))
     }
-    
+
     fun authenticateWithPCloud(username: String, password: String): Result<AuthToken> {
         return try {
             // Minimal implementation - just return a non-mock token to pass the test
@@ -235,14 +237,14 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     fun authenticateWithPCloudAPI(username: String, password: String): Result<AuthResponse> {
         return try {
             // Check for invalid URL that should trigger network failure
             if (baseUrl.contains("invalid-url-will-fail")) {
                 throw IOException("Network connection failed: invalid URL")
             }
-            
+
             // Minimal implementation to make the test pass
             // Create fake pCloud API response that matches expected format
             val mockAuthToken = "T${System.currentTimeMillis()}" // Starts with 'T' as expected
@@ -256,7 +258,7 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     fun authenticateWithRealHTTP(username: String, password: String): Result<AuthResponse> {
         return try {
             // Make real HTTP POST to pCloud API
@@ -272,15 +274,17 @@ class AuthRepository(private val baseUrl: String = "") {
                 .build()
 
             val response = httpClient.newCall(request).execute()
-            
+
             if (response.isSuccessful) {
                 val jsonResponse = response.body?.string() ?: ""
-                
+
                 // For minimal implementation, create a realistic response structure
                 // In a real scenario, this would parse the actual pCloud JSON format
                 val mockUserInfo = UserInfo(email = username)
                 val realAuthResponse = AuthResponse(
-                    authToken = "pcloud_real_${username.hashCode()}_${System.currentTimeMillis().toString().takeLast(4)}", // More realistic than pure timestamp
+                    authToken = "pcloud_real_${username.hashCode()}_${System.currentTimeMillis().toString().takeLast(
+                        4
+                    )}", // More realistic than pure timestamp
                     userInfo = mockUserInfo
                 )
                 Result.success(realAuthResponse)
@@ -291,18 +295,22 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     fun parseAuthResponse(jsonResponse: String): Result<AuthResponse> {
         return try {
             // Parse pCloud JSON response format
             val pCloudResponse = gson.fromJson(jsonResponse, PCloudResponse::class.java)
-            
+
             // Check if response indicates success (result == 0)
             if (pCloudResponse.result == 0) {
                 // Success case - extract auth token and user info
-                val authToken = pCloudResponse.auth ?: throw Exception("Missing auth token in success response")
-                val email = pCloudResponse.email ?: throw Exception("Missing email in success response")
-                
+                val authToken = pCloudResponse.auth ?: throw Exception(
+                    "Missing auth token in success response"
+                )
+                val email = pCloudResponse.email ?: throw Exception(
+                    "Missing email in success response"
+                )
+
                 val userInfo = UserInfo(email = email)
                 val authResponse = AuthResponse(authToken = authToken, userInfo = userInfo)
                 Result.success(authResponse)
@@ -315,7 +323,7 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     fun getMockSuccessResponse(): String {
         // Real pCloud success response based on actual API call to eapi.pcloud.com
         return """
@@ -360,11 +368,11 @@ class AuthRepository(private val baseUrl: String = "") {
             }
         """.trimIndent()
     }
-    
+
     fun authenticateWithAutoServerDetection(username: String, password: String): Result<AuthResponse> {
         // Try European server first, then US server if that fails
         val servers = listOf("https://eapi.pcloud.com", "https://api.pcloud.com")
-        
+
         for (serverUrl in servers) {
             try {
                 val requestBody = FormBody.Builder()
@@ -380,11 +388,11 @@ class AuthRepository(private val baseUrl: String = "") {
                     .build()
 
                 val response = httpClient.newCall(request).execute()
-                
+
                 if (response.isSuccessful) {
                     val jsonResponse = response.body?.string() ?: ""
                     val parseResult = parseAuthResponse(jsonResponse)
-                    
+
                     if (parseResult.isSuccess) {
                         // Store successful server for future use
                         lastSuccessfulServer = serverUrl
@@ -396,37 +404,41 @@ class AuthRepository(private val baseUrl: String = "") {
                 continue
             }
         }
-        
+
         // If we get here, both servers failed
         return Result.failure(IOException("Authentication failed on both US and EU servers"))
     }
-    
+
     // PLY-43: Secure Storage Integration Methods
     fun authenticateWithSecureStorage(username: String, password: String): Result<AuthResponse> {
         return try {
             // Perform authentication
             val authResult = authenticateWithPCloudAPI(username, password)
-            
+
             if (authResult.isSuccess) {
                 val authResponse = authResult.getOrNull()!!
-                
+
                 // Store token securely with validation
                 val validationFunction: (String) -> Boolean = { token ->
                     token.isNotEmpty() && token.length >= 10 && !token.contains("CORRUPTED")
                 }
-                
+
                 val storeResult = secureTokenStorage.storeTokenWithValidation(
                     secureTokenAlias,
                     authResponse.authToken,
                     validationFunction
                 )
-                
+
                 if (storeResult.isSuccess) {
                     // Also store in traditional auth state for compatibility
                     saveAuthenticationState(authResponse.authToken, authResponse.userInfo)
                     return Result.success(authResponse)
                 } else {
-                    return Result.failure(Exception("Failed to store token securely: ${storeResult.exceptionOrNull()?.message}"))
+                    return Result.failure(
+                        Exception(
+                            "Failed to store token securely: ${storeResult.exceptionOrNull()?.message}"
+                        )
+                    )
                 }
             } else {
                 return authResult
@@ -435,7 +447,7 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     fun isAuthenticatedWithSecureStorage(): Boolean {
         return try {
             val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
@@ -444,7 +456,7 @@ class AuthRepository(private val baseUrl: String = "") {
             false
         }
     }
-    
+
     fun getSecureAuthToken(): String? {
         return try {
             val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
@@ -457,7 +469,7 @@ class AuthRepository(private val baseUrl: String = "") {
             null
         }
     }
-    
+
     fun isSecureTokenValid(): Boolean {
         return try {
             val tokenResult = secureTokenStorage.retrieveToken(secureTokenAlias)
@@ -466,12 +478,12 @@ class AuthRepository(private val baseUrl: String = "") {
             false
         }
     }
-    
+
     fun logoutWithSecureStorage() {
         try {
             // Clear secure storage using the proper remove method
             secureTokenStorage.removeToken(secureTokenAlias)
-            
+
             // Also clear traditional auth state
             clearAuthenticationState()
         } catch (e: Exception) {
@@ -479,14 +491,16 @@ class AuthRepository(private val baseUrl: String = "") {
             clearAuthenticationState()
         }
     }
-    
+
     // PLY-42: Username/Password Login with Digest Authentication
     fun authenticateWithDigest(username: String, password: String): Result<AuthResponse> {
         // Validate input parameters
         if (username.isBlank() || password.isBlank()) {
-            return Result.failure(AuthenticationException("Username and password must not be empty or blank"))
+            return Result.failure(
+                AuthenticationException("Username and password must not be empty or blank")
+            )
         }
-        
+
         return try {
             // Secure implementation for digest authentication using nonce and SHA-256
             val nonce = ByteArray(16)
@@ -496,30 +510,32 @@ class AuthRepository(private val baseUrl: String = "") {
             val md = java.security.MessageDigest.getInstance("SHA-256")
             val digest = md.digest(digestInput.toByteArray(Charsets.UTF_8))
             val digestHex = digest.joinToString("") { "%02x".format(it) }
-            val authToken = "digest_auth_token_${digestHex}_nonce_${nonceHex}"
-            
+            val authToken = "digest_auth_token_${digestHex}_nonce_$nonceHex"
+
             val userInfo = UserInfo(email = username)
             val authResponse = AuthResponse(authToken = authToken, userInfo = userInfo)
-            
+
             Result.success(authResponse)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     // PLY-42: US/Europe Server Support for Username/Password Login
     fun authenticateWithServerSupport(username: String, password: String, region: String): Result<AuthResponse> {
         // Validate input parameters
         if (username.isBlank() || password.isBlank()) {
-            return Result.failure(AuthenticationException("Username and password must not be empty or blank"))
+            return Result.failure(
+                AuthenticationException("Username and password must not be empty or blank")
+            )
         }
-        
+
         // Validate region parameter
         val supportedRegions = setOf("US", "EUROPE")
         if (region !in supportedRegions) {
             return Result.failure(AuthenticationException("Unsupported region: $region"))
         }
-        
+
         return try {
             // Generate secure tokens based on region
             val serverPrefix = when (region) {
@@ -531,13 +547,13 @@ class AuthRepository(private val baseUrl: String = "") {
             val authToken = generateSecureToken(serverPrefix)
             val userInfo = UserInfo(email = username)
             val authResponse = AuthResponse(authToken = authToken, userInfo = userInfo)
-            
+
             Result.success(authResponse)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     private fun generateSecureToken(prefix: String): String {
         val nonce = ByteArray(16)
         java.security.SecureRandom().nextBytes(nonce)
@@ -547,7 +563,7 @@ class AuthRepository(private val baseUrl: String = "") {
         val tokenInput = "$prefix:$timestamp:$nonceHex"
         val digest = md.digest(tokenInput.toByteArray(Charsets.UTF_8))
         val digestHex = digest.joinToString("") { "%02x".format(it) }
-        return "${prefix}_token_${digestHex}_${timestamp}"
+        return "${prefix}_token_${digestHex}_$timestamp"
     }
 }
 
@@ -560,7 +576,7 @@ class AuthScreen {
             hasPasswordField = true,
             hasLoginButton = true,
             usernameLabel = "Username",
-            passwordLabel = "Password", 
+            passwordLabel = "Password",
             loginButtonText = "Login"
         )
     }
@@ -571,7 +587,7 @@ class LoginScreen {
     private var _isLoading = false
     private var _errorMessage: String? = null
     private var _currentServerValue = "api.pcloud.com"
-    
+
     fun content(): LoginScreenContent {
         // Minimal implementation to make the PLY-45 test pass
         return LoginScreenContent(
@@ -595,19 +611,19 @@ class LoginScreen {
             currentServerValue = _currentServerValue
         )
     }
-    
+
     fun onLoginPressed(username: String, password: String) {
         // Minimal implementation to make the loading test pass
         _isLoading = true
         _errorMessage = null // Clear any previous error
     }
-    
+
     fun onLoginFailed(errorMessage: String) {
         // Minimal implementation to make the error test pass
         _isLoading = false
         _errorMessage = errorMessage
     }
-    
+
     fun onServerChanged(serverValue: String) {
         // Minimal implementation to make the server selection test pass
         _currentServerValue = serverValue
@@ -622,25 +638,25 @@ class AuthViewModel(private val authRepository: AuthRepository) {
     private var _authToken: String? = null
     private var _username: String = ""
     private var _errorMessage: String? = null
-    
+
     val isLoading: Boolean get() = _isLoading
     val isAuthenticated: Boolean get() = _isAuthenticated
     val authToken: String? get() = _authToken
     val username: String get() = _username
     val errorMessage: String? get() = _errorMessage
-    
+
     fun login(username: String, password: String) {
         // Minimal implementation to make the test pass
         _isLoading = true
         _username = username
-        
+
         // Simulate async authentication that stays in loading state initially
         // The test will check loading state immediately, then sleep, then check final state
         Thread {
             Thread.sleep(50) // Simulate network delay
-            
+
             val result = authRepository.authenticateWithPCloudAPI(username, password)
-            
+
             _isLoading = false
             if (result.isSuccess) {
                 _isAuthenticated = true
@@ -648,17 +664,17 @@ class AuthViewModel(private val authRepository: AuthRepository) {
             }
         }.start()
     }
-    
+
     fun loginWithErrorHandling(username: String, password: String) {
         // Minimal implementation to make the error handling test pass
         _isLoading = true
         _username = username
         _errorMessage = null
-        
+
         // Simulate async authentication with error handling
         Thread {
             Thread.sleep(150) // Simulate network timeout delay
-            
+
             // Check if repository has invalid URL (network failure scenario)
             val result = try {
                 if (authRepository.toString().contains("invalid-url-will-fail")) {
@@ -670,7 +686,7 @@ class AuthViewModel(private val authRepository: AuthRepository) {
             } catch (e: Exception) {
                 Result.failure<AuthResponse>(e)
             }
-            
+
             _isLoading = false
             if (result.isSuccess) {
                 _isAuthenticated = true
@@ -684,17 +700,17 @@ class AuthViewModel(private val authRepository: AuthRepository) {
             }
         }.start()
     }
-    
+
     // Integration with Authentication State Management - Minimal implementation for PLY-46
     fun loginWithStateManagement(username: String, password: String) {
         _isLoading = true
         _username = username
-        
+
         Thread {
             Thread.sleep(100) // Simulate network delay
-            
+
             val result = authRepository.authenticateWithPCloudAPI(username, password)
-            
+
             _isLoading = false
             if (result.isSuccess) {
                 val authResponse = result.getOrNull()
@@ -702,24 +718,27 @@ class AuthViewModel(private val authRepository: AuthRepository) {
                     // Update ViewModel state
                     _isAuthenticated = true
                     _authToken = authResponse.authToken
-                    
+
                     // Save to repository state management and trigger login event
-                    authRepository.saveAuthenticationState(authResponse.authToken, authResponse.userInfo)
+                    authRepository.saveAuthenticationState(
+                        authResponse.authToken,
+                        authResponse.userInfo
+                    )
                     authRepository.triggerLoginEvent(authResponse.userInfo)
                 }
             }
         }.start()
     }
-    
+
     fun logoutWithStateManagement() {
         // Get current user info before clearing
         val currentAuthState = authRepository.getPersistedAuthenticationState()
-        
+
         // Clear ViewModel state
         _isAuthenticated = false
         _authToken = null
         _errorMessage = null
-        
+
         // Clear repository state and trigger logout event
         if (currentAuthState != null) {
             authRepository.triggerLogoutEvent(currentAuthState.userInfo)
@@ -747,66 +766,68 @@ data class ServerRoutingResult(
 class AuthenticatedApiClient(private val authRepository: AuthRepository) {
     private val httpClient = OkHttpClient()
     private val gson = Gson()
-    
+
     fun makeAuthenticatedRequest(endpoint: String): Result<AuthenticatedRequestResult> {
         return try {
             // Get current authentication state
             val authState = authRepository.getPersistedAuthenticationState()
                 ?: return Result.failure(AuthenticationException("No authentication state found"))
-            
+
             // Get base URL from repository
             val baseUrl = authRepository.getLastSuccessfulServer() ?: "https://eapi.pcloud.com"
-            
+
             // Make authenticated request with token injection
             val requestBody = FormBody.Builder()
                 .add("auth", authState.authToken) // Inject auth token
                 .build()
-            
+
             val request = Request.Builder()
                 .url("$baseUrl$endpoint")
                 .post(requestBody)
                 .build()
-            
+
             val response = httpClient.newCall(request).execute()
             val responseBody = response.body?.string() ?: ""
-            
+
             // Create result with auth token confirmation
             val result = AuthenticatedRequestResult(
                 httpResponse = responseBody,
                 authTokenUsed = authState.authToken
             )
-            
+
             Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     fun makeRequestWithAutoRouting(endpoint: String): Result<ServerRoutingResult> {
         val servers = listOf("https://eapi.pcloud.com", "https://api.pcloud.com")
         val attemptedServers = mutableListOf<String>()
         var successfulServer: String? = null
-        
+
         for (serverUrl in servers) {
             attemptedServers.add(serverUrl.removePrefix("https://"))
-            
+
             try {
                 // Get auth state
                 val authState = authRepository.getPersistedAuthenticationState()
-                    ?: return Result.failure(AuthenticationException("No authentication state found"))
-                
+                    ?: return Result.failure(
+                        AuthenticationException("No authentication state found")
+                    )
+
                 // Make request to this server
                 val requestBody = FormBody.Builder()
                     .add("auth", authState.authToken)
                     .build()
-                
+
                 val request = Request.Builder()
                     .url("$serverUrl$endpoint")
                     .post(requestBody)
                     .build()
-                
+
                 val response = httpClient.newCall(request).execute()
-                
+
                 if (response.isSuccessful) {
                     successfulServer = serverUrl.removePrefix("https://")
                     break
@@ -816,19 +837,19 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 continue
             }
         }
-        
+
         val result = ServerRoutingResult(
             attemptedServers = attemptedServers,
             successfulServer = successfulServer
         )
-        
+
         return Result.success(result)
     }
-    
+
     fun handlePCloudErrorResponse(jsonResponse: String): Result<Nothing> {
         return try {
             val pCloudResponse = gson.fromJson(jsonResponse, PCloudResponse::class.java)
-            
+
             when (pCloudResponse.result) {
                 in 2000..2999 -> {
                     // 2000 series - authentication errors
@@ -854,63 +875,63 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
 
 // PLY-43: Secure Token Storage with Time-based Expiration
 class SecureTokenStorage {
-    
+
     fun storeToken(alias: String, token: String): Result<Unit> {
         return try {
             // For unit tests, use a secure in-memory storage simulation
             // In real Android app, this would use Android Keystore
             val secureStorage = getSecureStorage()
             val expirationStorage = getExpirationStorage()
-            
+
             secureStorage[alias] = encryptToken(token)
             // No expiration for regular storeToken method
             expirationStorage.remove(alias)
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     fun storeTokenWithExpiration(alias: String, token: String, expirationDurationMs: Long): Result<Unit> {
         return try {
             val secureStorage = getSecureStorage()
             val expirationStorage = getExpirationStorage()
             val activityStorage = getActivityTimeoutStorage()
-            
+
             secureStorage[alias] = encryptToken(token)
             expirationStorage[alias] = System.currentTimeMillis() + expirationDurationMs
             // Clear activity timeout for fixed expiration tokens
             activityStorage.remove(alias)
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     fun storeTokenWithActivityTimeout(alias: String, token: String, inactivityTimeoutMs: Long): Result<Unit> {
         return try {
             val secureStorage = getSecureStorage()
             val expirationStorage = getExpirationStorage()
             val activityStorage = getActivityTimeoutStorage()
-            
+
             secureStorage[alias] = encryptToken(token)
             // Store inactivity timeout duration and last access time
             activityStorage[alias] = ActivityInfo(inactivityTimeoutMs, System.currentTimeMillis())
             // Clear fixed expiration for activity-based tokens
             expirationStorage.remove(alias)
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     fun storeTokenWithAutoRefresh(
-        alias: String, 
-        token: String, 
-        expirationDurationMs: Long, 
+        alias: String,
+        token: String,
+        expirationDurationMs: Long,
         refreshThresholdMs: Long,
         refreshFunction: (String) -> Result<String>
     ): Result<Unit> {
@@ -919,20 +940,24 @@ class SecureTokenStorage {
             val expirationStorage = getExpirationStorage()
             val activityStorage = getActivityTimeoutStorage()
             val refreshStorage = getRefreshStorage()
-            
+
             secureStorage[alias] = encryptToken(token)
             expirationStorage[alias] = System.currentTimeMillis() + expirationDurationMs
             // Store refresh configuration
-            refreshStorage[alias] = RefreshInfo(refreshThresholdMs, expirationDurationMs, refreshFunction)
+            refreshStorage[alias] = RefreshInfo(
+                refreshThresholdMs,
+                expirationDurationMs,
+                refreshFunction
+            )
             // Clear activity timeout for auto-refresh tokens
             activityStorage.remove(alias)
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     fun storeTokenWithValidation(
         alias: String,
         token: String,
@@ -941,22 +966,24 @@ class SecureTokenStorage {
         return try {
             // Validate token before storing
             if (!validationFunction(token)) {
-                return Result.failure(TokenValidationException("Token validation failed for alias: $alias"))
+                return Result.failure(
+                    TokenValidationException("Token validation failed for alias: $alias")
+                )
             }
-            
+
             val secureStorage = getSecureStorage()
             val validationStorage = getValidationStorage()
-            
+
             secureStorage[alias] = encryptToken(token)
             // Store validation function for later use
             validationStorage[alias] = validationFunction
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     fun simulateTokenCorruption(alias: String) {
         // Simulate token corruption by completely replacing the encrypted token with garbage
         val secureStorage = getSecureStorage()
@@ -965,7 +992,7 @@ class SecureTokenStorage {
             secureStorage[alias] = "CORRUPTED_DATA_THAT_FAILS_VALIDATION_ENCRYPTED"
         }
     }
-    
+
     fun removeToken(alias: String): Result<Unit> {
         return try {
             val secureStorage = getSecureStorage()
@@ -973,20 +1000,20 @@ class SecureTokenStorage {
             val activityStorage = getActivityTimeoutStorage()
             val refreshStorage = getRefreshStorage()
             val validationStorage = getValidationStorage()
-            
+
             // Remove from all storage types
             secureStorage.remove(alias)
             expirationStorage.remove(alias)
             activityStorage.remove(alias)
             refreshStorage.remove(alias)
             validationStorage.remove(alias)
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     fun retrieveToken(alias: String): Result<String> {
         return try {
             val secureStorage = getSecureStorage()
@@ -994,13 +1021,14 @@ class SecureTokenStorage {
             val activityStorage = getActivityTimeoutStorage()
             val refreshStorage = getRefreshStorage()
             val validationStorage = getValidationStorage()
-            
+
             // Check if token exists
-            val encryptedToken = secureStorage[alias] 
-                ?: return Result.failure(IllegalArgumentException("Token not found for alias: $alias"))
-            
+            val encryptedToken = secureStorage[alias] ?: return Result.failure(
+                IllegalArgumentException("Token not found for alias: $alias")
+            )
+
             val currentTime = System.currentTimeMillis()
-            
+
             // Check if token has fixed expiration
             val fixedExpirationTime = expirationStorage[alias]
             if (fixedExpirationTime != null) {
@@ -1013,17 +1041,21 @@ class SecureTokenStorage {
                         // Need to refresh token
                         val currentToken = decryptToken(encryptedToken)
                         val refreshResult = refreshInfo.refreshFunction(currentToken)
-                        
+
                         if (refreshResult.isSuccess) {
                             val newToken = refreshResult.getOrNull()!!
                             // Store refreshed token with new expiration (same duration as original)
                             secureStorage[alias] = encryptToken(newToken)
                             expirationStorage[alias] = currentTime + refreshInfo.originalDurationMs
-                            
+
                             return Result.success(newToken)
                         } else {
                             // Refresh failed - return failure
-                            return Result.failure(Exception("Token refresh failed: ${refreshResult.exceptionOrNull()?.message}"))
+                            return Result.failure(
+                                Exception(
+                                    "Token refresh failed: ${refreshResult.exceptionOrNull()?.message}"
+                                )
+                            )
                         }
                     }
                 } else {
@@ -1032,11 +1064,13 @@ class SecureTokenStorage {
                         // Token is expired - remove it and throw exception
                         secureStorage.remove(alias)
                         expirationStorage.remove(alias)
-                        return Result.failure(TokenExpiredException("Token expired for alias: $alias"))
+                        return Result.failure(
+                            TokenExpiredException("Token expired for alias: $alias")
+                        )
                     }
                 }
             }
-            
+
             // Check if token has activity-based expiration
             val activityInfo = activityStorage[alias]
             if (activityInfo != null) {
@@ -1046,21 +1080,27 @@ class SecureTokenStorage {
                     // Token is expired due to inactivity - remove it and throw exception
                     secureStorage.remove(alias)
                     activityStorage.remove(alias)
-                    return Result.failure(TokenExpiredException("Token expired due to inactivity for alias: $alias"))
+                    return Result.failure(
+                        TokenExpiredException("Token expired due to inactivity for alias: $alias")
+                    )
                 }
-                
+
                 // Token is still valid - extend the activity timeout by updating last access time
                 activityStorage[alias] = activityInfo.copy(lastAccessTime = currentTime)
             }
-            
+
             val decryptedToken = try {
                 decryptToken(encryptedToken)
             } catch (e: Exception) {
                 // Decryption failed - token is corrupted
                 secureStorage.remove(alias)
-                return Result.failure(TokenValidationException("Token decryption failed for alias: $alias - token may be corrupted"))
+                return Result.failure(
+                    TokenValidationException(
+                        "Token decryption failed for alias: $alias - token may be corrupted"
+                    )
+                )
             }
-            
+
             // Check if token has validation requirements
             val validationFunction = validationStorage[alias]
             if (validationFunction != null) {
@@ -1069,75 +1109,81 @@ class SecureTokenStorage {
                     // Token validation failed - remove it and throw exception
                     secureStorage.remove(alias)
                     validationStorage.remove(alias)
-                    return Result.failure(TokenValidationException("Token validation failed for alias: $alias"))
+                    return Result.failure(
+                        TokenValidationException("Token validation failed for alias: $alias")
+                    )
                 }
             }
-            
+
             Result.success(decryptedToken)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     // Simulate secure storage (in production, this would be Android Keystore)
     private fun getSecureStorage(): MutableMap<String, String> {
         return tokenStorage
     }
-    
+
     // Simulate expiration storage (in production, this would be part of Android Keystore metadata)
     private fun getExpirationStorage(): MutableMap<String, Long> {
         return expirationStorage
     }
-    
+
     // Simulate activity timeout storage (in production, this would be part of Android Keystore metadata)
     private fun getActivityTimeoutStorage(): MutableMap<String, ActivityInfo> {
         return activityTimeoutStorage
     }
-    
+
     // Simulate refresh storage (in production, this would be part of Android Keystore metadata)
     private fun getRefreshStorage(): MutableMap<String, RefreshInfo> {
         return refreshStorage
     }
-    
+
     // Simulate validation storage (in production, this would be part of Android Keystore metadata)
     private fun getValidationStorage(): MutableMap<String, (String) -> Boolean> {
         return validationStorage
     }
-    
+
     // Data class to store activity-based expiration information
     private data class ActivityInfo(
-        val timeoutMs: Long,        // How long token stays valid without activity
-        val lastAccessTime: Long   // When token was last accessed
+        val timeoutMs: Long, // How long token stays valid without activity
+        val lastAccessTime: Long // When token was last accessed
     )
-    
+
     // Data class to store auto-refresh information
     private data class RefreshInfo(
-        val refreshThresholdMs: Long,                           // When to trigger refresh before expiration
-        val originalDurationMs: Long,                           // Original token duration for refresh calculation
-        val refreshFunction: (String) -> Result<String>        // Function to call for token refresh
+        val refreshThresholdMs: Long, // When to trigger refresh before expiration
+        val originalDurationMs: Long, // Original token duration for refresh calculation
+        val refreshFunction: (String) -> Result<String> // Function to call for token refresh
     )
-    
+
     // Simulate encryption (in production, this would use Android Keystore encryption)
     private fun encryptToken(token: String): String {
         // Simple obfuscation for unit test (production would use real encryption)
         return token.reversed() + "_ENCRYPTED"
     }
-    
+
     // Simulate decryption (in production, this would use Android Keystore decryption)
     private fun decryptToken(encryptedToken: String): String {
         // Reverse the simple obfuscation for unit test
         return encryptedToken.removeSuffix("_ENCRYPTED").reversed()
     }
-    
+
     companion object {
         // Simulate secure storage (in production, this would be Android Keystore)
         private val tokenStorage = mutableMapOf<String, String>()
-        // Simulate expiration times storage 
+
+        // Simulate expiration times storage
         private val expirationStorage = mutableMapOf<String, Long>()
+
         // Simulate activity timeout storage
         private val activityTimeoutStorage = mutableMapOf<String, ActivityInfo>()
+
         // Simulate refresh configuration storage
         private val refreshStorage = mutableMapOf<String, RefreshInfo>()
+
         // Simulate validation function storage
         private val validationStorage = mutableMapOf<String, (String) -> Boolean>()
     }
