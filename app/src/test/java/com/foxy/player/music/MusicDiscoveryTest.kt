@@ -748,8 +748,75 @@ class MusicDiscoveryTest {
         assertTrue("Should enable garbage collection optimization", optimizationResponse.optimizations.enabledGCOptimization)
         
         // Verify performance metrics
-        assertTrue("Optimized loading should be fast", optimizationResponse.loadingTimeMs < 10000)
+         assertTrue("Optimized loading should be fast", optimizationResponse.loadingTimeMs < 10000)
         assertEquals("Should track total tracks correctly", 10000, optimizationResponse.totalTracksLoaded)
         assertTrue("Peak memory usage should be tracked", optimizationResponse.peakMemoryUsageMB > 0)
+    }
+    
+    @Test
+    fun `should implement background sync with incremental updates for large music libraries`() {
+        // Arrange - setup test data with background sync service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val backgroundSyncService = MusicBackgroundSyncService(authenticatedApiClient)
+        
+        // Create initial state with some tracks
+        val initialTracks = (1..1000).map { index ->
+            MusicTrackSyncable(
+                id = "track_$index",
+                title = "Song Title $index",
+                artist = "Artist ${index % 100}",
+                album = "Album ${index % 50}",
+                filePath = "/music/track_$index.mp3",
+                lastModified = System.currentTimeMillis() - (index * 1000),
+                syncStatus = SyncStatus.SYNCED
+            )
+        }
+        
+        // Simulate some tracks that have been modified since last sync
+        val modifiedTracks = (1001..1100).map { index ->
+            MusicTrackSyncable(
+                id = "track_$index",
+                title = "New Song Title $index",
+                artist = "New Artist ${index % 100}",
+                album = "New Album ${index % 50}",
+                filePath = "/music/track_$index.mp3",
+                lastModified = System.currentTimeMillis(),
+                syncStatus = SyncStatus.PENDING
+            )
+        }
+        
+        val allTracks = initialTracks + modifiedTracks
+        
+        // Act - start background sync with incremental updates
+        val syncStartTime = System.currentTimeMillis()
+        val result = backgroundSyncService.startIncrementalSync(allTracks)
+        val syncEndTime = System.currentTimeMillis()
+        val syncDurationMs = syncEndTime - syncStartTime
+        
+        // Assert - verify background sync functionality
+        assertTrue("Background sync should return successful result", result.isSuccess)
+        val syncResponse = result.getOrNull()
+        assertNotNull("Background sync response should not be null", syncResponse)
+        
+        // Verify sync completed in reasonable time (background operation should be efficient)
+        assertTrue("Background sync should complete quickly (<5000ms), actual: ${syncDurationMs}ms", 
+            syncDurationMs < 5000)
+        
+        // Verify incremental update functionality
+        assertTrue("Should indicate incremental sync was used", syncResponse!!.usedIncrementalSync)
+        assertTrue("Should only sync modified tracks", syncResponse.tracksProcessed < allTracks.size)
+        assertEquals("Should sync exactly 100 modified tracks", 100, syncResponse.tracksProcessed)
+        
+        // Verify background operation characteristics
+        assertTrue("Should run in background thread", syncResponse.backgroundExecution)
+        assertTrue("Should not block UI thread", syncResponse.nonBlockingOperation)
+        assertTrue("Should handle large datasets efficiently", syncResponse.scalableForLargeDatasets)
+        
+        // Verify sync status tracking
+        assertEquals("Should track sync progress correctly", SyncStatus.COMPLETED, syncResponse.finalSyncStatus)
+        assertTrue("Should track sync duration", syncResponse.syncDurationMs > 0)
+        assertTrue("Should maintain data integrity during sync", syncResponse.dataIntegrityVerified)
     }
 }
