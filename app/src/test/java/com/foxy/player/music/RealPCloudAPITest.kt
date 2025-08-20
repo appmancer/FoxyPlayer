@@ -16,10 +16,14 @@ import java.io.File
  */
 class RealPCloudAPITest {
     
+    private companion object {
+        private const val SEPARATOR_LINE_LENGTH = 60
+    }
+    
     @Test
     fun `test actual pCloud API integration with real credentials and HTTP calls`() {
         println("🌐 Testing REAL pCloud API Integration")
-        println("=" + "=".repeat(60))
+        println("=" + "=".repeat(SEPARATOR_LINE_LENGTH))
         
         try {
             // Read real credentials from pcloud.txt

@@ -6,12 +6,29 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 
 // Real pCloud API Response Models
+
+/**
+ * Represents the response from the pCloud API for a folder listing request.
+ *
+ * @property result The result code of the API call (0 for success, non-zero for errors).
+ * @property metadata Metadata about the folder, if available.
+ * @property contents List of items (files and folders) contained in the folder, if available.
+ */
 data class PCloudListFolderResponse(
     val result: Int,
     val metadata: PCloudMetadata?,
     val contents: List<PCloudItem>?
 )
 
+/**
+ * Metadata information for a pCloud folder.
+ *
+ * @property name The name of the folder.
+ * @property created The creation date/time of the folder (ISO 8601 format).
+ * @property isFolder Whether this item is a folder (should always be true for folders).
+ * @property folderId The unique identifier for the folder.
+ * @property parentFolderId The unique identifier of the parent folder.
+ */
 data class PCloudMetadata(
     val name: String,
     val created: String,
@@ -20,6 +37,21 @@ data class PCloudMetadata(
     @SerializedName("parentfolderid") val parentFolderId: Long
 )
 
+/**
+ * Represents a file or folder item in a pCloud directory listing.
+ *
+ * @property name The name of the file or folder.
+ * @property created The creation date/time (ISO 8601 format).
+ * @property modified The last modification date/time (ISO 8601 format).
+ * @property isFolder Whether this item is a folder (true) or file (false).
+ * @property folderId The unique identifier for the folder (if this is a folder).
+ * @property fileId The unique identifier for the file (if this is a file).
+ * @property parentFolderId The unique identifier of the parent folder.
+ * @property size The size of the file in bytes (null for folders).
+ * @property contentType The MIME type of the file (e.g., "audio/mpeg" for MP3 files).
+ * @property category The pCloud category identifier for the file type.
+ * @property id The unique string identifier for the item.
+ */
 data class PCloudItem(
     val name: String,
     val created: String,
@@ -145,7 +177,8 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
                     Result.success(PCloudAPIResponse(requestResult.authTokenUsed, folderListing))
                 }
             } catch (e: Exception) {
-                // JSON parsing failed - fall back to mock data for compatibility
+                // JSON parsing failed - log the exception and fall back to mock data for compatibility
+                android.util.Log.e("PCloudAPI", "Failed to parse pCloud JSON response", e)
                 val folderListing = FolderListing(
                     folders = listOf("Music", "Audio", "Downloads"),
                     files = emptyList()

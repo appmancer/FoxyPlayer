@@ -5,7 +5,7 @@ import com.foxy.player.music.MusicDiscoveryService
 
 fun main() {
     println("🎵 Testing Real pCloud Integration")
-    println("=" * 50)
+    println("=".repeat(50))
     
     // Read real credentials
     val credentials = java.io.File("pcloud.txt").readLines()

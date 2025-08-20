@@ -1,4 +1,4 @@
-This file is in .gitignore so these credentials are protected
-
-sjp@datilo.net
-0ck!XUcc6^COd5DF
+# Credentials have been removed for security.
+# Please set the following environment variables in your shell or .env file:
+#   PCLOUD_EMAIL
+#   PCLOUD_PASSWORD
