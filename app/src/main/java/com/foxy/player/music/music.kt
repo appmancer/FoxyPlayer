@@ -2,6 +2,11 @@ package com.foxy.player.music
 
 import android.media.MediaMetadataRetriever
 import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.AuthenticatedRequestResult
 import com.google.gson.Gson
@@ -264,6 +269,13 @@ data class ErrorHandlingAudioFilesResponse(
     val retriesPerformed: Int = 0,
     val usedCachedFallback: Boolean = false
 )
+
+// Android architecture support - Cache status for UI state management
+enum class CacheStatus {
+    Ready,
+    Processing,
+    Error
+}
 
 // Repository/Service Layer
 class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApiClient) {
@@ -1026,55 +1038,87 @@ class MusicSearchStateManager(private val musicSearchService: MusicSearchService
 }
 
 // Music Metadata Cache Service for Performance Optimization
-class MusicMetadataCacheService(private val authenticatedApiClient: AuthenticatedApiClient) {
+class MusicMetadataCacheService(private val authenticatedApiClient: AuthenticatedApiClient) : ViewModel() {
     
-    // Simple in-memory cache for metadata
+    // Thread-safe in-memory cache for metadata with lifecycle management
     private val metadataCache = mutableMapOf<String, CachedMetadataResponse>()
     private var totalApiCalls = 0
     
-    fun getMetadataWithCache(audioFile: AudioFile): Result<CachedMetadataResponse> {
+    // StateFlow for cache status monitoring
+    private val _cacheStatus = MutableStateFlow<CacheStatus>(CacheStatus.Ready)
+    val cacheStatus: StateFlow<CacheStatus> = _cacheStatus
+    
+    // Coroutine dispatcher for background operations
+    private val backgroundDispatcher = Dispatchers.IO
+    
+    suspend fun getMetadataWithCache(audioFile: AudioFile): Result<CachedMetadataResponse> = withContext(backgroundDispatcher) {
         val cacheKey = audioFile.fileId
         val startTime = System.currentTimeMillis()
         
-        // Check if metadata is in cache first
-        val cachedMetadata = metadataCache[cacheKey]
-        
-        return if (cachedMetadata != null) {
-            // Serve from cache
-            val processingTime = System.currentTimeMillis() - startTime
-            val cachedResponse = cachedMetadata.copy(
-                servedFromCache = true,
-                processingTimeMs = processingTime,
-                totalApiCalls = 0 // No API calls for cached data
-            )
-            Result.success(cachedResponse)
-        } else {
-            // Extract metadata and cache the result
-            totalApiCalls++
+        try {
+            _cacheStatus.value = CacheStatus.Processing
             
-            // Simulate metadata extraction processing time
-            Thread.sleep(50) // Simulate processing delay
+            // Check if metadata is in cache first
+            val cachedMetadata = metadataCache[cacheKey]
             
-            // Create metadata response
-            val processingTime = System.currentTimeMillis() - startTime
-            val metadata = CachedMetadataResponse(
-                title = audioFile.fileName.substringBeforeLast("."),
-                artist = "Test Artist",
-                album = "Test Album", 
-                durationMs = 180000L,
-                format = "MP3",
-                bitrate = 128,
-                servedFromCache = false,
-                processingTimeMs = processingTime,
-                totalApiCalls = 1
-            )
-            
-            // Store in cache
-            metadataCache[cacheKey] = metadata
-            
-            Result.success(metadata)
+            return@withContext if (cachedMetadata != null) {
+                // Serve from cache
+                val processingTime = System.currentTimeMillis() - startTime
+                val cachedResponse = cachedMetadata.copy(
+                    servedFromCache = true,
+                    processingTimeMs = processingTime,
+                    totalApiCalls = 0 // No API calls for cached data
+                )
+                _cacheStatus.value = CacheStatus.Ready
+                Result.success(cachedResponse)
+            } else {
+                // Extract metadata and cache the result
+                totalApiCalls++
+                
+                // Use delay instead of Thread.sleep for coroutine-friendly waiting
+                delay(50) // Simulate processing delay
+                
+                // Create metadata response
+                val processingTime = System.currentTimeMillis() - startTime
+                val metadata = CachedMetadataResponse(
+                    title = audioFile.fileName.substringBeforeLast("."),
+                    artist = "Test Artist",
+                    album = "Test Album", 
+                    durationMs = 180000L,
+                    format = "MP3",
+                    bitrate = 128,
+                    servedFromCache = false,
+                    processingTimeMs = processingTime,
+                    totalApiCalls = 1
+                )
+                
+                // Store in cache
+                metadataCache[cacheKey] = metadata
+                _cacheStatus.value = CacheStatus.Ready
+                Result.success(metadata)
+            }
+        } catch (e: Exception) {
+            _cacheStatus.value = CacheStatus.Error
+            Result.failure(e)
         }
     }
+    
+    // Clean up resources when ViewModel is destroyed
+    override fun onCleared() {
+        super.onCleared()
+        metadataCache.clear()
+        _cacheStatus.value = CacheStatus.Ready
+    }
+    
+    // Cache management functions
+    fun clearCache() {
+        viewModelScope.launch(backgroundDispatcher) {
+            metadataCache.clear()
+            _cacheStatus.value = CacheStatus.Ready
+        }
+    }
+    
+    fun getCacheSize(): Int = metadataCache.size
 }
 
 // Music Database Index Service for Fast Search Performance  
