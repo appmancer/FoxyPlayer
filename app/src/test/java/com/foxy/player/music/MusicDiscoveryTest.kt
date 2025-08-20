@@ -542,4 +542,44 @@ class MusicDiscoveryTest {
         assertEquals("Should allow date comparison", 2023, track.dateAdded.year)
         assertEquals("Should allow date comparison", 3, track.dateAdded.monthValue)
     }
+    
+    @Test
+    fun `MusicSearchService_should_sort_tracks_by_dateAdded_in_chronological_order`() {
+        // Arrange - setup test data with dates in non-chronological order
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create tracks with dates that would sort incorrectly lexicographically
+        val testTracks = listOf(
+            MusicTrackWithMetadata("1", "Song A", "Artist A", "Album A", "rock", 
+                durationMs = 180000, fileSizeBytes = 5000000, 
+                dateAdded = LocalDateTime.of(2023, 12, 15, 10, 0)), // Latest
+            MusicTrackWithMetadata("2", "Song B", "Artist B", "Album B", "pop", 
+                durationMs = 240000, fileSizeBytes = 3000000, 
+                dateAdded = LocalDateTime.of(2023, 2, 5, 14, 30)),  // Earliest  
+            MusicTrackWithMetadata("3", "Song C", "Artist C", "Album C", "rock", 
+                durationMs = 120000, fileSizeBytes = 8000000, 
+                dateAdded = LocalDateTime.of(2023, 11, 20, 9, 15))  // Middle
+        )
+        
+        // Act - sort tracks by dateAdded chronologically (earliest first)
+        val result = musicSearchService.sortTracks(testTracks, SortCriteria.DATE_ADDED)
+        
+        // Assert - verify chronological sorting (not lexicographic)
+        assertTrue("Should return successful result for date sorting", result.isSuccess)
+        val sortedResponse = result.getOrNull()!!
+        
+        // Verify chronological order: Feb 5 -> Nov 20 -> Dec 15
+        assertEquals("Should sort chronologically (earliest first)", "Song B", sortedResponse.tracks[0].title)
+        assertEquals("Should sort chronologically (middle)", "Song C", sortedResponse.tracks[1].title)  
+        assertEquals("Should sort chronologically (latest last)", "Song A", sortedResponse.tracks[2].title)
+        
+        // Verify specific dates are in chronological order
+        assertTrue("First track should be earliest", 
+            sortedResponse.tracks[0].dateAdded.isBefore(sortedResponse.tracks[1].dateAdded))
+        assertTrue("Second track should be before third", 
+            sortedResponse.tracks[1].dateAdded.isBefore(sortedResponse.tracks[2].dateAdded))
+    }
 }
