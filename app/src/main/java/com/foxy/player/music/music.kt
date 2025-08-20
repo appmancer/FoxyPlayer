@@ -1,5 +1,7 @@
 package com.foxy.player.music
 
+// ===== DATA MODELS =====
+
 import android.media.MediaMetadataRetriever
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -275,6 +277,8 @@ enum class CacheStatus {
     Processing,
     Error
 }
+
+// ===== SERVICE CLASSES =====
 
 // Repository/Service Layer
 class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApiClient) {

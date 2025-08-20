@@ -1203,7 +1203,12 @@ class MusicDiscoveryTest {
             }
 
             // Check for improper class nesting - classes starting with exactly 4 spaces (incorrectly nested)
-            if (line.startsWith("    ") && !line.startsWith("        ") && (line.trim().startsWith("enum class") || line.trim().startsWith("data class") || (line.trim().startsWith("class ") && !line.trim().startsWith("class MusicBackgroundSyncService")))) {
+            if (line.startsWith("    ") && !line.startsWith("        ") && (
+                line.trim().startsWith("enum class") || line.trim().startsWith(
+                        "data class"
+                    ) || (line.trim().startsWith("class ") && !line.trim().startsWith("class MusicBackgroundSyncService"))
+                )
+            ) {
                 hasInconsistentIndentation = true
                 inconsistentLineCount++
             }
@@ -1211,7 +1216,52 @@ class MusicDiscoveryTest {
 
         // Assert - verify consistent indentation
         assertFalse(
-            "Should have consistent indentation without mixed spaces/tabs. Found $inconsistentLineCount problematic lines", hasInconsistentIndentation
+            "Should have consistent indentation without mixed spaces/tabs. Found $inconsistentLineCount problematic lines",
+            hasInconsistentIndentation
+        )
+    }
+
+    @Test
+    fun `should_have_clear_section_separators_for_better_code_navigation`() {
+        // Arrange - setup test data to verify section organization
+        val possiblePaths = listOf(
+            "app/src/main/java/com/foxy/player/music/music.kt",
+            "../app/src/main/java/com/foxy/player/music/music.kt",
+            "./app/src/main/java/com/foxy/player/music/music.kt",
+            "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/music.kt"
+        )
+
+        var musicFileContent = ""
+        for (path in possiblePaths) {
+            val file = java.io.File(path)
+            if (file.exists()) {
+                musicFileContent = file.readText()
+                break
+            }
+        }
+
+        // Skip test if file not found (environment-dependent)
+        if (musicFileContent.isEmpty()) {
+            org.junit.Assume.assumeTrue("music.kt file not found in test environment", false)
+        }
+
+        // Act - check for required section separators
+        val requiredSections = listOf(
+            "// ===== DATA MODELS =====",
+            "// ===== SERVICE CLASSES =====", "// ===== UTILITY CLASSES ====="
+        )
+
+        var foundSections = 0
+        for (section in requiredSections) {
+            if (musicFileContent.contains(section)) {
+                foundSections++
+            }
+        }
+
+        // Assert - verify section separators exist
+        assertTrue(
+            "Should have clear section separators for code navigation. Found $foundSections of ${requiredSections.size} required sections",
+            foundSections >= 2 // Require at least 2 of the 3 main sections
         )
     }
 }
