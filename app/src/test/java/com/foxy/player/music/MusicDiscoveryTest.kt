@@ -831,4 +831,59 @@ class MusicDiscoveryTest {
         assertTrue("Should provide scan duration", completionResponse.totalScanDurationMs > 0)
         assertTrue("Should report total items found", completionResponse.totalItemsFound > 0)
     }
+    
+    @Test
+    fun `should_handle_offline_scenarios_with_cached_data_gracefully`() {
+        // Arrange - setup test data with authenticated state and offline capability service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicOfflineService = MusicOfflineService(authenticatedApiClient)
+        
+        // Create cached music library data
+        val cachedTracks = listOf(
+            MusicTrackWithMetadata("1", "Cached Song A", "Artist A", "Album A", "rock", 
+                durationMs = 180000L, fileSizeBytes = 5000000L, dateAdded = LocalDateTime.of(2023, 1, 1, 0, 0)),
+            MusicTrackWithMetadata("2", "Cached Song B", "Artist B", "Album B", "pop", 
+                durationMs = 240000L, fileSizeBytes = 3000000L, dateAdded = LocalDateTime.of(2023, 2, 1, 0, 0)),
+            MusicTrackWithMetadata("3", "Cached Song C", "Artist C", "Album C", "jazz", 
+                durationMs = 200000L, fileSizeBytes = 4500000L, dateAdded = LocalDateTime.of(2023, 3, 1, 0, 0))
+        )
+        
+        // Simulate offline scenario detection
+        val offlineDetectionResult = musicOfflineService.detectOfflineStatus()
+        assertTrue("Should detect offline status", offlineDetectionResult.isSuccess)
+        val offlineStatus = offlineDetectionResult.getOrNull()
+        assertNotNull("Offline status should not be null", offlineStatus)
+        assertTrue("Should indicate offline mode", offlineStatus!!.isOffline)
+        assertTrue("Should provide offline capabilities", offlineStatus.offlineCapabilitiesAvailable)
+        
+        // Test cached data access during offline mode
+        val cachedDataResult = musicOfflineService.accessCachedData(offlineMode = true)
+        assertTrue("Should successfully access cached data", cachedDataResult.isSuccess)
+        val cachedDataResponse = cachedDataResult.getOrNull()
+        assertNotNull("Cached data response should not be null", cachedDataResponse)
+        assertTrue("Should serve data from cache", cachedDataResponse!!.servedFromCache)
+        assertTrue("Should have cached tracks available", cachedDataResponse.cachedTracksAvailable)
+        assertEquals("Should return expected number of cached tracks", 3, cachedDataResponse.cachedTracksCount)
+        
+        // Test graceful degradation of features during offline mode
+        val degradedFeaturesResult = musicOfflineService.getOfflineFeatures()
+        assertTrue("Should provide offline features information", degradedFeaturesResult.isSuccess)
+        val featuresResponse = degradedFeaturesResult.getOrNull()
+        assertNotNull("Offline features response should not be null", featuresResponse)
+        assertTrue("Should allow local playback", featuresResponse!!.localPlaybackEnabled)
+        assertFalse("Should disable online features", featuresResponse.onlineFeaturesEnabled)
+        assertTrue("Should provide offline search", featuresResponse.offlineSearchEnabled)
+        assertTrue("Should show appropriate offline message", featuresResponse.offlineMessageDisplayed)
+        
+        // Test automatic reconnection detection
+        val reconnectionResult = musicOfflineService.detectOnlineReconnection()
+        assertTrue("Should detect online reconnection", reconnectionResult.isSuccess)
+        val reconnectionResponse = reconnectionResult.getOrNull()
+        assertNotNull("Reconnection response should not be null", reconnectionResponse)
+        assertTrue("Should detect network availability", reconnectionResponse!!.networkAvailable)
+        assertTrue("Should enable online features", reconnectionResponse.onlineFeaturesRestored)
+        assertTrue("Should sync cached changes", reconnectionResponse.cachedChangesSynced)
+    }
 }
