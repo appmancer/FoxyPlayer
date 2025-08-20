@@ -121,6 +121,15 @@ data class MusicSearchResponse(
     val tracks: List<MusicTrack>
 )
 
+// Enhanced search criteria model
+data class SearchCriteria(
+    val query: String,
+    val searchInTitle: Boolean = true,
+    val searchInArtist: Boolean = true,
+    val searchInAlbum: Boolean = true,
+    val genre: String? = null
+)
+
 // Error handling metadata extraction response
 data class MetadataExtractionErrorResponse(
     val metadata: AudioMetadata? = null,
@@ -690,6 +699,28 @@ class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiCli
         // Minimal implementation - filter tracks by artist matching query
         val filteredTracks = tracks.filter { track ->
             track.artist.contains(query, ignoreCase = true)
+        }
+        
+        return Result.success(MusicSearchResponse(tracks = filteredTracks))
+    }
+    
+    fun searchTracksWithCriteria(criteria: SearchCriteria, tracks: List<MusicTrack>): Result<MusicSearchResponse> {
+        // Minimal implementation - filter tracks by multiple criteria
+        val filteredTracks = tracks.filter { track ->
+            // Check if query matches in specified fields
+            val queryMatches = when {
+                criteria.searchInTitle && track.title.contains(criteria.query, ignoreCase = true) -> true
+                criteria.searchInArtist && track.artist.contains(criteria.query, ignoreCase = true) -> true
+                criteria.searchInAlbum && track.album.contains(criteria.query, ignoreCase = true) -> true
+                else -> false
+            }
+            
+            // Check genre filter if specified
+            val genreMatches = criteria.genre?.let { genre ->
+                track.genre.equals(genre, ignoreCase = true)
+            } ?: true
+            
+            queryMatches && genreMatches
         }
         
         return Result.success(MusicSearchResponse(tracks = filteredTracks))

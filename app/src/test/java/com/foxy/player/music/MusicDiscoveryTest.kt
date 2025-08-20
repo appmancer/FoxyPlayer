@@ -359,4 +359,45 @@ class MusicDiscoveryTest {
         assertEquals("Should return exactly 1 track for 'Queen' search", 1, searchResponse.tracks.size)
         assertEquals("Should return the correct Queen track", "Bohemian Rhapsody", searchResponse.tracks[0].title)
     }
+    
+    @Test
+    fun `should filter music tracks by multiple search criteria`() {
+        // Arrange - setup test data with authenticated state and music search service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music tracks with more variety
+        val testTracks = listOf(
+            MusicTrack("1", "Bohemian Rhapsody", "Queen", "A Night at the Opera", "rock"),
+            MusicTrack("2", "We Will Rock You", "Queen", "News of the World", "rock"),
+            MusicTrack("3", "Hotel California", "Eagles", "Hotel California", "rock"),
+            MusicTrack("4", "Imagine", "John Lennon", "Imagine", "pop"),
+            MusicTrack("5", "Like a Rolling Stone", "Bob Dylan", "Highway 61 Revisited", "folk"),
+            MusicTrack("6", "Hotel California Live", "Eagles", "Hell Freezes Over", "rock")
+        )
+        
+        // Act - call the enhanced search method that supports multiple criteria
+        val searchCriteria = SearchCriteria(
+            query = "Hotel",
+            searchInTitle = true,
+            searchInArtist = true,
+            searchInAlbum = true,
+            genre = "rock"
+        )
+        val result = musicSearchService.searchTracksWithCriteria(searchCriteria, testTracks)
+        
+        // Assert - verify enhanced search functionality
+        assertTrue("Should return successful result with filtered tracks", result.isSuccess)
+        val searchResponse = result.getOrNull()
+        assertNotNull("Search response should not be null", searchResponse)
+        assertEquals("Should return exactly 2 tracks matching 'Hotel' and 'rock' genre", 2, searchResponse!!.tracks.size)
+        assertTrue("Should contain 'Hotel California' track", 
+            searchResponse.tracks.any { it.title == "Hotel California" })
+        assertTrue("Should contain 'Hotel California Live' track", 
+            searchResponse.tracks.any { it.title == "Hotel California Live" })
+        assertFalse("Should not contain non-rock tracks", 
+            searchResponse.tracks.any { it.genre != "rock" })
+    }
 }
