@@ -117,8 +117,34 @@ data class MusicTrack(
     val genre: String
 )
 
+// Enhanced music track with sorting metadata
+data class MusicTrackWithMetadata(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val genre: String,
+    val durationMs: Long,
+    val fileSizeBytes: Long,
+    val dateAdded: String
+)
+
+// Sort criteria enum
+enum class SortCriteria {
+    ALPHABETICAL_TITLE,
+    ALPHABETICAL_ARTIST,
+    DURATION,
+    FILE_SIZE,
+    DATE_ADDED
+}
+
 data class MusicSearchResponse(
     val tracks: List<MusicTrack>
+)
+
+// Enhanced search response with metadata tracks
+data class MusicSortResponse(
+    val tracks: List<MusicTrackWithMetadata>
 )
 
 // Enhanced search criteria model
@@ -745,5 +771,18 @@ class MusicSearchService(private val authenticatedApiClient: AuthenticatedApiCli
             }
         
         return Result.success(MusicBrowseResponse(artistGroups = artistGroups))
+    }
+    
+    fun sortTracks(tracks: List<MusicTrackWithMetadata>, sortBy: SortCriteria): Result<MusicSortResponse> {
+        // Minimal implementation - sort tracks by different criteria
+        val sortedTracks = when (sortBy) {
+            SortCriteria.ALPHABETICAL_TITLE -> tracks.sortedBy { it.title }
+            SortCriteria.ALPHABETICAL_ARTIST -> tracks.sortedBy { it.artist }
+            SortCriteria.DURATION -> tracks.sortedBy { it.durationMs }
+            SortCriteria.FILE_SIZE -> tracks.sortedBy { it.fileSizeBytes }
+            SortCriteria.DATE_ADDED -> tracks.sortedBy { it.dateAdded }
+        }
+        
+        return Result.success(MusicSortResponse(tracks = sortedTracks))
     }
 }

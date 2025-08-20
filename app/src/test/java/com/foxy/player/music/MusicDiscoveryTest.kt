@@ -442,4 +442,47 @@ class MusicDiscoveryTest {
         assertNotNull("Should contain Eagles group", eaglesGroup)
         assertEquals("Eagles should have 2 tracks", 2, eaglesGroup!!.tracks.size)
     }
+    
+    @Test
+    fun `should sort music tracks by different criteria`() {
+        // Arrange - setup test data with authenticated state and music search service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicSearchService = MusicSearchService(authenticatedApiClient)
+        
+        // Create test music tracks with sorting metadata
+        val testTracks = listOf(
+            MusicTrackWithMetadata("1", "Zebra Song", "Artist A", "Album Z", "rock", 
+                durationMs = 180000, fileSizeBytes = 5000000, dateAdded = "2023-01-01"),
+            MusicTrackWithMetadata("2", "Alpha Song", "Artist B", "Album A", "pop", 
+                durationMs = 240000, fileSizeBytes = 3000000, dateAdded = "2023-03-01"),
+            MusicTrackWithMetadata("3", "Beta Song", "Artist A", "Album B", "rock", 
+                durationMs = 120000, fileSizeBytes = 8000000, dateAdded = "2023-02-01")
+        )
+        
+        // Test alphabetical sorting by title
+        val alphabeticalResult = musicSearchService.sortTracks(testTracks, SortCriteria.ALPHABETICAL_TITLE)
+        assertTrue("Should return successful result for alphabetical sort", alphabeticalResult.isSuccess)
+        val alphabeticalResponse = alphabeticalResult.getOrNull()!!
+        assertEquals("Should sort alphabetically by title", "Alpha Song", alphabeticalResponse.tracks[0].title)
+        assertEquals("Should sort alphabetically by title", "Beta Song", alphabeticalResponse.tracks[1].title)
+        assertEquals("Should sort alphabetically by title", "Zebra Song", alphabeticalResponse.tracks[2].title)
+        
+        // Test duration sorting
+        val durationResult = musicSearchService.sortTracks(testTracks, SortCriteria.DURATION)
+        assertTrue("Should return successful result for duration sort", durationResult.isSuccess)
+        val durationResponse = durationResult.getOrNull()!!
+        assertEquals("Should sort by duration (shortest first)", 120000, durationResponse.tracks[0].durationMs)
+        assertEquals("Should sort by duration", 180000, durationResponse.tracks[1].durationMs)
+        assertEquals("Should sort by duration (longest last)", 240000, durationResponse.tracks[2].durationMs)
+        
+        // Test file size sorting
+        val fileSizeResult = musicSearchService.sortTracks(testTracks, SortCriteria.FILE_SIZE)
+        assertTrue("Should return successful result for file size sort", fileSizeResult.isSuccess)
+        val fileSizeResponse = fileSizeResult.getOrNull()!!
+        assertEquals("Should sort by file size (smallest first)", 3000000, fileSizeResponse.tracks[0].fileSizeBytes)
+        assertEquals("Should sort by file size", 5000000, fileSizeResponse.tracks[1].fileSizeBytes)
+        assertEquals("Should sort by file size (largest last)", 8000000, fileSizeResponse.tracks[2].fileSizeBytes)
+    }
 }
