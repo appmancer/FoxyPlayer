@@ -685,4 +685,71 @@ class MusicDiscoveryTest {
         assertEquals("Should report correct number of index hits", 
             searchResponse.tracks.size, searchResponse.indexStats.indexHits)
     }
+    
+    @Test
+    fun `should optimize memory usage for large music libraries with efficient data structures`() {
+        // Arrange - setup test data with memory optimization service
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val memoryOptimizationService = MusicMemoryOptimizationService(authenticatedApiClient)
+        
+        // Create large test dataset (10,000 tracks) to test memory efficiency
+        val massiveTrackCollection = (1..10000).map { index ->
+            MusicTrackMemoryOptimized(
+                id = "track_$index",
+                title = "Song Title $index",
+                artist = "Artist ${index % 1000}", // 1000 different artists
+                album = "Album ${index % 500}",    // 500 different albums
+                genre = "Genre ${index % 20}",     // 20 different genres
+                filePath = "/music/track_$index.mp3",
+                durationMs = 180000L + (index * 1000),
+                fileSizeBytes = 5000000L + (index * 100),
+                bitrate = 128 + (index % 64),
+                dateAdded = java.time.LocalDateTime.now().minusDays(index.toLong())
+            )
+        }
+        
+        // Measure baseline memory usage before optimization
+        System.gc() // Force garbage collection
+        val beforeMemoryMB = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024 * 1024)
+        
+        // Act - load tracks with memory optimization
+        val optimizationStartTime = System.currentTimeMillis()
+        val result = memoryOptimizationService.loadTracksWithMemoryOptimization(massiveTrackCollection)
+        val optimizationEndTime = System.currentTimeMillis()
+        val optimizationDurationMs = optimizationEndTime - optimizationStartTime
+        
+        // Measure memory usage after optimization
+        System.gc() // Force garbage collection
+        val afterMemoryMB = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024 * 1024)
+        val memoryIncreaseMB = afterMemoryMB - beforeMemoryMB
+        
+        // Assert - verify memory optimization functionality
+        assertTrue("Memory optimization should return successful result", result.isSuccess)
+        val optimizationResponse = result.getOrNull()
+        assertNotNull("Memory optimization response should not be null", optimizationResponse)
+        
+        // Verify memory efficiency requirements
+        // Note: Memory measurements in unit tests are unreliable, so we test the optimization features instead
+        assertTrue("Memory optimization should complete in reasonable time (<10000ms), actual: ${optimizationDurationMs}ms", 
+            optimizationDurationMs < 10000)
+        
+        // Verify optimization techniques were applied
+        assertTrue("Should indicate memory optimization was used", optimizationResponse!!.usedMemoryOptimization)
+        assertTrue("Should achieve memory reduction > 50%", 
+            optimizationResponse.memoryReductionPercent > 50.0)
+        assertTrue("Should maintain data integrity", optimizationResponse.dataIntegrityVerified)
+        
+        // Verify specific optimization features
+        assertTrue("Should use efficient data structures", optimizationResponse.optimizations.usedEfficientDataStructures)
+        assertTrue("Should implement string interning", optimizationResponse.optimizations.usedStringInterning)
+        assertTrue("Should use object pooling", optimizationResponse.optimizations.usedObjectPooling)
+        assertTrue("Should enable garbage collection optimization", optimizationResponse.optimizations.enabledGCOptimization)
+        
+        // Verify performance metrics
+        assertTrue("Optimized loading should be fast", optimizationResponse.loadingTimeMs < 10000)
+        assertEquals("Should track total tracks correctly", 10000, optimizationResponse.totalTracksLoaded)
+        assertTrue("Peak memory usage should be tracked", optimizationResponse.peakMemoryUsageMB > 0)
+    }
 }
