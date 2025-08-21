@@ -22,7 +22,8 @@ class DefaultFolderListingStrategy : PCloudFolderListingStrategy {
         // Generate dynamic folder structure instead of hardcoded fallback
         val dynamicFolders = listOf(
             "UserContent",
-            "MediaFiles", "Documents",
+            "MediaFiles",
+            "Documents",
             "SharedFolders"
         )
         val folderListing = FolderListing(
@@ -37,7 +38,8 @@ class DefaultFolderListingStrategy : PCloudFolderListingStrategy {
         val dynamicFolders = listOf(
             "UserContent",
             "MediaFiles",
-            "Documents", "SharedFolders"
+            "Documents",
+            "SharedFolders"
         )
         val folderListing = FolderListing(
             folders = dynamicFolders,
@@ -90,7 +92,8 @@ class MusicDiscoveryService(
                 } else {
                     // pCloud API returned error - delegate to strategy pattern
                     val errorResponse = folderListingStrategy.handleApiError(
-                        requestResult.authTokenUsed, pCloudResponse.result
+                        requestResult.authTokenUsed,
+                        pCloudResponse.result
                     )
                     Result.success(errorResponse)
                 }
@@ -559,62 +562,8 @@ class MusicDiscoveryService(
 
     fun extractMetadataWithErrorHandling(
         audioFileUrl: String,
-        audioFileName: String,
-        simulateCorruption: Boolean = false,
-        simulateMissingMetadata: Boolean = false,
-        simulateUnsupportedFormat: Boolean = false
+        audioFileName: String
     ): Result<MetadataExtractionErrorResponse> {
-        // Simulate corruption scenario
-        if (simulateCorruption) {
-            val fallbackMetadata = AudioMetadata(
-                title = "Unknown Title",
-                artist = "Unknown Artist",
-                album = "Unknown Album",
-                durationMs = 0,
-                format = "Unknown",
-                bitrate = 0
-            )
-            return Result.success(
-                MetadataExtractionErrorResponse(
-                    metadata = fallbackMetadata,
-                    hasFileCorruption = true,
-                    hasFallbackMetadata = true,
-                    errorMessage = "File corrupted - using fallback metadata"
-                )
-            )
-        }
-
-        // Simulate missing metadata scenario
-        if (simulateMissingMetadata) {
-            val fallbackMetadata = AudioMetadata(
-                title = "Untitled",
-                artist = "Unknown Artist",
-                album = "Unknown Album",
-                durationMs = 30000,
-                format = detectAudioFormat(audioFileName),
-                bitrate = 128
-            )
-            return Result.success(
-                MetadataExtractionErrorResponse(
-                    metadata = fallbackMetadata,
-                    hasMissingMetadata = true,
-                    hasFallbackMetadata = true,
-                    errorMessage = "Metadata not found - using fallback values"
-                )
-            )
-        }
-
-        // Simulate unsupported format scenario
-        if (simulateUnsupportedFormat) {
-            return Result.success(
-                MetadataExtractionErrorResponse(
-                    hasUnsupportedFormat = true,
-                    hasFallbackMetadata = false,
-                    errorMessage = "Unsupported audio format"
-                )
-            )
-        }
-
         // Use real metadata extraction for normal operation
         val metadataResult = extractMetadata(audioFileUrl, audioFileName)
 
@@ -628,7 +577,8 @@ class MusicDiscoveryService(
                 )
             )
         } else {
-            // Real extraction failed - provide fallback
+            // Real extraction failed - provide fallback based on actual error
+            val exception = metadataResult.exceptionOrNull()!!
             val fallbackMetadata = AudioMetadata(
                 title = audioFileName.substringBeforeLast("."),
                 artist = "Unknown Artist",
@@ -637,14 +587,42 @@ class MusicDiscoveryService(
                 format = detectAudioFormat(audioFileName),
                 bitrate = 0
             )
-            Result.success(
-                MetadataExtractionErrorResponse(
-                    metadata = fallbackMetadata,
-                    hasFallbackMetadata = true,
-                    errorMessage = "Failed to extract metadata - using fallback: " +
-                        "${metadataResult.exceptionOrNull()?.message}"
-                )
-            )
+
+            // Detect real error types based on exception analysis
+            val errorResponse = when {
+                exception.message?.contains("corruption", ignoreCase = true) == true -> {
+                    MetadataExtractionErrorResponse(
+                        metadata = fallbackMetadata,
+                        hasFileCorruption = true,
+                        hasFallbackMetadata = true,
+                        errorMessage = "File corrupted - using fallback metadata: ${exception.message}"
+                    )
+                }
+                exception.message?.contains("metadata", ignoreCase = true) == true -> {
+                    MetadataExtractionErrorResponse(
+                        metadata = fallbackMetadata,
+                        hasMissingMetadata = true,
+                        hasFallbackMetadata = true,
+                        errorMessage = "Metadata not found - using fallback values: ${exception.message}"
+                    )
+                }
+                exception.message?.contains("format", ignoreCase = true) == true -> {
+                    MetadataExtractionErrorResponse(
+                        hasUnsupportedFormat = true,
+                        hasFallbackMetadata = false,
+                        errorMessage = "Unsupported audio format: ${exception.message}"
+                    )
+                }
+                else -> {
+                    MetadataExtractionErrorResponse(
+                        metadata = fallbackMetadata,
+                        hasFallbackMetadata = true,
+                        errorMessage = "Failed to extract metadata - using fallback: ${exception.message}"
+                    )
+                }
+            }
+
+            Result.success(errorResponse)
         }
     }
 }
