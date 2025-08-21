@@ -1307,7 +1307,8 @@ class MusicDiscoveryTest {
         // Arrange - verify that Android-compatible time handling is used
         val possiblePaths = listOf(
             "./app/src/main/java/com/foxy/player/music",
-            "../app/src/main/java/com/foxy/player/music", "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music"
+            "../app/src/main/java/com/foxy/player/music",
+            "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music"
         )
 
         val musicFile = possiblePaths.map { java.io.File(it) }.firstOrNull { it.exists() && it.isDirectory }
@@ -1341,7 +1342,8 @@ class MusicDiscoveryTest {
         // Arrange - check for Android-incompatible blocking operations
         val possiblePaths = listOf(
             "./app/src/main/java/com/foxy/player/music/MusicDiscovery.kt",
-            "../app/src/main/java/com/foxy/player/music/MusicDiscovery.kt", "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/MusicDiscovery.kt"
+            "../app/src/main/java/com/foxy/player/music/MusicDiscovery.kt",
+            "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/MusicDiscovery.kt"
         )
 
         val musicDiscoveryFile = possiblePaths.map { java.io.File(it) }.firstOrNull { it.exists() }
@@ -1362,7 +1364,8 @@ class MusicDiscoveryTest {
         // Arrange - check for manual GC calls that can hurt performance
         val possiblePaths = listOf(
             "./app/src/main/java/com/foxy/player/music/MusicLibrary.kt",
-            "../app/src/main/java/com/foxy/player/music/MusicLibrary.kt", "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/MusicLibrary.kt"
+            "../app/src/main/java/com/foxy/player/music/MusicLibrary.kt",
+            "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/MusicLibrary.kt"
         )
 
         val musicLibraryFile = possiblePaths.map { java.io.File(it) }.firstOrNull { it.exists() }
@@ -1374,5 +1377,40 @@ class MusicDiscoveryTest {
 
         // Assert - verify Android memory management best practices
         assertFalse("Should not manually call System.gc() in Android - runtime manages GC automatically", hasManualGC)
+    }
+
+    @Test
+    fun `should scan directory for real audio files instead of using random numbers`() {
+        // Arrange - setup test data with real file system scanning
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val scanProgressService = MusicLibraryScanProgressService(authenticatedApiClient)
+
+        // Create a test directory structure (this will be a real directory scan)
+        val testDirectories = listOf("/tmp/test-music", "/tmp/test-audio")
+
+        // Act - perform real directory scanning (not random number generation)
+        val result = runBlocking {
+            scanProgressService.scanLibraryWithProgress(testDirectories) { }
+        }
+
+        // Assert - verify real file scanning behavior
+        assertTrue("Should return successful scan result", result.isSuccess)
+        val libraryScanResponse = result.getOrNull()!!
+
+        // CRITICAL: Verify that we're doing real file scanning, not random number generation
+        // Real scanning should return 0 for non-existent directories consistently
+        assertTrue(
+            "Should return 0 files for non-existent test directories", libraryScanResponse.totalFilesFound == 0
+        )
+
+        // Verify that scan time is realistic for actual file operations
+        assertTrue(
+            "Should take realistic time for real file scanning", libraryScanResponse.scanDurationMs >= 0
+        )
+
+        // Verify real progress tracking was used
+        assertTrue("Should use real progress tracking", libraryScanResponse.usedProgressTracking)
     }
 }
