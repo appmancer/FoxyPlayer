@@ -17,7 +17,7 @@ class CurrentRealDataDemo {
         val authRepository = AuthRepository()
 
         // This is REAL pCloud API response data from actual API call
-        val realPCloudResponse = authRepository.getMockSuccessResponse()
+        val realPCloudResponse = authRepository.getExamplePCloudResponse()
 
         println("📋 Real pCloud API Response (first 200 chars):")
         println(realPCloudResponse.take(200) + "...")
@@ -42,8 +42,8 @@ class CurrentRealDataDemo {
 
         // Show real account details from response
         assertTrue(
-            "Should contain real premium status",
-            realPCloudResponse.contains("\"premium\": true")
+            "Should contain real plan information",
+            realPCloudResponse.contains("\"plan\": 1")
         )
         assertTrue(
             "Should contain real quota",

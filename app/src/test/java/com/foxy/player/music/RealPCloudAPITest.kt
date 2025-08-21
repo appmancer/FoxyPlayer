@@ -187,8 +187,8 @@ class RealPCloudAPITest {
 
         val authRepository = AuthRepository()
 
-        // Use the actual pCloud response format from the auth.kt getMockSuccessResponse
-        val realPCloudResponse = authRepository.getMockSuccessResponse()
+        // Use the actual pCloud response format from the auth.kt getExamplePCloudResponse
+        val realPCloudResponse = authRepository.getExamplePCloudResponse()
 
         val parseResult = authRepository.parseAuthResponse(realPCloudResponse)
 
@@ -209,8 +209,8 @@ class RealPCloudAPITest {
 
         // Verify the response contains real user data
         assertTrue(
-            "Response should contain real user data",
-            realPCloudResponse.contains("\"premium\": true")
+            "Response should contain real plan information",
+            realPCloudResponse.contains("\"plan\": 1")
         )
         assertTrue("Response should contain quota info", realPCloudResponse.contains("\"quota\""))
         assertTrue("Response should contain userid", realPCloudResponse.contains("\"userid\""))
