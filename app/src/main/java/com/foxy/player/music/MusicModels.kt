@@ -1,7 +1,7 @@
 package com.foxy.player.music
 
 import com.google.gson.annotations.SerializedName
-import java.time.LocalDateTime
+import java.util.Date
 
 // ===== PCLOUD API MODELS =====
 
@@ -147,7 +147,7 @@ data class MusicTrackWithMetadata(
     val genre: String,
     val durationMs: Long,
     val fileSizeBytes: Long,
-    val dateAdded: LocalDateTime
+    val dateAdded: Date
 )
 
 // Music track with indexing metadata
@@ -161,7 +161,7 @@ data class MusicTrackIndexed(
     val durationMs: Long,
     val fileSizeBytes: Long,
     val bitrate: Int,
-    val dateAdded: LocalDateTime
+    val dateAdded: Date
 )
 
 // Database index statistics
@@ -288,7 +288,7 @@ data class MusicTrackMemoryOptimized(
     val durationMs: Long,
     val fileSizeBytes: Long,
     val bitrate: Int,
-    val dateAdded: LocalDateTime
+    val dateAdded: Date
 )
 
 data class MemoryOptimizationStats(

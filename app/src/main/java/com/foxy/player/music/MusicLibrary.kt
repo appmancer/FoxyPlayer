@@ -234,10 +234,8 @@ class MusicMemoryOptimizationService(private val authenticatedApiClient: Authent
             }
         }
 
-        // Efficient garbage collection trigger
-        if (tracks.size > 10000) {
-            System.gc()
-        }
+        // Let Android runtime manage garbage collection automatically
+        // Removed manual GC calls as they can hurt performance
 
         val afterMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
         val endTime = System.currentTimeMillis()

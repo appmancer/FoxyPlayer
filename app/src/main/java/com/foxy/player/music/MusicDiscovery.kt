@@ -5,6 +5,7 @@ import android.util.Log
 import com.foxy.player.authentication.AuthenticatedApiClient
 import com.google.gson.Gson
 import java.io.IOException
+import kotlinx.coroutines.delay
 
 // ===== MUSIC DISCOVERY SERVICE =====
 
@@ -609,7 +610,7 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
 
 class MusicLibraryScanProgressService(private val authenticatedApiClient: AuthenticatedApiClient) {
 
-    fun scanLibraryWithProgress(
+    suspend fun scanLibraryWithProgress(
         directories: List<String>,
         progressCallback: (ScanProgressUpdate) -> Unit
     ): Result<LibraryScanResponse> {
@@ -646,7 +647,7 @@ class MusicLibraryScanProgressService(private val authenticatedApiClient: Authen
             processedDirectories++
 
             // Small delay to simulate actual scanning work
-            Thread.sleep(10)
+            delay(10)
         }
 
         // Final progress update (100%)

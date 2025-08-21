@@ -3,7 +3,7 @@ package com.foxy.player.music
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.UserInfo
-import java.time.LocalDateTime
+import java.util.Date
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -573,7 +573,7 @@ class MusicDiscoveryTest {
                 "rock",
                 durationMs = 180000,
                 fileSizeBytes = 5000000,
-                dateAdded = LocalDateTime.of(2023, 1, 1, 0, 0)
+                dateAdded = Date(1672531200000L) // January 1, 2023
             ),
             MusicTrackWithMetadata(
                 "2",
@@ -583,7 +583,7 @@ class MusicDiscoveryTest {
                 "pop",
                 durationMs = 240000,
                 fileSizeBytes = 3000000,
-                dateAdded = LocalDateTime.of(2023, 3, 1, 0, 0)
+                dateAdded = Date(1677628800000L) // March 1, 2023
             ),
             MusicTrackWithMetadata(
                 "3",
@@ -593,7 +593,7 @@ class MusicDiscoveryTest {
                 "rock",
                 durationMs = 120000,
                 fileSizeBytes = 8000000,
-                dateAdded = LocalDateTime.of(2023, 2, 1, 0, 0)
+                dateAdded = Date(1675209600000L) // February 1, 2023
             )
         )
 
@@ -690,10 +690,10 @@ class MusicDiscoveryTest {
 
     @Test
     fun `MusicTrack_should_use_proper_date_type_for_dateAdded_field`() {
-        // Arrange - setup test data using LocalDateTime instead of String
-        val testDate = LocalDateTime.of(2023, 3, 15, 10, 30, 0)
+        // Arrange - setup test data using Date instead of LocalDateTime for Android compatibility
+        val testDate = Date()
 
-        // Act - create MusicTrackWithMetadata with LocalDateTime dateAdded
+        // Act - create MusicTrackWithMetadata with Date dateAdded
         val track = MusicTrackWithMetadata(
             id = "1",
             title = "Test Song",
@@ -702,14 +702,14 @@ class MusicDiscoveryTest {
             genre = "rock",
             durationMs = 180000,
             fileSizeBytes = 5000000,
-            dateAdded = testDate // This should be LocalDateTime, not String
+            dateAdded = testDate // This should be Date, not LocalDateTime
         )
 
         // Assert - verify date type functionality
-        assertTrue("Should accept LocalDateTime for dateAdded", track.dateAdded is LocalDateTime)
+        assertTrue("Should accept Date for dateAdded", track.dateAdded is Date)
         assertEquals("Should preserve date value correctly", testDate, track.dateAdded)
-        assertEquals("Should allow date comparison", 2023, track.dateAdded.year)
-        assertEquals("Should allow date comparison", 3, track.dateAdded.monthValue)
+        // Date-based comparison for Android compatibility
+        assertTrue("Should allow date comparison", track.dateAdded.time > 0)
     }
 
     @Test
@@ -730,7 +730,7 @@ class MusicDiscoveryTest {
                 "rock",
                 durationMs = 180000,
                 fileSizeBytes = 5000000,
-                dateAdded = LocalDateTime.of(2023, 12, 15, 10, 0)
+                dateAdded = Date(1702646400000L) // December 15, 2023
             ), // Latest
             MusicTrackWithMetadata(
                 "2",
@@ -740,7 +740,7 @@ class MusicDiscoveryTest {
                 "pop",
                 durationMs = 240000,
                 fileSizeBytes = 3000000,
-                dateAdded = LocalDateTime.of(2023, 2, 5, 14, 30)
+                dateAdded = Date(1675598400000L) // February 5, 2023
             ), // Earliest
             MusicTrackWithMetadata(
                 "3",
@@ -750,7 +750,7 @@ class MusicDiscoveryTest {
                 "rock",
                 durationMs = 120000,
                 fileSizeBytes = 8000000,
-                dateAdded = LocalDateTime.of(2023, 11, 20, 9, 15)
+                dateAdded = Date(1700473200000L) // November 20, 2023
             ) // Middle
         )
 
@@ -781,11 +781,11 @@ class MusicDiscoveryTest {
         // Verify specific dates are in chronological order
         assertTrue(
             "First track should be earliest",
-            sortedResponse.tracks[0].dateAdded.isBefore(sortedResponse.tracks[1].dateAdded)
+            sortedResponse.tracks[0].dateAdded.before(sortedResponse.tracks[1].dateAdded)
         )
         assertTrue(
             "Second track should be before third",
-            sortedResponse.tracks[1].dateAdded.isBefore(sortedResponse.tracks[2].dateAdded)
+            sortedResponse.tracks[1].dateAdded.before(sortedResponse.tracks[2].dateAdded)
         )
     }
 
@@ -881,7 +881,7 @@ class MusicDiscoveryTest {
                 durationMs = 180000L + (index * 1000),
                 fileSizeBytes = 5000000L + (index * 100),
                 bitrate = 128 + (index % 64),
-                dateAdded = java.time.LocalDateTime.now().minusDays(index.toLong())
+                dateAdded = Date(System.currentTimeMillis() - (index * 86400000L)) // Current time minus days
             )
         }
 
@@ -948,7 +948,7 @@ class MusicDiscoveryTest {
                 durationMs = 180000L + (index * 1000),
                 fileSizeBytes = 5000000L + (index * 100),
                 bitrate = 128 + (index % 64),
-                dateAdded = java.time.LocalDateTime.now().minusDays(index.toLong())
+                dateAdded = Date(System.currentTimeMillis() - (index * 86400000L)) // Current time minus days
             )
         }
 
@@ -1300,5 +1300,79 @@ class MusicDiscoveryTest {
             "Should have minimal long lines (>120 chars) for readability. Found $longLineCount long lines",
             longLineCount < 10 // Allow some long lines but keep them minimal
         )
+    }
+
+    @Test
+    fun `should_use_android_compatible_time_handling_instead_of_LocalDateTime`() {
+        // Arrange - verify that Android-compatible time handling is used
+        val possiblePaths = listOf(
+            "./app/src/main/java/com/foxy/player/music",
+            "../app/src/main/java/com/foxy/player/music", "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music"
+        )
+
+        val musicFile = possiblePaths.map { java.io.File(it) }.firstOrNull { it.exists() && it.isDirectory }
+        assertTrue("Music domain files should exist in one of the expected paths", musicFile != null)
+
+        // Act - check for Android-incompatible LocalDateTime usage
+        var hasLocalDateTimeIssues = false
+        var hasAndroidCompatibleTimeHandling = false
+
+        musicFile!!.listFiles()?.filter { it.name.endsWith(".kt") }?.forEach { file ->
+            val content = file.readText()
+            // Check for problematic LocalDateTime usage (requires API 26+)
+            if (content.contains("LocalDateTime") && !content.contains("@RequiresApi")) {
+                hasLocalDateTimeIssues = true
+            }
+            // Check for Android-compatible alternatives
+            if (content.contains("System.currentTimeMillis()") || content.contains("Date") || content.contains(
+                    "Calendar"
+                )
+            ) {
+                hasAndroidCompatibleTimeHandling = true
+            }
+        }
+
+        // Assert - verify Android compatibility improvements
+        assertFalse("Should not use LocalDateTime without proper API level handling", hasLocalDateTimeIssues)
+        assertTrue("Should use Android-compatible time handling", hasAndroidCompatibleTimeHandling)
+    }
+
+    @Test fun `should_use_coroutines_delay_instead_of_Thread_sleep_for_android`() {
+        // Arrange - check for Android-incompatible blocking operations
+        val possiblePaths = listOf(
+            "./app/src/main/java/com/foxy/player/music/MusicDiscovery.kt",
+            "../app/src/main/java/com/foxy/player/music/MusicDiscovery.kt", "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/MusicDiscovery.kt"
+        )
+
+        val musicDiscoveryFile = possiblePaths.map { java.io.File(it) }.firstOrNull { it.exists() }
+        assertTrue("MusicDiscovery.kt should exist", musicDiscoveryFile != null)
+
+        // Act - verify non-blocking coroutine usage
+        val content = musicDiscoveryFile!!.readText()
+        val hasThreadSleep = content.contains("Thread.sleep")
+        val hasCoroutineDelay = content.contains("delay(") && content.contains("suspend")
+
+        // Assert - verify Android best practices for non-blocking operations
+        assertFalse("Should not use Thread.sleep() in Android code to avoid ANRs", hasThreadSleep)
+        assertTrue("Should use coroutines delay() for non-blocking operations", hasCoroutineDelay)
+    }
+
+    @Test
+    fun `should_not_manually_call_system_gc_in_android_code`() {
+        // Arrange - check for manual GC calls that can hurt performance
+        val possiblePaths = listOf(
+            "./app/src/main/java/com/foxy/player/music/MusicLibrary.kt",
+            "../app/src/main/java/com/foxy/player/music/MusicLibrary.kt", "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/MusicLibrary.kt"
+        )
+
+        val musicLibraryFile = possiblePaths.map { java.io.File(it) }.firstOrNull { it.exists() }
+        assertTrue("MusicLibrary.kt should exist", musicLibraryFile != null)
+
+        // Act - verify no manual garbage collection
+        val content = musicLibraryFile!!.readText()
+        val hasManualGC = content.contains("System.gc()")
+
+        // Assert - verify Android memory management best practices
+        assertFalse("Should not manually call System.gc() in Android - runtime manages GC automatically", hasManualGC)
     }
 }
