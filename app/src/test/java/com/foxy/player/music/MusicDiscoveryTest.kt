@@ -374,7 +374,8 @@ class MusicDiscoveryTest {
 
         // Success case should not indicate errors when file is valid
         assertFalse("Should not indicate file corruption in success case", response.hasFileCorruption)
-        assertFalse("Should not indicate missing metadata in success case", response.hasMissingMetadata) assertFalse("Should not indicate unsupported format in success case", response.hasUnsupportedFormat)
+        assertFalse("Should not indicate missing metadata in success case", response.hasMissingMetadata)
+        assertFalse("Should not indicate unsupported format in success case", response.hasUnsupportedFormat)
     }
 
     @Test
