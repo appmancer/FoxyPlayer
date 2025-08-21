@@ -1357,4 +1357,43 @@ class AuthTest {
         assertTrue("US token should contain us_server", usToken?.contains("us_server") == true)
         assertTrue("EU token should contain eu_server", euToken?.contains("eu_server") == true)
     }
+
+    // PLY-71: Real pCloud API Authentication Tests
+    @Test
+    fun `should make real pCloud API call instead of returning mock tokens`() {
+        // Arrange - setup for real pCloud API authentication
+        val realUsername = "test@example.com"
+        val realPassword = "testpassword"
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+
+        // Act - call method that should make REAL HTTP call to pCloud API
+        val result = authRepository.authenticateWithRealPCloudAPI(realUsername, realPassword)
+
+        // Debug: Print result details if test fails
+        if (result.isFailure) {
+            println("DEBUG: Authentication failed with error: ${result.exceptionOrNull()?.message}")
+            result.exceptionOrNull()?.printStackTrace()
+        }
+
+        // Assert - verify REAL authentication behavior (not mock)
+        assertTrue("Should succeed with real pCloud API call", result.isSuccess)
+        val authResponse = result.getOrNull()
+        assertNotNull("Should have real auth response", authResponse)
+
+        // Verify it's NOT a mock/stub response
+        val authToken = authResponse?.authToken
+        assertNotNull("Should have real auth token", authToken)
+        assertFalse("Should NOT be mock token", authToken == "mock_auth_token_12345")
+        assertFalse("Should NOT contain timestamp pattern", authToken?.matches(Regex(".*\\d{13}.*")) == true)
+        assertFalse("Should NOT be fake pcloud pattern", authToken?.contains("pcloud_real_") == true)
+
+        // Verify real pCloud token characteristics
+        assertTrue("Real pCloud token should be alphanumeric", authToken?.matches(Regex("[A-Za-z0-9]+")) == true)
+        assertTrue("Real pCloud token should be substantial length", (authToken?.length ?: 0) >= 20)
+
+        // Verify user info is real (from actual API response)
+        val userInfo = authResponse?.userInfo
+        assertNotNull("Should have real user info", userInfo)
+        assertEquals("Should have correct email from API", realUsername, userInfo?.email)
+    }
 }
