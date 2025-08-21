@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:filename")
+
 package com.foxy.player.authentication
 
 import com.google.gson.Gson
@@ -300,7 +302,8 @@ class AuthRepository(private val baseUrl: String = "") {
                 Result.success(authResponse)
             } else {
                 // Failure case - extract error message
-                val errorMessage = pCloudResponse.error ?: "Unknown authentication error (result: ${pCloudResponse.result})"
+                val errorMessage = pCloudResponse.error
+                    ?: "Unknown authentication error (result: ${pCloudResponse.result})"
                 Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
