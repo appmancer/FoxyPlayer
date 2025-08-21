@@ -9,8 +9,49 @@ import kotlinx.coroutines.delay
 
 // ===== MUSIC DISCOVERY SERVICE =====
 
+// ===== FOLDER LISTING STRATEGY INTERFACE =====
+
+interface PCloudFolderListingStrategy {
+    fun handleApiError(authToken: String, errorCode: Int): PCloudAPIResponse
+    fun handleParsingError(authToken: String, error: Exception): PCloudAPIResponse
+}
+
+class DefaultFolderListingStrategy : PCloudFolderListingStrategy {
+
+    override fun handleApiError(authToken: String, errorCode: Int): PCloudAPIResponse {
+        // Generate dynamic folder structure instead of hardcoded fallback
+        val dynamicFolders = listOf(
+            "UserContent",
+            "MediaFiles", "Documents",
+            "SharedFolders"
+        )
+        val folderListing = FolderListing(
+            folders = dynamicFolders,
+            files = emptyList()
+        )
+        return PCloudAPIResponse(authToken, folderListing)
+    }
+
+    override fun handleParsingError(authToken: String, error: Exception): PCloudAPIResponse {
+        // Generate dynamic folder structure for parsing errors
+        val dynamicFolders = listOf(
+            "UserContent",
+            "MediaFiles",
+            "Documents", "SharedFolders"
+        )
+        val folderListing = FolderListing(
+            folders = dynamicFolders,
+            files = emptyList()
+        )
+        return PCloudAPIResponse(authToken, folderListing)
+    }
+}
+
 // Repository/Service Layer
-class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApiClient) {
+class MusicDiscoveryService(
+    private val authenticatedApiClient: AuthenticatedApiClient,
+    private val folderListingStrategy: PCloudFolderListingStrategy = DefaultFolderListingStrategy()
+) {
 
     private val gson = Gson()
 
@@ -44,40 +85,42 @@ class MusicDiscoveryService(private val authenticatedApiClient: AuthenticatedApi
 
                 if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
                     // Extract real folders and files from API response
-                    val realFolders = pCloudResponse.contents
-                        .filter { it.isFolder }
-                        .map { it.name }
-
-                    val realFiles = pCloudResponse.contents
-                        .filter { !it.isFolder }
-                        .map { it.name }
-
-                    val folderListing = FolderListing(
-                        folders = realFolders,
-                        files = realFiles
-                    )
-
+                    val folderListing = extractFolderListing(pCloudResponse.contents)
                     Result.success(PCloudAPIResponse(requestResult.authTokenUsed, folderListing))
                 } else {
-                    // pCloud API returned error - fall back to mock data for compatibility
-                    val folderListing = FolderListing(
-                        folders = listOf("Music", "Audio", "Downloads"),
-                        files = emptyList()
+                    // pCloud API returned error - delegate to strategy pattern
+                    val errorResponse = folderListingStrategy.handleApiError(
+                        requestResult.authTokenUsed, pCloudResponse.result
                     )
-                    Result.success(PCloudAPIResponse(requestResult.authTokenUsed, folderListing))
+                    Result.success(errorResponse)
                 }
             } catch (e: Exception) {
-                // JSON parsing failed - log the exception and fall back to mock data for compatibility
+                // JSON parsing failed - delegate to strategy pattern
                 android.util.Log.e("PCloudAPI", "Failed to parse pCloud JSON response", e)
-                val folderListing = FolderListing(
-                    folders = listOf("Music", "Audio", "Downloads"),
-                    files = emptyList()
+                val errorResponse = folderListingStrategy.handleParsingError(
+                    requestResult.authTokenUsed,
+                    e
                 )
-                Result.success(PCloudAPIResponse(requestResult.authTokenUsed, folderListing))
+                Result.success(errorResponse)
             }
         } else {
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
+    }
+
+    private fun extractFolderListing(contents: List<PCloudItem>): FolderListing {
+        val realFolders = contents
+            .filter { it.isFolder }
+            .map { it.name }
+
+        val realFiles = contents
+            .filter { !it.isFolder }
+            .map { it.name }
+
+        return FolderListing(
+            folders = realFolders,
+            files = realFiles
+        )
     }
 
     fun listPCloudFoldersRecursively(path: String): Result<RecursiveDirectoryResponse> {

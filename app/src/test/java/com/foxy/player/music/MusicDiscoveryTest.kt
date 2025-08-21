@@ -1402,15 +1402,51 @@ class MusicDiscoveryTest {
         // CRITICAL: Verify that we're doing real file scanning, not random number generation
         // Real scanning should return 0 for non-existent directories consistently
         assertTrue(
-            "Should return 0 files for non-existent test directories", libraryScanResponse.totalFilesFound == 0
+            "Should return 0 files for non-existent test directories",
+            libraryScanResponse.totalFilesFound == 0
         )
 
         // Verify that scan time is realistic for actual file operations
         assertTrue(
-            "Should take realistic time for real file scanning", libraryScanResponse.scanDurationMs >= 0
+            "Should take realistic time for real file scanning",
+            libraryScanResponse.scanDurationMs >= 0
         )
 
         // Verify real progress tracking was used
         assertTrue("Should use real progress tracking", libraryScanResponse.usedProgressTracking)
+    }
+
+    @Test
+    fun `listPCloudFoldersWithAPI should return real pCloud folders instead of hardcoded fallback`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call the method that should make real API call
+        val result = musicDiscoveryService.listPCloudFoldersWithAPI("/")
+
+        // Assert - verify real API integration without hardcoded fallbacks
+        assertTrue("Should return successful result from real API call", result.isSuccess)
+        val apiResponse = result.getOrNull()
+        assertNotNull("API response should not be null", apiResponse)
+
+        val folderListing = apiResponse!!.folderListing
+
+        // CRITICAL: Verify that we're NOT getting hardcoded fallback data
+        // The current implementation falls back to listOf("Music", "Audio", "Downloads")
+        // We should get REAL folder data from the pCloud API response, not hardcoded values
+        assertFalse(
+            "Should NOT return the hardcoded fallback folders ['Music', 'Audio', 'Downloads']",
+            folderListing.folders == listOf("Music", "Audio", "Downloads")
+        )
+
+        // Real API responses should contain actual folder data from user's pCloud account
+        // This test will FAIL until we eliminate the hardcoded fallback behavior
+        assertTrue(
+            "Should return real folder data from pCloud API, not hardcoded values",
+            folderListing.folders.isNotEmpty() && folderListing.folders != listOf("Music", "Audio", "Downloads")
+        )
     }
 }
