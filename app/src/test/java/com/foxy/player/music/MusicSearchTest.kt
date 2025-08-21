@@ -2,7 +2,8 @@ package com.foxy.player.music
 
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MusicSearchTest {
@@ -29,7 +30,8 @@ class MusicSearchTest {
         val searchResponse = result.getOrNull()!!
         assertEquals("Should find 2 Beatles tracks", 2, searchResponse.tracks.size)
         assertTrue(
-            "All results should contain Beatles", searchResponse.tracks.all { it.artist.contains("Beatles") }
+            "All results should contain Beatles",
+            searchResponse.tracks.all { it.artist.contains("Beatles") }
         )
     }
 }

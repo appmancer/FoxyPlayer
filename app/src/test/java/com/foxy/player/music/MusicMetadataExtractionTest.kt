@@ -3,7 +3,10 @@ package com.foxy.player.music
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.UserInfo
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MusicMetadataExtractionTest {
@@ -144,7 +147,8 @@ class MusicMetadataExtractionTest {
             metadataResponse!!.hasFileCorruption
         )
         assertFalse(
-            "Should NOT simulate missing metadata when no flags are provided", metadataResponse.hasMissingMetadata
+            "Should NOT simulate missing metadata when no flags are provided",
+            metadataResponse.hasMissingMetadata
         )
         assertFalse(
             "Should NOT simulate unsupported format when no flags are provided",

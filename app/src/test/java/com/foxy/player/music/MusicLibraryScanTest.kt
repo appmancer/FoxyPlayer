@@ -5,7 +5,8 @@ import com.foxy.player.authentication.AuthenticatedApiClient
 import java.io.File
 import java.nio.file.Files
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.*
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MusicLibraryScanTest {
