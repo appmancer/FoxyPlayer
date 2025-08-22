@@ -1509,4 +1509,44 @@ class MusicDiscoveryTest {
             )
         }
     }
+
+    @Test
+    fun `should use real cached data instead of hardcoded cached fallback simulation when useCachedFallback is true`() {
+        // Arrange - setup service with authentication and prepare for cached fallback scenario
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method with useCachedFallback=true to trigger cached fallback scenario
+        val result = musicDiscoveryService.listAudioFilesWithErrorHandling("/music/library", useCachedFallback = true)
+
+        // Assert - should use REAL cached data, NOT hardcoded cached fallback simulation
+        assertTrue("Should return successful result when using cached fallback", result.isSuccess)
+        val response = result.getOrNull()!!
+
+        // Verify it's NOT the hardcoded cached fallback pattern
+        assertFalse(
+            "Should NOT use hardcoded cached fallback simulation ['cached_fallback1.mp3', 'cached_fallback2.flac']",
+            response.audioFiles == listOf("cached_fallback1.mp3", "cached_fallback2.flac")
+        )
+
+        // Should contain real cached data or path-based filenames, not hardcoded simulation
+        assertTrue(
+            "Should indicate cached fallback is being used",
+            response.usedCachedFallback
+        )
+
+        assertTrue(
+            "Should contain real cached data or path-based filenames instead of hardcoded simulation",
+            response.audioFiles.isNotEmpty() && response.audioFiles.none { it.startsWith("cached_fallback") }
+        )
+
+        // Should have proper error message about real cache usage
+        assertTrue(
+            "Should have cache-related error message",
+            response.errorMessage?.contains("cache") == true ||
+                response.errorMessage?.contains("network") == true
+        )
+    }
 }

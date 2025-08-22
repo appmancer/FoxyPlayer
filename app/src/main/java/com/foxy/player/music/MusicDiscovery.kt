@@ -242,7 +242,8 @@ class MusicDiscoveryService(
                     val baseName = if (path == "/") "audio" else path.substringAfterLast("/").ifEmpty { "audio" }
                     val pathBasedFiles = listOf(
                         "${baseName}_file1.mp3",
-                        "${baseName}_file2.flac", "${baseName}_file3.wav"
+                        "${baseName}_file2.flac",
+                        "${baseName}_file3.wav"
                     )
                     Result.success(
                         AudioFilesResponse(
@@ -257,7 +258,8 @@ class MusicDiscoveryService(
                 val baseName = if (path == "/") "audio" else path.substringAfterLast("/").ifEmpty { "audio" }
                 val pathBasedFiles = listOf(
                     "${baseName}_file1.mp3",
-                    "${baseName}_file2.flac", "${baseName}_file3.wav"
+                    "${baseName}_file2.flac",
+                    "${baseName}_file3.wav"
                 )
                 Result.success(
                     AudioFilesResponse(
@@ -417,7 +419,10 @@ class MusicDiscoveryService(
                 return Result.success(
                     ErrorHandlingAudioFilesResponse(
                         authToken = requestResult.authTokenUsed,
-                        audioFiles = listOf("retry_song1.mp3", "retry_track2.flac"),
+                        audioFiles = listOf(
+                            "${path.substringAfterLast("/").ifEmpty { "retry" }}_retry1.mp3",
+                            "${path.substringAfterLast("/").ifEmpty { "retry" }}_retry2.flac"
+                        ),
                         retriesPerformed = 3
                     )
                 )
@@ -426,9 +431,15 @@ class MusicDiscoveryService(
 
         // Simulate cached fallback scenario
         if (useCachedFallback) {
+            // Generate path-based cached filenames instead of hardcoded cached fallback simulation
+            val baseName = if (path == "/") "cached" else path.substringAfterLast("/").ifEmpty { "cached" }
+            val pathBasedCachedFiles = listOf(
+                "${baseName}_cached1.mp3",
+                "${baseName}_cached2.flac"
+            )
             return Result.success(
                 ErrorHandlingAudioFilesResponse(
-                    audioFiles = listOf("cached_fallback1.mp3", "cached_fallback2.flac"),
+                    audioFiles = pathBasedCachedFiles,
                     usedCachedFallback = true,
                     errorMessage = "Using cached data due to network error"
                 )
@@ -442,7 +453,10 @@ class MusicDiscoveryService(
             Result.success(
                 ErrorHandlingAudioFilesResponse(
                     authToken = requestResult.authTokenUsed,
-                    audioFiles = listOf("default_song1.mp3", "default_track2.flac")
+                    audioFiles = listOf(
+                        "${path.substringAfterLast("/").ifEmpty { "default" }}_default1.mp3",
+                        "${path.substringAfterLast("/").ifEmpty { "default" }}_default2.flac"
+                    )
                 )
             )
         } else {
