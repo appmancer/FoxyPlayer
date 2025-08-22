@@ -61,6 +61,16 @@ class MusicDiscoveryService(
     private val cache = mutableMapOf<String, List<String>>()
     private var totalApiCalls = 0
 
+    // Helper function to extract baseName from path
+    fun extractBaseName(path: String): String {
+        return if (path == "/") "" else path.substringAfterLast("/").ifEmpty { "" }
+    }
+
+    // Helper function to extract baseName with fallback for consistency with existing pattern
+    private fun extractBaseNameWithFallback(path: String, fallback: String): String {
+        return if (path == "/") fallback else path.substringAfterLast("/").ifEmpty { fallback }
+    }
+
     fun listPCloudFolders(path: String): Result<FolderListing> {
         // Minimal implementation to make the test pass
         return Result.success(
@@ -239,7 +249,7 @@ class MusicDiscoveryService(
                 } else {
                     // pCloud API returned error - return minimal valid result instead of hardcoded fallback
                     // Use path-based filenames instead of hardcoded song names, but provide variety for compatibility
-                    val baseName = if (path == "/") "audio" else path.substringAfterLast("/").ifEmpty { "audio" }
+                    val baseName = extractBaseNameWithFallback(path, "audio")
                     val pathBasedFiles = listOf(
                         "${baseName}_file1.mp3",
                         "${baseName}_file2.flac",
@@ -255,7 +265,7 @@ class MusicDiscoveryService(
             } catch (e: Exception) {
                 // JSON parsing failed - return minimal valid result instead of hardcoded fallback
                 // Use path-based filenames instead of hardcoded song names, but provide variety for compatibility
-                val baseName = if (path == "/") "audio" else path.substringAfterLast("/").ifEmpty { "audio" }
+                val baseName = extractBaseNameWithFallback(path, "audio")
                 val pathBasedFiles = listOf(
                     "${baseName}_file1.mp3",
                     "${baseName}_file2.flac",
@@ -416,12 +426,13 @@ class MusicDiscoveryService(
             val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
+                val retryBaseName = extractBaseName(path).ifEmpty { "retry" }
                 return Result.success(
                     ErrorHandlingAudioFilesResponse(
                         authToken = requestResult.authTokenUsed,
                         audioFiles = listOf(
-                            "${path.substringAfterLast("/").ifEmpty { "retry" }}_retry1.mp3",
-                            "${path.substringAfterLast("/").ifEmpty { "retry" }}_retry2.flac"
+                            "${retryBaseName}_retry1.mp3",
+                            "${retryBaseName}_retry2.flac"
                         ),
                         retriesPerformed = 3
                     )
@@ -432,7 +443,7 @@ class MusicDiscoveryService(
         // Simulate cached fallback scenario
         if (useCachedFallback) {
             // Generate path-based cached filenames instead of hardcoded cached fallback simulation
-            val baseName = if (path == "/") "cached" else path.substringAfterLast("/").ifEmpty { "cached" }
+            val baseName = extractBaseNameWithFallback(path, "cached")
             val pathBasedCachedFiles = listOf(
                 "${baseName}_cached1.mp3",
                 "${baseName}_cached2.flac"
@@ -450,12 +461,13 @@ class MusicDiscoveryService(
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
+            val defaultBaseName = extractBaseName(path).ifEmpty { "default" }
             Result.success(
                 ErrorHandlingAudioFilesResponse(
                     authToken = requestResult.authTokenUsed,
                     audioFiles = listOf(
-                        "${path.substringAfterLast("/").ifEmpty { "default" }}_default1.mp3",
-                        "${path.substringAfterLast("/").ifEmpty { "default" }}_default2.flac"
+                        "${defaultBaseName}_default1.mp3",
+                        "${defaultBaseName}_default2.flac"
                     )
                 )
             )

@@ -1549,4 +1549,39 @@ class MusicDiscoveryTest {
                 response.errorMessage?.contains("network") == true
         )
     }
+
+    @Test
+    fun `should extract baseName from path using helper function`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Test data - various path formats
+        val testPaths = listOf(
+            "/music/albums/test-album",
+            "/audio/playlists/my-playlist",
+            "/downloads/classical-collection",
+            "/library/jazz-favorites"
+        )
+
+        // Act - call helper function that doesn't exist yet
+        val results = testPaths.map { path ->
+            musicDiscoveryService.extractBaseName(path)
+        }
+
+        // Assert - verify baseName extraction functionality
+        assertEquals("Should extract 'test-album' from path", "test-album", results[0])
+        assertEquals("Should extract 'my-playlist' from path", "my-playlist", results[1])
+        assertEquals("Should extract 'classical-collection' from path", "classical-collection", results[2])
+        assertEquals("Should extract 'jazz-favorites' from path", "jazz-favorites", results[3])
+
+        // Test edge cases
+        val emptyPathResult = musicDiscoveryService.extractBaseName("")
+        assertEquals("Should handle empty path", "", emptyPathResult)
+
+        val rootPathResult = musicDiscoveryService.extractBaseName("/")
+        assertEquals("Should handle root path", "", rootPathResult)
+    }
 }
