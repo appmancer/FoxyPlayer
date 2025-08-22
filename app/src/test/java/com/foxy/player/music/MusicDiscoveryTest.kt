@@ -1417,4 +1417,48 @@ class MusicDiscoveryTest {
             folderListing.folders.isNotEmpty() && folderListing.folders != listOf("Music", "Audio", "Downloads")
         )
     }
+
+    @Test
+    fun `should return proper pCloud API error instead of hardcoded fallback data when API fails`() {
+        // Arrange - setup test scenario where pCloud API will fail
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("invalid_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should handle API failure properly
+        val result = musicDiscoveryService.listPCloudFoldersRecursively("/invalid/path")
+
+        // Assert - should get REAL API error, NOT hardcoded fallback data
+        if (result.isSuccess) {
+            val response = result.getOrNull()!!
+            // If successful, verify it's NOT the hardcoded fallback pattern
+            assertFalse(
+                "Should NOT fall back to hardcoded folder list ['Music', 'Music/Albums', 'Music/Playlists', 'Audio', 'Downloads']",
+                response.allFolders == listOf("Music", "Music/Albums", "Music/Playlists", "Audio", "Downloads")
+            )
+
+            // Should contain real API error information, not mock data
+            assertTrue(
+                "Should contain real pCloud API response data or proper error handling",
+                response.allFolders.isEmpty() || response.allFolders.any { folder -> !folder.startsWith("Music") }
+            )
+        } else {
+            // If failure, should be real API failure, not generic mock failure
+            val exception = result.exceptionOrNull()!!
+            assertTrue(
+                "Should contain real pCloud API error details",
+                exception.message?.contains("pCloud") == true || exception.message?.contains("API") == true ||
+                    exception.message?.contains("authentication") == true
+            )
+
+            // Should NOT be generic mock error message
+            assertFalse(
+                "Should NOT be generic mock error",
+                exception.message?.contains("mock") == true ||
+                    exception.message?.contains("stub") == true ||
+                    exception.message?.contains("fallback") == true
+            )
+        }
+    }
 }

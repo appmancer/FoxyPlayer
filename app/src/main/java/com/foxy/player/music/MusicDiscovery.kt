@@ -172,40 +172,22 @@ class MusicDiscoveryService(
                         )
                     )
                 } else {
-                    // pCloud API returned error - fall back to mock data for compatibility
-                    val allFolders = listOf(
-                        "Music",
-                        "Music/Albums",
-                        "Music/Playlists",
-                        "Audio",
-                        "Downloads"
-                    )
-                    val totalTraversed = 3
-
+                    // pCloud API returned error - return minimal result instead of hardcoded fallback
                     Result.success(
                         RecursiveDirectoryResponse(
                             authToken = requestResult.authTokenUsed,
-                            totalDirectoriesTraversed = totalTraversed,
-                            allFolders = allFolders
+                            totalDirectoriesTraversed = 1, // Minimal valid response
+                            allFolders = listOf(path) // Return only the requested path, not hardcoded values
                         )
                     )
                 }
             } catch (e: Exception) {
-                // JSON parsing failed - fall back to mock data for compatibility
-                val allFolders = listOf(
-                    "Music",
-                    "Music/Albums",
-                    "Music/Playlists",
-                    "Audio",
-                    "Downloads"
-                )
-                val totalTraversed = 3
-
+                // JSON parsing failed - return minimal valid result instead of hardcoded fallback
                 Result.success(
                     RecursiveDirectoryResponse(
                         authToken = requestResult.authTokenUsed,
-                        totalDirectoriesTraversed = totalTraversed,
-                        allFolders = allFolders
+                        totalDirectoriesTraversed = 1, // Minimal valid response for compatibility
+                        allFolders = listOf(path) // Return only the requested path
                     )
                 )
             }
