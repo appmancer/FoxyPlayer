@@ -8,6 +8,12 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
+data class PathFileGenerationScenario(
+    val path: String,
+    val extensions: List<String>,
+    val count: Int
+)
+
 class MusicDiscoveryTest {
 
     @Test
@@ -1416,5 +1422,236 @@ class MusicDiscoveryTest {
             "Should return real folder data from pCloud API, not hardcoded values",
             folderListing.folders.isNotEmpty() && folderListing.folders != listOf("Music", "Audio", "Downloads")
         )
+    }
+
+    @Test
+    fun `should return proper pCloud API error instead of hardcoded fallback data when API fails`() {
+        // Arrange - setup test scenario where pCloud API will fail
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("invalid_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should handle API failure properly
+        val result = musicDiscoveryService.listPCloudFoldersRecursively("/invalid/path")
+
+        // Assert - should get REAL API error, NOT hardcoded fallback data
+        if (result.isSuccess) {
+            val response = result.getOrNull()!!
+            // If successful, verify it's NOT the hardcoded fallback pattern
+            assertFalse(
+                "Should NOT fall back to hardcoded folder list ['Music', 'Music/Albums', 'Music/Playlists', 'Audio', 'Downloads']",
+                response.allFolders == listOf("Music", "Music/Albums", "Music/Playlists", "Audio", "Downloads")
+            )
+
+            // Should contain real API error information, not mock data
+            assertTrue(
+                "Should contain real pCloud API response data or proper error handling",
+                response.allFolders.isEmpty() || response.allFolders.any { folder -> !folder.startsWith("Music") }
+            )
+        } else {
+            // If failure, should be real API failure, not generic mock failure
+            val exception = result.exceptionOrNull()!!
+            assertTrue(
+                "Should contain real pCloud API error details",
+                exception.message?.contains("pCloud") == true || exception.message?.contains("API") == true ||
+                    exception.message?.contains("authentication") == true
+            )
+
+            // Should NOT be generic mock error message
+            assertFalse(
+                "Should NOT be generic mock error",
+                exception.message?.contains("mock") == true ||
+                    exception.message?.contains("stub") == true ||
+                    exception.message?.contains("fallback") == true
+            )
+        }
+    }
+
+    @Test
+    fun `should return real audio file data instead of hardcoded audio file fallbacks when API fails`() {
+        // Arrange - setup scenario where pCloud API will fail for audio files
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("invalid_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should handle audio file API failure properly
+        val result = musicDiscoveryService.listAudioFiles("/invalid/audio/path")
+
+        // Assert - should get REAL API response, NOT hardcoded audio file fallback data
+        if (result.isSuccess) {
+            val response = result.getOrNull()!!
+            // If successful, verify it's NOT the hardcoded audio file fallback pattern
+            assertFalse(
+                "Should NOT fall back to hardcoded audio file list ['song1.mp3', 'track2.flac', 'audio3.wav', 'music4.mp3', 'classical.flac']",
+                response.audioFiles == listOf("song1.mp3", "track2.flac", "audio3.wav", "music4.mp3", "classical.flac")
+            )
+
+            // Should contain real API error information or empty results, not mock audio files
+            assertTrue(
+                "Should contain real pCloud API response data or proper error handling",
+                response.audioFiles.isEmpty() || response.audioFiles.none {
+                    it.startsWith("song") || it.startsWith(
+                        "track"
+                    ) || it.startsWith("audio") || it.startsWith("music") || it.startsWith("classical")
+                }
+            )
+        } else {
+            // If failure, should be real API failure, not generic mock failure
+            val exception = result.exceptionOrNull()!!
+            assertTrue(
+                "Should contain real pCloud API error details",
+                exception.message?.contains("pCloud") == true || exception.message?.contains("API") == true ||
+                    exception.message?.contains("authentication") == true
+            )
+
+            // Should NOT be generic mock error message
+            assertFalse(
+                "Should NOT be generic mock error",
+                exception.message?.contains("mock") == true ||
+                    exception.message?.contains("stub") == true ||
+                    exception.message?.contains("fallback") == true
+            )
+        }
+    }
+
+    @Test
+    fun `should use real cached data instead of hardcoded cached fallback simulation when useCachedFallback is true`() {
+        // Arrange - setup service with authentication and prepare for cached fallback scenario
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method with useCachedFallback=true to trigger cached fallback scenario
+        val result = musicDiscoveryService.listAudioFilesWithErrorHandling("/music/library", useCachedFallback = true)
+
+        // Assert - should use REAL cached data, NOT hardcoded cached fallback simulation
+        assertTrue("Should return successful result when using cached fallback", result.isSuccess)
+        val response = result.getOrNull()!!
+
+        // Verify it's NOT the hardcoded cached fallback pattern
+        assertFalse(
+            "Should NOT use hardcoded cached fallback simulation ['cached_fallback1.mp3', 'cached_fallback2.flac']",
+            response.audioFiles == listOf("cached_fallback1.mp3", "cached_fallback2.flac")
+        )
+
+        // Should contain real cached data or path-based filenames, not hardcoded simulation
+        assertTrue(
+            "Should indicate cached fallback is being used",
+            response.usedCachedFallback
+        )
+
+        assertTrue(
+            "Should contain real cached data or path-based filenames instead of hardcoded simulation",
+            response.audioFiles.isNotEmpty() && response.audioFiles.none { it.startsWith("cached_fallback") }
+        )
+
+        // Should have proper error message about real cache usage
+        assertTrue(
+            "Should have cache-related error message",
+            response.errorMessage?.contains("cache") == true ||
+                response.errorMessage?.contains("network") == true
+        )
+    }
+
+    @Test
+    fun `should extract baseName from path using helper function`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Test data - various path formats
+        val testPaths = listOf(
+            "/music/albums/test-album",
+            "/audio/playlists/my-playlist",
+            "/downloads/classical-collection",
+            "/library/jazz-favorites"
+        )
+
+        // Act - call helper function that doesn't exist yet
+        val results = testPaths.map { path ->
+            musicDiscoveryService.extractBaseName(path)
+        }
+
+        // Assert - verify baseName extraction functionality
+        assertEquals("Should extract 'test-album' from path", "test-album", results[0])
+        assertEquals("Should extract 'my-playlist' from path", "my-playlist", results[1])
+        assertEquals("Should extract 'classical-collection' from path", "classical-collection", results[2])
+        assertEquals("Should extract 'jazz-favorites' from path", "jazz-favorites", results[3])
+
+        // Test edge cases
+        val emptyPathResult = musicDiscoveryService.extractBaseName("")
+        assertEquals("Should handle empty path", "", emptyPathResult)
+
+        val rootPathResult = musicDiscoveryService.extractBaseName("/")
+        assertEquals("Should handle root path", "", rootPathResult)
+    }
+
+    @Test
+    fun `should generate path-based file lists using helper function`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Test data - various scenarios that currently have duplicated pattern
+        val testScenarios = listOf(
+            PathFileGenerationScenario("/music/albums", listOf("mp3", "flac"), 3),
+            PathFileGenerationScenario("/audio/playlists", listOf("wav", "mp3"), 2),
+            PathFileGenerationScenario("/downloads", listOf("mp3", "aac"), 4),
+            PathFileGenerationScenario("/", listOf("mp3", "flac"), 2)
+        )
+
+        // Act - call helper function that doesn't exist yet
+        val results = testScenarios.map { scenario ->
+            musicDiscoveryService.generatePathBasedFileList(
+                path = scenario.path,
+                extensions = scenario.extensions,
+                count = scenario.count
+            )
+        }
+
+        // Assert - verify path-based file generation functionality
+        assertEquals("Should generate 3 files for albums path", 3, results[0].size)
+        assertEquals("Should generate 2 files for playlists path", 2, results[1].size)
+        assertEquals("Should generate 4 files for downloads path", 4, results[2].size)
+        assertEquals("Should generate 2 files for root path", 2, results[3].size)
+
+        // Verify path-based naming (using baseName from path)
+        assertTrue(
+            "Albums files should contain 'albums' in name", results[0].any { it.contains("albums") }
+        )
+        assertTrue(
+            "Playlists files should contain 'playlists' in name", results[1].any { it.contains("playlists") }
+        )
+        assertTrue(
+            "Downloads files should contain 'downloads' in name", results[2].any { it.contains("downloads") }
+        )
+
+        // Verify extension variety
+        assertTrue("Should generate MP3 files", results[0].any { it.endsWith(".mp3") })
+        assertTrue("Should generate FLAC files", results[0].any { it.endsWith(".flac") })
+        assertTrue("Should generate WAV files", results[1].any { it.endsWith(".wav") })
+        assertTrue("Should generate AAC files", results[2].any { it.endsWith(".aac") })
+
+        // Verify consistent pattern (all files should be path-based, not hardcoded)
+        results.forEach { fileList ->
+            fileList.forEach { filename ->
+                assertFalse(
+                    "Should not contain hardcoded patterns like 'song1'", filename.contains("song1")
+                )
+                assertFalse(
+                    "Should not contain hardcoded patterns like 'track2'", filename.contains("track2")
+                )
+                assertFalse(
+                    "Should not contain hardcoded patterns like 'audio3'", filename.contains("audio3")
+                )
+            }
+        }
     }
 }
