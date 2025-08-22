@@ -1461,4 +1461,52 @@ class MusicDiscoveryTest {
             )
         }
     }
+
+    @Test
+    fun `should return real audio file data instead of hardcoded audio file fallbacks when API fails`() {
+        // Arrange - setup scenario where pCloud API will fail for audio files
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("invalid_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should handle audio file API failure properly
+        val result = musicDiscoveryService.listAudioFiles("/invalid/audio/path")
+
+        // Assert - should get REAL API response, NOT hardcoded audio file fallback data
+        if (result.isSuccess) {
+            val response = result.getOrNull()!!
+            // If successful, verify it's NOT the hardcoded audio file fallback pattern
+            assertFalse(
+                "Should NOT fall back to hardcoded audio file list ['song1.mp3', 'track2.flac', 'audio3.wav', 'music4.mp3', 'classical.flac']",
+                response.audioFiles == listOf("song1.mp3", "track2.flac", "audio3.wav", "music4.mp3", "classical.flac")
+            )
+
+            // Should contain real API error information or empty results, not mock audio files
+            assertTrue(
+                "Should contain real pCloud API response data or proper error handling",
+                response.audioFiles.isEmpty() || response.audioFiles.none {
+                    it.startsWith("song") || it.startsWith(
+                        "track"
+                    ) || it.startsWith("audio") || it.startsWith("music") || it.startsWith("classical")
+                }
+            )
+        } else {
+            // If failure, should be real API failure, not generic mock failure
+            val exception = result.exceptionOrNull()!!
+            assertTrue(
+                "Should contain real pCloud API error details",
+                exception.message?.contains("pCloud") == true || exception.message?.contains("API") == true ||
+                    exception.message?.contains("authentication") == true
+            )
+
+            // Should NOT be generic mock error message
+            assertFalse(
+                "Should NOT be generic mock error",
+                exception.message?.contains("mock") == true ||
+                    exception.message?.contains("stub") == true ||
+                    exception.message?.contains("fallback") == true
+            )
+        }
+    }
 }
