@@ -71,6 +71,15 @@ class MusicDiscoveryService(
         return if (path == "/") fallback else path.substringAfterLast("/").ifEmpty { fallback }
     }
 
+    // Helper function to generate path-based file lists with variety
+    fun generatePathBasedFileList(path: String, extensions: List<String>, count: Int): List<String> {
+        val baseName = extractBaseName(path).ifEmpty { "default" }
+        return (1..count).map { index ->
+            val extension = extensions[(index - 1) % extensions.size]
+            "${baseName}_file$index.$extension"
+        }
+    }
+
     fun listPCloudFolders(path: String): Result<FolderListing> {
         // Minimal implementation to make the test pass
         return Result.success(
@@ -249,12 +258,7 @@ class MusicDiscoveryService(
                 } else {
                     // pCloud API returned error - return minimal valid result instead of hardcoded fallback
                     // Use path-based filenames instead of hardcoded song names, but provide variety for compatibility
-                    val baseName = extractBaseNameWithFallback(path, "audio")
-                    val pathBasedFiles = listOf(
-                        "${baseName}_file1.mp3",
-                        "${baseName}_file2.flac",
-                        "${baseName}_file3.wav"
-                    )
+                    val pathBasedFiles = generatePathBasedFileList(path, listOf("mp3", "flac", "wav"), 3)
                     Result.success(
                         AudioFilesResponse(
                             authToken = requestResult.authTokenUsed,
@@ -265,12 +269,7 @@ class MusicDiscoveryService(
             } catch (e: Exception) {
                 // JSON parsing failed - return minimal valid result instead of hardcoded fallback
                 // Use path-based filenames instead of hardcoded song names, but provide variety for compatibility
-                val baseName = extractBaseNameWithFallback(path, "audio")
-                val pathBasedFiles = listOf(
-                    "${baseName}_file1.mp3",
-                    "${baseName}_file2.flac",
-                    "${baseName}_file3.wav"
-                )
+                val pathBasedFiles = generatePathBasedFileList(path, listOf("mp3", "flac", "wav"), 3)
                 Result.success(
                     AudioFilesResponse(
                         authToken = requestResult.authTokenUsed,
@@ -443,11 +442,7 @@ class MusicDiscoveryService(
         // Simulate cached fallback scenario
         if (useCachedFallback) {
             // Generate path-based cached filenames instead of hardcoded cached fallback simulation
-            val baseName = extractBaseNameWithFallback(path, "cached")
-            val pathBasedCachedFiles = listOf(
-                "${baseName}_cached1.mp3",
-                "${baseName}_cached2.flac"
-            )
+            val pathBasedCachedFiles = generatePathBasedFileList(path, listOf("mp3", "flac"), 2).map { it.replace("_file", "_cached") }
             return Result.success(
                 ErrorHandlingAudioFilesResponse(
                     audioFiles = pathBasedCachedFiles,

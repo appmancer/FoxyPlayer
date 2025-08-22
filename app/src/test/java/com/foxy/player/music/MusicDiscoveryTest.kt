@@ -8,6 +8,12 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
+data class PathFileGenerationScenario(
+    val path: String,
+    val extensions: List<String>,
+    val count: Int
+)
+
 class MusicDiscoveryTest {
 
     @Test
@@ -1583,5 +1589,69 @@ class MusicDiscoveryTest {
 
         val rootPathResult = musicDiscoveryService.extractBaseName("/")
         assertEquals("Should handle root path", "", rootPathResult)
+    }
+
+    @Test
+    fun `should generate path-based file lists using helper function`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Test data - various scenarios that currently have duplicated pattern
+        val testScenarios = listOf(
+            PathFileGenerationScenario("/music/albums", listOf("mp3", "flac"), 3),
+            PathFileGenerationScenario("/audio/playlists", listOf("wav", "mp3"), 2),
+            PathFileGenerationScenario("/downloads", listOf("mp3", "aac"), 4),
+            PathFileGenerationScenario("/", listOf("mp3", "flac"), 2)
+        )
+
+        // Act - call helper function that doesn't exist yet
+        val results = testScenarios.map { scenario ->
+            musicDiscoveryService.generatePathBasedFileList(
+                path = scenario.path,
+                extensions = scenario.extensions,
+                count = scenario.count
+            )
+        }
+
+        // Assert - verify path-based file generation functionality
+        assertEquals("Should generate 3 files for albums path", 3, results[0].size)
+        assertEquals("Should generate 2 files for playlists path", 2, results[1].size)
+        assertEquals("Should generate 4 files for downloads path", 4, results[2].size)
+        assertEquals("Should generate 2 files for root path", 2, results[3].size)
+
+        // Verify path-based naming (using baseName from path)
+        assertTrue(
+            "Albums files should contain 'albums' in name", results[0].any { it.contains("albums") }
+        )
+        assertTrue(
+            "Playlists files should contain 'playlists' in name", results[1].any { it.contains("playlists") }
+        )
+        assertTrue(
+            "Downloads files should contain 'downloads' in name", results[2].any { it.contains("downloads") }
+        )
+
+        // Verify extension variety
+        assertTrue("Should generate MP3 files", results[0].any { it.endsWith(".mp3") })
+        assertTrue("Should generate FLAC files", results[0].any { it.endsWith(".flac") })
+        assertTrue("Should generate WAV files", results[1].any { it.endsWith(".wav") })
+        assertTrue("Should generate AAC files", results[2].any { it.endsWith(".aac") })
+
+        // Verify consistent pattern (all files should be path-based, not hardcoded)
+        results.forEach { fileList ->
+            fileList.forEach { filename ->
+                assertFalse(
+                    "Should not contain hardcoded patterns like 'song1'", filename.contains("song1")
+                )
+                assertFalse(
+                    "Should not contain hardcoded patterns like 'track2'", filename.contains("track2")
+                )
+                assertFalse(
+                    "Should not contain hardcoded patterns like 'audio3'", filename.contains("audio3")
+                )
+            }
+        }
     }
 }
