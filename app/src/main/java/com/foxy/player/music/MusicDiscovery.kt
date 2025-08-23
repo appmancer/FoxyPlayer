@@ -442,7 +442,12 @@ class MusicDiscoveryService(
         // Simulate cached fallback scenario
         if (useCachedFallback) {
             // Generate path-based cached filenames instead of hardcoded cached fallback simulation
-            val pathBasedCachedFiles = generatePathBasedFileList(path, listOf("mp3", "flac"), 2).map { it.replace("_file", "_cached") }
+            val pathBasedCachedFiles = generatePathBasedFileList(path, listOf("mp3", "flac"), 2).map {
+                it.replace(
+                    "_file",
+                    "_cached"
+                )
+            }
             return Result.success(
                 ErrorHandlingAudioFilesResponse(
                     audioFiles = pathBasedCachedFiles,
