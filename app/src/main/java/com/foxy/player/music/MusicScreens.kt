@@ -24,7 +24,13 @@ fun SongsListScreen(service: MusicDiscoveryService) {
             val songs = result.getOrNull().orEmpty()
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(songs) { s ->
-                    Column { Text(s.title); Text("${s.artist} – ${s.album}", style = MaterialTheme.typography.bodySmall) }
+                    Column {
+                        Text(s.title)
+                        Text(
+                            "${s.artist} – ${s.album}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
         }
@@ -68,7 +74,15 @@ fun AlbumsListScreen(service: MusicDiscoveryService) {
         result.isSuccess -> {
             val albums = result.getOrNull().orEmpty()
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(albums) { a -> Column { Text(a.name); Text(a.artist, style = MaterialTheme.typography.bodySmall) } }
+                items(albums) { a ->
+                    Column {
+                        Text(a.name)
+                        Text(
+                            a.artist,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
         }
         else -> Text("Failed to load albums", style = MaterialTheme.typography.bodyLarge)
