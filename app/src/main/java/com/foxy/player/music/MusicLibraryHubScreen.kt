@@ -59,18 +59,22 @@ data class HubContent(
 class MusicLibraryHubScreen {
     private var nowPlayingExpanded: Boolean = false
 
-    // Replace with real discovery-backed counts
+    // Real discovery-backed counts via heuristics
     private fun discoverCounts(): Map<String, CardInfo> {
         return try {
             val api = com.foxy.player.authentication.AuthenticatedApiClient(
                 com.foxy.player.authentication.AuthRepository()
             )
             val discovery = MusicDiscoveryService(api)
+            val h = HeuristicMusicDiscovery(discovery)
+            val songs = h.listSongs().getOrNull().orEmpty()
+            val artists = h.listArtists().getOrNull().orEmpty()
+            val albums = h.listAlbums().getOrNull().orEmpty()
             val folders = discovery.listPCloudFolders("/").getOrNull()?.folders ?: emptyList()
             mapOf(
-                CardIds.Songs to CardInfo(id = CardIds.Songs, count = 0),
-                CardIds.Albums to CardInfo(id = CardIds.Albums, count = 0),
-                CardIds.Artists to CardInfo(id = CardIds.Artists, count = 0),
+                CardIds.Songs to CardInfo(id = CardIds.Songs, count = songs.size),
+                CardIds.Albums to CardInfo(id = CardIds.Albums, count = albums.size),
+                CardIds.Artists to CardInfo(id = CardIds.Artists, count = artists.size),
                 CardIds.Folders to CardInfo(id = CardIds.Folders, count = folders.size)
             )
         } catch (t: Throwable) {
@@ -111,7 +115,8 @@ fun MusicLibraryHubRender(navigator: Navigator? = null) {
     var selectedIndex by remember { mutableStateOf(0) }
     val tabs = listOf(
         "Home" to Icons.Filled.Home,
-        "Songs" to Icons.Filled.QueueMusic, "Artists" to Icons.Filled.Person,
+        "Songs" to Icons.Filled.QueueMusic,
+        "Artists" to Icons.Filled.Person,
         "Folders" to Icons.Filled.FolderOpen,
         "Settings" to Icons.Filled.Settings
     )

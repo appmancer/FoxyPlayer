@@ -15,11 +15,15 @@ class NavControllerNavigator(private val navController: NavHostController) : Nav
 
 @Composable
 fun MusicNavHost(navController: NavHostController) {
+    val api = com.foxy.player.authentication.AuthenticatedApiClient(
+        com.foxy.player.authentication.AuthRepository()
+    )
+    val discovery = MusicDiscoveryService(api)
     NavHost(navController = navController, startDestination = Routes.Home) {
         composable(Routes.Home) { Text("Home", style = MaterialTheme.typography.titleLarge) }
-        composable(Routes.SongsList) { Text("SongsList", style = MaterialTheme.typography.titleLarge) }
-        composable(Routes.ArtistsList) { Text("ArtistsList", style = MaterialTheme.typography.titleLarge) }
-        composable(Routes.AlbumsList) { Text("AlbumsList", style = MaterialTheme.typography.titleLarge) }
-        composable(Routes.FoldersView) { Text("FoldersView", style = MaterialTheme.typography.titleLarge) }
+        composable(Routes.SongsList) { SongsListScreen(discovery) }
+        composable(Routes.ArtistsList) { ArtistsListScreen(discovery) }
+        composable(Routes.AlbumsList) { AlbumsListScreen(discovery) }
+        composable(Routes.FoldersView) { FoldersViewScreen(discovery) }
     }
 }
