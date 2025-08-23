@@ -19,7 +19,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.rememberNavController
 import com.foxy.player.music.MusicLibraryHubRender
+import com.foxy.player.music.MusicNavHost
+import com.foxy.player.music.NavControllerNavigator
 import com.foxy.player.ui.theme.FoxyPlayerTheme
 
 class MainActivity : ComponentActivity() {
@@ -29,8 +32,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             FoxyPlayerTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    // Render the Music Library Hub screen
-                    MusicLibraryHubRender()
+                    val navController = rememberNavController()
+                    MusicLibraryHubRender(navigator = NavControllerNavigator(navController))
+                    // Render the NavHost for actual navigation destinations
+                    MusicNavHost(navController)
                 }
             }
         }
