@@ -49,28 +49,64 @@ class MusicLibraryProgressService(private val authenticatedApiClient: Authentica
         _progressState.value = LibraryProgressInfo(isVisible = false)
     }
 
-    suspend fun performLibraryOperation(operation: LibraryProgressState): Result<String> {
+    suspend fun performLibraryOperation(
+        operation: LibraryProgressState,
+        progressDelayMs: Long = 50,
+        completionDisplayDelayMs: Long = 500,
+        errorDisplayDelayMs: Long = 2000
+    ): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
                 showProgress(operation, "Starting ${operation.name.lowercase()}...", 0.0)
 
-                // Simulate operation progress
-                for (i in 1..100 step 10) {
-                    delay(50)
-                    showProgress(operation, "Processing ${operation.name.lowercase()}...", i.toDouble())
+                // TODO: Replace with real operation and progress tracking
+                // Example: Call the real operation and update progress as appropriate
+                when (operation) {
+                    LibraryProgressState.SCANNING -> {
+                        // TODO: Integrate with real music file scanning
+                        // e.g., scanMusicFiles { percent -> showProgress(operation, "Scanning files...", percent) }
+                        simulateProgressOperation(operation, "Scanning music files", progressDelayMs)
+                    }
+                    LibraryProgressState.INDEXING -> {
+                        // TODO: Integrate with real database indexing
+                        // e.g., buildIndexes { percent -> showProgress(operation, "Building indexes...", percent) }
+                        simulateProgressOperation(operation, "Building database indexes", progressDelayMs)
+                    }
+                    LibraryProgressState.CACHING -> {
+                        // TODO: Integrate with real metadata caching
+                        // e.g., cacheMetadata { percent -> showProgress(operation, "Caching metadata...", percent) }
+                        simulateProgressOperation(operation, "Caching metadata", progressDelayMs)
+                    }
+                    else -> {
+                        // For other operations, just show indeterminate progress
+                        delay(progressDelayMs * 10) // Simulate operation duration
+                    }
                 }
 
                 showProgress(LibraryProgressState.COMPLETED, "Operation completed", 100.0)
-                delay(500) // Brief completion display
+                delay(completionDisplayDelayMs) // Brief completion display
                 hideProgress()
 
                 Result.success("${operation.name} completed successfully")
             } catch (e: Exception) {
                 showProgress(LibraryProgressState.ERROR, "Error: ${e.message}", 0.0)
-                delay(2000) // Show error briefly
+                delay(errorDisplayDelayMs) // Show error briefly
                 hideProgress()
                 Result.failure(e)
             }
+        }
+    }
+
+    private suspend fun simulateProgressOperation(
+        operation: LibraryProgressState,
+        operationDescription: String,
+        delayMs: Long
+    ) {
+        // TODO: Replace simulation with real operations
+        // This is temporary simulation code for demonstration purposes
+        for (i in 1..100 step 10) {
+            delay(delayMs)
+            showProgress(operation, "$operationDescription...", i.toDouble())
         }
     }
 }
