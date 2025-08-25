@@ -1,18 +1,38 @@
 
 package com.foxy.player.music
 
-import org.junit.Assert.assertEquals
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /**
  * PLY-81: Music Library Hub - Material Design 3
  * RED: Specify real features required by the ticket.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class MusicLibraryHubFeatureTest {
 
+    private val testDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     @Test
-    fun `hub shows cards with real counts and navigates via drilldowns and FAB opens expandable now playing`() {
+    fun `hub shows cards with real counts and navigates via drilldowns and FAB opens expandable now playing`() = runTest {
         // Arrange: create VM with real services
         val authRepo = com.foxy.player.authentication.AuthRepository()
         val api = com.foxy.player.authentication.AuthenticatedApiClient(authRepo)
@@ -20,8 +40,8 @@ class MusicLibraryHubFeatureTest {
         val heuristic = HeuristicMusicDiscovery(discovery)
         val vm = MusicHubViewModel(authRepo, api, discovery, heuristic)
 
-        // Wait for initial load (synchronously enough for unit test given minimal work)
-        Thread.sleep(50)
+        // Wait for initial load (advancing dispatcher does this)
+        testDispatcher.scheduler.advanceUntilIdle()
         val state = vm.state.value
 
         // Expect: cards present with counts map
