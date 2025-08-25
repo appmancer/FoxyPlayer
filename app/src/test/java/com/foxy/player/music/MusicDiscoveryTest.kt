@@ -1624,13 +1624,16 @@ class MusicDiscoveryTest {
 
         // Verify path-based naming (using baseName from path)
         assertTrue(
-            "Albums files should contain 'albums' in name", results[0].any { it.contains("albums") }
+            "Albums files should contain 'albums' in name",
+            results[0].any { it.contains("albums") }
         )
         assertTrue(
-            "Playlists files should contain 'playlists' in name", results[1].any { it.contains("playlists") }
+            "Playlists files should contain 'playlists' in name",
+            results[1].any { it.contains("playlists") }
         )
         assertTrue(
-            "Downloads files should contain 'downloads' in name", results[2].any { it.contains("downloads") }
+            "Downloads files should contain 'downloads' in name",
+            results[2].any { it.contains("downloads") }
         )
 
         // Verify extension variety
@@ -1643,13 +1646,16 @@ class MusicDiscoveryTest {
         results.forEach { fileList ->
             fileList.forEach { filename ->
                 assertFalse(
-                    "Should not contain hardcoded patterns like 'song1'", filename.contains("song1")
+                    "Should not contain hardcoded patterns like 'song1'",
+                    filename.contains("song1")
                 )
                 assertFalse(
-                    "Should not contain hardcoded patterns like 'track2'", filename.contains("track2")
+                    "Should not contain hardcoded patterns like 'track2'",
+                    filename.contains("track2")
                 )
                 assertFalse(
-                    "Should not contain hardcoded patterns like 'audio3'", filename.contains("audio3")
+                    "Should not contain hardcoded patterns like 'audio3'",
+                    filename.contains("audio3")
                 )
             }
         }

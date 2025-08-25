@@ -10,6 +10,71 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// ===== PLY-78: PROGRESS INDICATOR MODELS =====
+
+enum class LibraryProgressState {
+    IDLE,
+    SCANNING,
+    INDEXING,
+    CACHING,
+    COMPLETED,
+    ERROR
+}
+
+data class LibraryProgressInfo(
+    val state: LibraryProgressState = LibraryProgressState.IDLE,
+    val percentComplete: Double = 0.0,
+    val currentOperation: String = "",
+    val isVisible: Boolean = false
+)
+
+// ===== PLY-78: MUSIC LIBRARY PROGRESS SERVICE =====
+
+class MusicLibraryProgressService(private val authenticatedApiClient: AuthenticatedApiClient) : ViewModel() {
+
+    // Progress indicator state management
+    private val _progressState = MutableStateFlow(LibraryProgressInfo())
+    val progressState: StateFlow<LibraryProgressInfo> = _progressState
+
+    fun showProgress(state: LibraryProgressState, operation: String = "", percent: Double = 0.0) {
+        _progressState.value = LibraryProgressInfo(
+            state = state,
+            percentComplete = percent,
+            currentOperation = operation,
+            isVisible = true
+        )
+    }
+
+    fun hideProgress() {
+        _progressState.value = LibraryProgressInfo(isVisible = false)
+    }
+
+    suspend fun performLibraryOperation(operation: LibraryProgressState): Result<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                showProgress(operation, "Starting ${operation.name.lowercase()}...", 0.0)
+
+                // Simulate operation progress
+                for (i in 1..100 step 10) {
+                    delay(50)
+                    showProgress(operation, "Processing ${operation.name.lowercase()}...", i.toDouble())
+                }
+
+                showProgress(LibraryProgressState.COMPLETED, "Operation completed", 100.0)
+                delay(500) // Brief completion display
+                hideProgress()
+
+                Result.success("${operation.name} completed successfully")
+            } catch (e: Exception) {
+                showProgress(LibraryProgressState.ERROR, "Error: ${e.message}", 0.0)
+                delay(2000) // Show error briefly
+                hideProgress()
+                Result.failure(e)
+            }
+        }
+    }
+}
+
 // ===== MUSIC METADATA CACHE SERVICE =====
 
 // Music Metadata Cache Service for Performance Optimization

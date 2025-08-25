@@ -5,6 +5,7 @@ import com.foxy.player.authentication.AuthenticatedApiClient
 import java.io.File
 import java.nio.file.Files
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -57,5 +58,35 @@ class MusicLibraryScanTest {
             // Clean up - delete temporary directory
             tempDir.deleteRecursively()
         }
+    }
+
+    @Test
+    fun `PLY-78 should show and hide progress indicators during library operations`() = runBlocking {
+        // Arrange
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val progressService = MusicLibraryProgressService(authenticatedApiClient)
+
+        // Initially progress should be hidden
+        val initialState = progressService.progressState.value
+        assertFalse("Progress should initially be hidden", initialState.isVisible)
+        assertEquals("Initial state should be IDLE", LibraryProgressState.IDLE, initialState.state)
+
+        // Act - show progress
+        progressService.showProgress(LibraryProgressState.SCANNING, "Scanning music library", 25.0)
+
+        // Assert - progress should be visible
+        val showingState = progressService.progressState.value
+        assertTrue("Progress should be visible", showingState.isVisible)
+        assertEquals("State should be SCANNING", LibraryProgressState.SCANNING, showingState.state)
+        assertEquals("Progress should be 25%", 25.0, showingState.percentComplete, 0.1)
+        assertEquals("Operation should be set", "Scanning music library", showingState.currentOperation)
+
+        // Act - hide progress
+        progressService.hideProgress()
+
+        // Assert - progress should be hidden
+        val hiddenState = progressService.progressState.value
+        assertFalse("Progress should be hidden", hiddenState.isVisible)
     }
 }
