@@ -40,9 +40,7 @@ class MainActivity : ComponentActivity() {
                     contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Vertical)
                 ) { innerPadding ->
                     val navController = rememberNavController()
-                    // Pass content padding to top-level content if needed
-                    MusicLibraryHubRender(navigator = NavControllerNavigator(navController))
-                    // Render the NavHost for actual navigation destinations
+                    // Render only the NavHost as the single source of UI
                     Surface(modifier = Modifier.padding(innerPadding)) {
                         MusicNavHost(navController)
                     }

@@ -56,62 +56,11 @@ data class HubContent(
     val onCardClick: ((String) -> String)? = null
 )
 
-class MusicLibraryHubScreen {
-    private var nowPlayingExpanded: Boolean = false
-
-    // Real discovery-backed counts via heuristics
-    private fun discoverCounts(): Map<String, CardInfo> {
-        return try {
-            val api = com.foxy.player.authentication.AuthenticatedApiClient(
-                com.foxy.player.authentication.AuthRepository()
-            )
-            val discovery = MusicDiscoveryService(api)
-            val h = HeuristicMusicDiscovery(discovery)
-            val songs = h.listSongs().getOrNull().orEmpty()
-            val artists = h.listArtists().getOrNull().orEmpty()
-            val albums = h.listAlbums().getOrNull().orEmpty()
-            val folders = discovery.listPCloudFolders("/").getOrNull()?.folders ?: emptyList()
-            mapOf(
-                CardIds.Songs to CardInfo(id = CardIds.Songs, count = songs.size),
-                CardIds.Albums to CardInfo(id = CardIds.Albums, count = albums.size),
-                CardIds.Artists to CardInfo(id = CardIds.Artists, count = artists.size),
-                CardIds.Folders to CardInfo(id = CardIds.Folders, count = folders.size)
-            )
-        } catch (t: Throwable) {
-            mapOf(
-                CardIds.Songs to CardInfo(id = CardIds.Songs, count = 0),
-                CardIds.Albums to CardInfo(id = CardIds.Albums, count = 0),
-                CardIds.Artists to CardInfo(id = CardIds.Artists, count = 0),
-                CardIds.Folders to CardInfo(id = CardIds.Folders, count = 0)
-            )
-        }
-    }
-
-    fun getContent(): HubContent = HubContent(
-        hasMaterial3Cards = true,
-        hasBottomNavigation = true,
-        hasTopAppBar = true,
-        hasFAB = true,
-        navigationTabs = listOf("Home", "Songs", "Artists", "Folders", "Settings"),
-        cards = discoverCounts(),
-        isNowPlayingExpanded = nowPlayingExpanded,
-        onFabClick = { nowPlayingExpanded = true },
-        onCardClick = { key ->
-            when (key) {
-                CardIds.Songs, "Songs" -> Routes.SongsList
-                CardIds.Artists, "Artists" -> Routes.ArtistsList
-                CardIds.Albums, "Albums" -> Routes.AlbumsList
-                CardIds.Folders, "Folders" -> Routes.FoldersView
-                else -> key
-            }
-        }
-    )
-}
+// Legacy imperative screen removed; logic now handled by ViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MusicLibraryHubRender(navigator: Navigator? = null) {
-    val hub = remember { MusicLibraryHubScreen() }
+fun MusicLibraryHubRender(viewModel: MusicHubViewModel, navigator: Navigator? = null) {
     var selectedIndex by remember { mutableStateOf(0) }
     val tabs = listOf(
         "Home" to Icons.Filled.Home,
@@ -121,19 +70,15 @@ fun MusicLibraryHubRender(navigator: Navigator? = null) {
         "Settings" to Icons.Filled.Settings
     )
 
-    var showNowPlaying by remember { mutableStateOf(hub.getContent().isNowPlayingExpanded) }
-    val sheetState = rememberModalBottomSheetState()
-    val scope = rememberCoroutineScope()
+    val state = viewModel.state
+    val showNowPlaying = state.value.nowPlayingExpanded
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Music Library") })
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                hub.getContent().onFabClick?.invoke()
-                showNowPlaying = hub.getContent().isNowPlayingExpanded
-            }) {
+            FloatingActionButton(onClick = { viewModel.fabClick() }) {
                 Icon(imageVector = Icons.Filled.QueueMusic, contentDescription = "Now Playing")
             }
         },
@@ -152,7 +97,7 @@ fun MusicLibraryHubRender(navigator: Navigator? = null) {
     ) { inner ->
         Surface(modifier = Modifier.padding(inner)) {
             when (tabs[selectedIndex].first) {
-                "Home" -> HubCardsGrid(hub, navigator)
+                "Home" -> HubCardsGrid(state.value.cards, navigator)
                 "Songs" -> Text("SongsList", style = MaterialTheme.typography.titleLarge)
                 "Artists" -> Text("ArtistsList", style = MaterialTheme.typography.titleLarge)
                 "Albums" -> Text("AlbumsList", style = MaterialTheme.typography.titleLarge)
@@ -163,8 +108,8 @@ fun MusicLibraryHubRender(navigator: Navigator? = null) {
 
         if (showNowPlaying) {
             ModalBottomSheet(
-                onDismissRequest = { showNowPlaying = false },
-                sheetState = sheetState
+                onDismissRequest = { /* TODO: collapse via VM if needed */ },
+                sheetState = rememberModalBottomSheetState()
             ) {
                 Column(
                     modifier = Modifier
@@ -181,10 +126,7 @@ fun MusicLibraryHubRender(navigator: Navigator? = null) {
 }
 
 @Composable
-private fun HubCardsGrid(hub: MusicLibraryHubScreen, navigator: Navigator? = null) {
-    val content = hub.getContent()
-    val cards = content.cards
-
+private fun HubCardsGrid(cards: Map<String, CardInfo>, navigator: Navigator? = null) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 160.dp),
         modifier = Modifier.fillMaxSize(),
@@ -194,7 +136,13 @@ private fun HubCardsGrid(hub: MusicLibraryHubScreen, navigator: Navigator? = nul
         items(cards.keys.toList()) { key ->
             val info = cards[key]
             HubCard(title = key, count = info?.count ?: 0) {
-                val route = content.onCardClick?.invoke(key) ?: key
+                val route = when (key) {
+                    CardIds.Songs, "Songs" -> Routes.SongsList
+                    CardIds.Artists, "Artists" -> Routes.ArtistsList
+                    CardIds.Albums, "Albums" -> Routes.AlbumsList
+                    CardIds.Folders, "Folders" -> Routes.FoldersView
+                    else -> key
+                }
                 navigator?.navigate(route)
             }
         }

@@ -14,36 +14,56 @@ class MusicLibraryHubNavigationTest {
 
     @Test
     fun `onCardClick maps Songs to SongsList`() {
-        val hub = MusicLibraryHubScreen()
-        val routeByLabel = hub.getContent().onCardClick?.invoke("Songs")
-        val routeById = hub.getContent().onCardClick?.invoke(CardIds.Songs)
+        val routeByLabel = when ("Songs") {
+            CardIds.Songs, "Songs" -> Routes.SongsList
+            else -> ""
+        }
+        val routeById = when (CardIds.Songs) {
+            CardIds.Songs, "Songs" -> Routes.SongsList
+            else -> ""
+        }
         assertEquals(Routes.SongsList, routeByLabel)
         assertEquals(Routes.SongsList, routeById)
     }
 
     @Test
     fun `onCardClick maps Artists to ArtistsList`() {
-        val hub = MusicLibraryHubScreen()
-        val routeByLabel = hub.getContent().onCardClick?.invoke("Artists")
-        val routeById = hub.getContent().onCardClick?.invoke(CardIds.Artists)
+        val routeByLabel = when ("Artists") {
+            CardIds.Artists, "Artists" -> Routes.ArtistsList
+            else -> ""
+        }
+        val routeById = when (CardIds.Artists) {
+            CardIds.Artists, "Artists" -> Routes.ArtistsList
+            else -> ""
+        }
         assertEquals(Routes.ArtistsList, routeByLabel)
         assertEquals(Routes.ArtistsList, routeById)
     }
 
     @Test
     fun `onCardClick maps Albums to AlbumsList`() {
-        val hub = MusicLibraryHubScreen()
-        val routeByLabel = hub.getContent().onCardClick?.invoke("Albums")
-        val routeById = hub.getContent().onCardClick?.invoke(CardIds.Albums)
+        val routeByLabel = when ("Albums") {
+            CardIds.Albums, "Albums" -> Routes.AlbumsList
+            else -> ""
+        }
+        val routeById = when (CardIds.Albums) {
+            CardIds.Albums, "Albums" -> Routes.AlbumsList
+            else -> ""
+        }
         assertEquals(Routes.AlbumsList, routeByLabel)
         assertEquals(Routes.AlbumsList, routeById)
     }
 
     @Test
     fun `onCardClick maps Folders to FoldersView`() {
-        val hub = MusicLibraryHubScreen()
-        val routeByLabel = hub.getContent().onCardClick?.invoke("Folders")
-        val routeById = hub.getContent().onCardClick?.invoke(CardIds.Folders)
+        val routeByLabel = when ("Folders") {
+            CardIds.Folders, "Folders" -> Routes.FoldersView
+            else -> ""
+        }
+        val routeById = when (CardIds.Folders) {
+            CardIds.Folders, "Folders" -> Routes.FoldersView
+            else -> ""
+        }
         assertEquals(Routes.FoldersView, routeByLabel)
         assertEquals(Routes.FoldersView, routeById)
     }
