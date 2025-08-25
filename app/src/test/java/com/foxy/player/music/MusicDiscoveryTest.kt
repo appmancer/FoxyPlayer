@@ -5,7 +5,10 @@ import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.UserInfo
 import java.util.Date
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 data class PathFileGenerationScenario(
@@ -1227,7 +1230,8 @@ class MusicDiscoveryTest {
 
         // Assert - verify section separators exist
         assertTrue(
-            "Should have clear section separators for code navigation. Found $foundSections of ${requiredSections.size} required sections",
+            "Should have clear section separators for code navigation. Found $foundSections of " +
+                "${requiredSections.size} required sections",
             foundSections >= 2 // Require at least 2 of the 3 main sections
         )
     }
@@ -1440,7 +1444,8 @@ class MusicDiscoveryTest {
             val response = result.getOrNull()!!
             // If successful, verify it's NOT the hardcoded fallback pattern
             assertFalse(
-                "Should NOT fall back to hardcoded folder list ['Music', 'Music/Albums', 'Music/Playlists', 'Audio', 'Downloads']",
+                "Should NOT fall back to hardcoded folder list ['Music', 'Music/Albums', " +
+                    "'Music/Playlists', 'Audio', 'Downloads']",
                 response.allFolders == listOf("Music", "Music/Albums", "Music/Playlists", "Audio", "Downloads")
             )
 
@@ -1484,7 +1489,8 @@ class MusicDiscoveryTest {
             val response = result.getOrNull()!!
             // If successful, verify it's NOT the hardcoded audio file fallback pattern
             assertFalse(
-                "Should NOT fall back to hardcoded audio file list ['song1.mp3', 'track2.flac', 'audio3.wav', 'music4.mp3', 'classical.flac']",
+                "Should NOT fall back to hardcoded audio file list ['song1.mp3', 'track2.flac', " +
+                    "'audio3.wav', 'music4.mp3', 'classical.flac']",
                 response.audioFiles == listOf("song1.mp3", "track2.flac", "audio3.wav", "music4.mp3", "classical.flac")
             )
 
@@ -1624,13 +1630,16 @@ class MusicDiscoveryTest {
 
         // Verify path-based naming (using baseName from path)
         assertTrue(
-            "Albums files should contain 'albums' in name", results[0].any { it.contains("albums") }
+            "Albums files should contain 'albums' in name",
+            results[0].any { it.contains("albums") }
         )
         assertTrue(
-            "Playlists files should contain 'playlists' in name", results[1].any { it.contains("playlists") }
+            "Playlists files should contain 'playlists' in name",
+            results[1].any { it.contains("playlists") }
         )
         assertTrue(
-            "Downloads files should contain 'downloads' in name", results[2].any { it.contains("downloads") }
+            "Downloads files should contain 'downloads' in name",
+            results[2].any { it.contains("downloads") }
         )
 
         // Verify extension variety
@@ -1643,13 +1652,16 @@ class MusicDiscoveryTest {
         results.forEach { fileList ->
             fileList.forEach { filename ->
                 assertFalse(
-                    "Should not contain hardcoded patterns like 'song1'", filename.contains("song1")
+                    "Should not contain hardcoded patterns like 'song1'",
+                    filename.contains("song1")
                 )
                 assertFalse(
-                    "Should not contain hardcoded patterns like 'track2'", filename.contains("track2")
+                    "Should not contain hardcoded patterns like 'track2'",
+                    filename.contains("track2")
                 )
                 assertFalse(
-                    "Should not contain hardcoded patterns like 'audio3'", filename.contains("audio3")
+                    "Should not contain hardcoded patterns like 'audio3'",
+                    filename.contains("audio3")
                 )
             }
         }

@@ -6,8 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -19,6 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.rememberNavController
+import com.foxy.player.music.MusicLibraryHubRender
+import com.foxy.player.music.MusicNavHost
+import com.foxy.player.music.NavControllerNavigator
 import com.foxy.player.ui.theme.FoxyPlayerTheme
 
 class MainActivity : ComponentActivity() {
@@ -27,10 +35,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FoxyPlayerTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    HelloFoxyPlayerScreen(
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Vertical)
+                ) { innerPadding ->
+                    val navController = rememberNavController()
+                    // Render only the NavHost as the single source of UI
+                    Surface(modifier = Modifier.padding(innerPadding)) {
+                        MusicNavHost(navController)
+                    }
                 }
             }
         }
