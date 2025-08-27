@@ -100,25 +100,25 @@ class AuthNavigationTest {
         // Act - Simulate what happens in MusicNavHost where authentication is checked
         // The IMPROVED implementation uses LaunchedEffect(authGuard.shouldRedirectToLogin())
         // which means the effect only re-runs when authentication state actually changes
-        
+
         var authCheckCallCount = 0
         val initialAuthState = authGuard.shouldRedirectToLogin()
-        
+
         // Simulate multiple recompositions with same auth state (like what happens in real Compose)
         repeat(10) {
             // With the new implementation using LaunchedEffect(authGuard.shouldRedirectToLogin()),
             // the effect only runs when the auth state changes, not on every recomposition
             val shouldRedirect = authGuard.shouldRedirectToLogin()
             authCheckCallCount++
-            
+
             // The key improvement: navigation will only trigger when auth state changes,
             // not on every recomposition, preventing navigation loops
             assertEquals("Auth state should be consistent", initialAuthState, shouldRedirect)
         }
-        
+
         // Assert - Test that the auth guard provides consistent results
         assertTrue("AuthGuard should handle multiple calls consistently", authCheckCallCount == 10)
-        
+
         // SOLUTION IMPLEMENTED: In MusicNavHost, we now use:
         // LaunchedEffect(authGuard.shouldRedirectToLogin()) { ... }
         // instead of LaunchedEffect(Unit) { ... }
