@@ -24,9 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.rememberNavController
-import com.foxy.player.music.MusicLibraryHubRender
 import com.foxy.player.music.MusicNavHost
-import com.foxy.player.music.NavControllerNavigator
 import com.foxy.player.ui.theme.FoxyPlayerTheme
 
 class MainActivity : ComponentActivity() {

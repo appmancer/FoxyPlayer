@@ -23,7 +23,7 @@ class MusicHubViewModel(
     private val apiClient: AuthenticatedApiClient,
     private val discoveryService: MusicDiscoveryService,
     private val heuristic: HeuristicMusicDiscovery,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HubState())
