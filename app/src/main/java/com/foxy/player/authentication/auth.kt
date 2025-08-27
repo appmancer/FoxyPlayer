@@ -2,6 +2,11 @@
 
 package com.foxy.player.authentication
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.ViewModel
 import com.google.gson.Gson
 import java.io.IOException
 import javax.net.ssl.SSLException
@@ -687,7 +692,7 @@ class LoginScreen {
 }
 
 // Auth ViewModel (MVVM Pattern)
-class AuthViewModel(private val authRepository: AuthRepository) {
+class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     // State management for authentication
     private var _isLoading = false
     private var _isAuthenticated = false
@@ -925,6 +930,82 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+}
+
+// PLY-82: Authentication Navigation Integration
+object AuthRoutes {
+    const val Login = "Login"
+    const val Home = "Home"
+}
+
+// Navigation guard for authentication
+class AuthGuard(private val authRepository: AuthRepository) {
+    fun shouldRedirectToLogin(): Boolean {
+        return !authRepository.isAuthenticated()
+    }
+
+    fun getStartDestination(): String {
+        return if (shouldRedirectToLogin()) {
+            AuthRoutes.Login
+        } else {
+            AuthRoutes.Home
+        }
+    }
+}
+
+// Authentication-aware navigator interface
+interface AuthNavigator {
+    fun navigateToLogin()
+    fun navigateToHome()
+    fun navigateToRoute(route: String)
+}
+
+// Implementation for testing
+class TestAuthNavigator : AuthNavigator {
+    var lastNavigatedRoute: String? = null
+    var loginNavigationCount: Int = 0
+    var homeNavigationCount: Int = 0
+
+    override fun navigateToLogin() {
+        lastNavigatedRoute = AuthRoutes.Login
+        loginNavigationCount++
+    }
+
+    override fun navigateToHome() {
+        lastNavigatedRoute = AuthRoutes.Home
+        homeNavigationCount++
+    }
+
+    override fun navigateToRoute(route: String) {
+        lastNavigatedRoute = route
+    }
+}
+
+// PLY-82: Simplified Login Screen with Navigation Integration
+@Composable fun LoginScreenWithNavigation(
+    authViewModel: AuthViewModel,
+    onLoginSuccess: () -> Unit
+) {
+    // Simple login screen implementation for now
+    Text(
+        text = "Login Screen - TODO: Implement full UI",
+        color = androidx.compose.material3.MaterialTheme.colorScheme.primary
+    )
+
+    // For testing - simulate immediate login
+    LaunchedEffect(Unit) {
+        authViewModel.loginWithStateManagement(
+            "test@example.com",
+            "test-password-not-real"
+        )
+    }
+
+    // Monitor authentication state
+    LaunchedEffect(authViewModel.isAuthenticated) {
+        if (authViewModel.isAuthenticated) {
+            onLoginSuccess()
         }
     }
 }
