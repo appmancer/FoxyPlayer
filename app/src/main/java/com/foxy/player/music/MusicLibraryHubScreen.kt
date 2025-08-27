@@ -12,8 +12,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,7 +63,7 @@ fun MusicLibraryHubRender(viewModel: MusicHubViewModel, navigator: Navigator? = 
     var selectedIndex by remember { mutableStateOf(0) }
     val tabs = listOf(
         "Home" to Icons.Filled.Home,
-        "Songs" to Icons.Filled.QueueMusic,
+        "Songs" to Icons.Filled.LibraryMusic,
         "Artists" to Icons.Filled.Person,
         "Folders" to Icons.Filled.FolderOpen,
         "Settings" to Icons.Filled.Settings
@@ -78,7 +78,7 @@ fun MusicLibraryHubRender(viewModel: MusicHubViewModel, navigator: Navigator? = 
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.fabClick() }) {
-                Icon(imageVector = Icons.Filled.QueueMusic, contentDescription = "Now Playing")
+                Icon(imageVector = Icons.Filled.LibraryMusic, contentDescription = "Now Playing")
             }
         },
         bottomBar = {
