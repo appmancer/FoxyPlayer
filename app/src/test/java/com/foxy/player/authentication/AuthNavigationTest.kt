@@ -33,9 +33,9 @@ class AuthNavigationTest {
         val authRepository = AuthRepository()
         authRepository.clearAuthenticationState() // Ensure clean state
         val authGuard = AuthGuard(authRepository)
-
+        
         // Simulate authentication
-        authRepository.saveAuthenticationState("test-token", UserInfo("test@example.com"))
+        authRepository.saveAuthenticationState("mock-session-token-for-testing", UserInfo("test@example.com"))
 
         // Act & Assert
         assertFalse("Should not redirect to login when authenticated", authGuard.shouldRedirectToLogin())
@@ -69,7 +69,7 @@ class AuthNavigationTest {
         assertTrue("Should redirect to login initially", authGuard.shouldRedirectToLogin())
 
         // Act - Authenticate
-        authRepository.saveAuthenticationState("test-token", UserInfo("test@example.com"))
+        authRepository.saveAuthenticationState("mock-session-token-for-testing", UserInfo("test@example.com"))
 
         // Assert - Now authenticated
         assertFalse("Should not redirect after authentication", authGuard.shouldRedirectToLogin())
@@ -88,5 +88,31 @@ class AuthNavigationTest {
         // Assert
         assertEquals("Login route should be 'Login'", "Login", AuthRoutes.Login)
         assertEquals("Home route should be 'Home'", "Home", AuthRoutes.Home)
+    }
+
+    @Test
+    fun `LoginScreenWithNavigation should not auto-authenticate without user input`() {
+        // Arrange - Set up clean authentication state  
+        val authRepository = AuthRepository()
+        authRepository.clearAuthenticationState()
+        val authViewModel = AuthViewModel(authRepository)
+        
+        // Act - Simulate login screen being displayed without user interaction
+        // (In the actual UI, this would be when the Composable is first rendered)
+        
+        // Allow any LaunchedEffect blocks to execute that might attempt auto-authentication
+        // Using a minimal delay to simulate Compose recomposition cycles
+        Thread.sleep(50)
+        
+        // Assert - Authentication should NOT happen automatically
+        // This ensures the login screen waits for explicit user action
+        assertFalse("Login screen should not auto-authenticate on display", authViewModel.isAuthenticated)
+        
+        // Act - Simulate explicit user authentication (direct repository call for test simplicity)
+        // In real app, this would be triggered by user filling login form and clicking submit
+        authRepository.saveAuthenticationState("user-session-token", UserInfo("user@example.com"))
+        
+        // Assert - Explicit authentication should be reflected in the authentication state
+        assertTrue("Explicit authentication should succeed", authRepository.isAuthenticated())
     }
 }

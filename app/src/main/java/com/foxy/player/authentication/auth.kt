@@ -988,21 +988,18 @@ class TestAuthNavigator : AuthNavigator {
     authViewModel: AuthViewModel,
     onLoginSuccess: () -> Unit
 ) {
-    // Simple login screen implementation for now
+    // PLACEHOLDER: Minimal login screen for navigation integration testing
+    // TODO: Implement complete login UI with username/password fields and submit button
+    // This screen currently serves as a placeholder to establish authentication flow
     Text(
-        text = "Login Screen - TODO: Implement full UI",
+        text = "Login Screen - Placeholder for PLY-82 authentication integration",
         color = androidx.compose.material3.MaterialTheme.colorScheme.primary
     )
 
-    // For testing - simulate immediate login
-    LaunchedEffect(Unit) {
-        authViewModel.loginWithStateManagement(
-            "test@example.com",
-            "test-password-not-real"
-        )
-    }
+    // Authentication is NOT automatic - requires explicit user action
+    // Real implementation will include form fields and user-triggered login
 
-    // Monitor authentication state
+    // Monitor authentication state changes and navigate on successful login
     LaunchedEffect(authViewModel.isAuthenticated) {
         if (authViewModel.isAuthenticated) {
             onLoginSuccess()
