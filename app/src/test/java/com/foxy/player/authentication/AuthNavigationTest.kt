@@ -194,7 +194,8 @@ class AuthNavigationTest {
 
         // Assert - Should not fail with "Unsupported region" error
         assertTrue(
-            "EU server selection should not cause unsupported region error", authViewModel.errorMessage == null || !authViewModel.errorMessage!!.contains("Unsupported region")
+            "EU server selection should not cause unsupported region error",
+            authViewModel.errorMessage == null || !authViewModel.errorMessage!!.contains("Unsupported region")
         )
 
         // Test US server selection (should work as-is)
@@ -204,7 +205,8 @@ class AuthNavigationTest {
 
         // Assert - US should also work
         assertTrue(
-            "US server selection should not cause unsupported region error", authViewModel.errorMessage == null || !authViewModel.errorMessage!!.contains("Unsupported region")
+            "US server selection should not cause unsupported region error",
+            authViewModel.errorMessage == null || !authViewModel.errorMessage!!.contains("Unsupported region")
         )
 
         // This test validates the server mapping fix:
