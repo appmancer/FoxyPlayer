@@ -37,7 +37,7 @@ class MusicDatabaseProvider : DatabaseProvider {
         /**
          * Initialize the provider with Android application context.
          * Must be called before using the database, typically in Application.onCreate().
-         * * @param context The application context (will be converted to applicationContext automatically)
+         * @param context The application context (will be converted to applicationContext automatically)
          * @throws IllegalArgumentException if context is null
          */
         fun initialize(context: android.content.Context?) {
@@ -47,7 +47,7 @@ class MusicDatabaseProvider : DatabaseProvider {
 
         /**
          * Get the Room database instance using thread-safe singleton pattern.
-         * * @return Room database instance or null if initialization failed
+         * @return Room database instance or null if initialization failed
          * @throws IllegalStateException if not initialized with context
          */
         fun getRoomDatabase(): MusicRoomDatabase? {
@@ -66,7 +66,7 @@ class MusicDatabaseProvider : DatabaseProvider {
 
         /**
          * Create Room database instance with proper error handling.
-         * * @return Configured Room database instance
+         * @return Configured Room database instance
          * @throws IllegalStateException if provider not initialized with context
          */
         private fun createRoomDatabase(): MusicRoomDatabase {
