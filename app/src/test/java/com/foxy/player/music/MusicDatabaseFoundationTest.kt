@@ -8,8 +8,8 @@ class MusicDatabaseFoundationTest {
 
     @Test
     fun `should create music database with Room foundation`() {
-        // Arrange - attempt to get a database instance
-        val databaseProvider = MusicDatabaseProvider()
+        // Arrange - attempt to get a database instance through provider
+        val databaseProvider: DatabaseProvider = MusicDatabaseProvider()
 
         // Act - attempt to create a database instance
         val database = databaseProvider.getDatabase()
@@ -26,7 +26,7 @@ class MusicDatabaseFoundationTest {
     @Test
     fun `should provide track DAO for music data operations`() {
         // Arrange
-        val databaseProvider = MusicDatabaseProvider()
+        val databaseProvider: DatabaseProvider = MusicDatabaseProvider()
         val database = databaseProvider.getDatabase()
 
         // Act - get track DAO
