@@ -21,31 +21,82 @@ interface DatabaseProvider {
 
 /**
  * SQLite Database Foundation for Music Player
- * Provides Room database abstraction and basic DAO access
+ * Provides Room database abstraction and basic DAO access with proper Android context management.
+ * * This provider implements the Singleton pattern with thread-safe initialization
+ * and provides a clean abstraction over Room database operations.
  */
 class MusicDatabaseProvider : DatabaseProvider {
     companion object {
         @Volatile
         private var roomDatabaseInstance: MusicRoomDatabase? = null
 
+        // Context to be injected for Room database creation
+        @Volatile
+        private var applicationContext: android.content.Context? = null
+
+        /**
+         * Initialize the provider with Android application context.
+         * Must be called before using the database, typically in Application.onCreate().
+         * @param context The application context (will be converted to applicationContext automatically)
+         * @throws IllegalArgumentException if context is null
+         */
+        fun initialize(context: android.content.Context?) {
+            require(context != null) { "Application context cannot be null" }
+            applicationContext = context.applicationContext
+        }
+
+        /**
+         * Get the Room database instance using thread-safe singleton pattern.
+         * @return Room database instance or null if initialization failed
+         * @throws IllegalStateException if not initialized with context
+         */
         fun getRoomDatabase(): MusicRoomDatabase? {
             return try {
                 roomDatabaseInstance ?: synchronized(this) {
                     roomDatabaseInstance ?: createRoomDatabase().also { roomDatabaseInstance = it }
                 }
+            } catch (e: IllegalStateException) {
+                // Re-throw initialization errors
+                throw e
             } catch (e: Exception) {
-                // Return null if Room database creation fails (e.g., in unit tests)
+                // Log error in production - for now return null to maintain backward compatibility
                 null
             }
         }
 
+        /**
+         * Create Room database instance with proper error handling.
+         * @return Configured Room database instance
+         * @throws IllegalStateException if provider not initialized with context
+         */
         private fun createRoomDatabase(): MusicRoomDatabase {
-            // Note: This is a placeholder for unit testing. In production, 
-            // this should use proper ApplicationContext from Android Application class
-            throw UnsupportedOperationException(
-                "Room database requires valid Android Context. " +
-                "Use proper ApplicationContext in production or mock context in tests."
+            val context = applicationContext ?: throw IllegalStateException(
+                "MusicDatabaseProvider must be initialized with context before use. " +
+                    "Call MusicDatabaseProvider.initialize(context) in Application.onCreate()"
             )
+
+            return androidx.room.Room.databaseBuilder(
+                context,
+                MusicRoomDatabase::class.java,
+                DATABASE_NAME
+            ).build()
+        }
+
+        private const val DATABASE_NAME = "music_database"
+
+        // Expose database name for testing
+        const val DATABASE_NAME_FOR_TESTING = DATABASE_NAME
+
+        /**
+         * Reset database instance for testing purposes.
+         * Should only be used in test environments.
+         */
+        internal fun resetForTesting() {
+            synchronized(this) {
+                roomDatabaseInstance?.close()
+                roomDatabaseInstance = null
+                applicationContext = null
+            }
         }
     }
 
@@ -114,13 +165,13 @@ class TrackDao : TrackDaoInterface {
  */
 class SimpleRoomTrackDao : RoomTrackDao {
     private val tracks = mutableListOf<TrackEntity>()
-    
+
     override suspend fun getAllTracks(): List<TrackEntity> = tracks.toList()
-    
+
     override suspend fun insertTrack(track: TrackEntity) {
         tracks.add(track)
     }
-    
+
     override suspend fun getTrackCount(): Int = tracks.size
 }
 
