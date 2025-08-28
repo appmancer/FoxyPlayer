@@ -3,6 +3,7 @@ package com.foxy.player.music
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
+import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
@@ -39,11 +40,12 @@ class MusicDatabaseProvider : DatabaseProvider {
         }
 
         private fun createRoomDatabase(): MusicRoomDatabase {
-            return androidx.room.Room.inMemoryDatabaseBuilder(
-                // For unit testing, use a simple context placeholder
-                android.app.Application(),
-                MusicRoomDatabase::class.java
-            ).allowMainThreadQueries().build()
+            // Note: This is a placeholder for unit testing. In production, 
+            // this should use proper ApplicationContext from Android Application class
+            throw UnsupportedOperationException(
+                "Room database requires valid Android Context. " +
+                "Use proper ApplicationContext in production or mock context in tests."
+            )
         }
     }
 
@@ -112,14 +114,13 @@ class TrackDao : TrackDaoInterface {
  */
 class SimpleRoomTrackDao : RoomTrackDao {
     private val tracks = mutableListOf<TrackEntity>()
-
+    
     override suspend fun getAllTracks(): List<TrackEntity> = tracks.toList()
-
-    override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
-        val track = TrackEntity(id, title, artist, album, filePath)
+    
+    override suspend fun insertTrack(track: TrackEntity) {
         tracks.add(track)
     }
-
+    
     override suspend fun getTrackCount(): Int = tracks.size
 }
 
@@ -135,7 +136,8 @@ class RoomTrackDaoWrapper(
     suspend fun getAllTracks(): List<TrackEntity> = roomDao.getAllTracks()
 
     suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
-        roomDao.insertTrack(id, title, artist, album, filePath)
+        val track = TrackEntity(id, title, artist, album, filePath)
+        roomDao.insertTrack(track)
     }
 
     suspend fun getTrackCount(): Int = roomDao.getTrackCount()
@@ -159,28 +161,32 @@ data class TrackEntity(
 
 /**
  * Room Data Access Object for track operations.
- * * Provides type-safe access to track data with compile-time SQL validation.
+ * Provides type-safe access to track data with compile-time SQL validation.
  * Uses suspend functions for non-blocking database operations.
  */
 @Dao
 interface RoomTrackDao {
     /**
      * Retrieves all tracks from the database.
-     * * @return List of all track entities. Returns empty list if no tracks exist.
+     * @return List of all track entities. Returns empty list if no tracks exist.
      */
     @Query("SELECT * FROM tracks")
     suspend fun getAllTracks(): List<TrackEntity>
 
     /**
      * Inserts a new track into the database.
-     * * @param track The track entity to insert
+     * @param id The unique identifier for the track
+     * @param title The title of the track
+     * @param artist The artist name
+     * @param album The album name
+     * @param filePath The file path where the track is stored
      */
-    @Query("INSERT INTO tracks (id, title, artist, album, filePath) VALUES (:id, :title, :artist, :album, :filePath)")
-    suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String)
+    @Insert
+    suspend fun insertTrack(track: TrackEntity)
 
     /**
      * Gets the total count of tracks in the database.
-     * * @return Number of tracks
+     * @return Number of tracks
      */
     @Query("SELECT COUNT(*) FROM tracks")
     suspend fun getTrackCount(): Int
@@ -188,9 +194,9 @@ interface RoomTrackDao {
 
 /**
  * Room database for music player data storage.
- * * This abstract class defines the database configuration and provides
+ * This abstract class defines the database configuration and provides
  * access to DAOs. Room will generate the implementation at compile time.
- * * Database version 1 - Initial schema with tracks table.
+ * Database version 1 - Initial schema with tracks table.
  */
 @Database(
     entities = [TrackEntity::class],
@@ -201,7 +207,7 @@ abstract class MusicRoomDatabase : RoomDatabase() {
 
     /**
      * Provides access to track data operations.
-     * * @return The track DAO instance
+     * @return The track DAO instance
      */
     abstract fun trackDao(): RoomTrackDao
 
