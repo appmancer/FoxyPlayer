@@ -1065,6 +1065,13 @@ fun LoginScreenWithNavigation(
     var selectedServer by remember { mutableStateOf("US") }
     var isServerDropdownExpanded by remember { mutableStateOf(false) }
 
+    // Navigation effect: when authentication succeeds, navigate to home
+    LaunchedEffect(authViewModel.isAuthenticated) {
+        if (authViewModel.isAuthenticated) {
+            onLoginSuccess()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
