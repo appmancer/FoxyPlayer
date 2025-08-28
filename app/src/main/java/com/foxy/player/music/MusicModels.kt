@@ -3,6 +3,87 @@ package com.foxy.player.music
 import com.google.gson.annotations.SerializedName
 import java.util.Date
 
+// ===== SQLITE DATABASE FOUNDATION =====
+
+/**
+ * Interface for database provider to enable dependency injection and testing
+ */
+interface DatabaseProvider {
+    /**
+     * Gets the main music database instance
+     * @return MusicDatabase instance for data operations
+     */
+    fun getDatabase(): MusicDatabase
+}
+
+/**
+ * SQLite Database Foundation for Music Player
+ * Provides Room database abstraction and basic DAO access
+ *
+ * This class serves as the concrete implementation of DatabaseProvider
+ * and will be enhanced with Room annotations in future TDD cycles.
+ */
+class MusicDatabaseProvider : DatabaseProvider {
+
+    override fun getDatabase(): MusicDatabase {
+        return MusicDatabase()
+    }
+}
+
+/**
+ * Interface for the main music database to enable testing and abstraction
+ */
+interface Database {
+    /**
+     * Checks if the database has been properly initialized
+     * @return true if database is ready for operations
+     */
+    fun isInitialized(): Boolean
+
+    /**
+     * Gets the Data Access Object for track operations
+     * @return TrackDao instance for track-related database operations
+     */
+    fun trackDao(): TrackDao
+}
+
+/**
+ * Main database class for music data storage
+ *
+ * This will be converted to a Room database with @Database annotation
+ * in future TDD cycles when Room dependencies are added.
+ */
+class MusicDatabase : Database {
+    private var initialized = true
+
+    override fun isInitialized(): Boolean = initialized
+
+    override fun trackDao(): TrackDao {
+        return TrackDao()
+    }
+}
+
+/**
+ * Interface for track data access operations
+ */
+interface TrackDataAccess {
+    /**
+     * Checks if the DAO is ready for database operations
+     * @return true if DAO is initialized and ready
+     */
+    fun isReady(): Boolean
+}
+
+/**
+ * Data Access Object for track operations
+ *
+ * This will be converted to a Room DAO with @Dao annotation
+ * and proper SQL queries in future TDD cycles.
+ */
+class TrackDao : TrackDataAccess {
+    override fun isReady(): Boolean = true
+}
+
 // ===== PCLOUD API MODELS =====
 
 /**
