@@ -687,7 +687,8 @@ class LoginScreen {
             usernamePlaceholder = "Email or Username",
             passwordPlaceholder = "Password",
             usernameLabel = "Email or Username",
-            passwordLabel = "Password", loginButtonText = if (_isLoading) "Logging in..." else "Login",
+            passwordLabel = "Password",
+            loginButtonText = if (_isLoading) "Logging in..." else "Login",
             submitButtonText = if (_isLoading) "Logging in..." else "Login",
             isPasswordFieldObscured = true,
             isLoading = _isLoading,
@@ -1152,8 +1153,8 @@ fun LoginScreenWithNavigation(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Login button
-        val isValidEmail = username.isBlank() || username.contains("@") || !username.contains(" ")
-        val isFormValid = username.isNotBlank() && password.isNotBlank() && isValidEmail
+        val isValidInput = username.isBlank() || (username.contains("@") && !username.contains(" ")) || (!username.contains("@") && !username.contains(" ")) // Allow usernames without @
+        val isFormValid = username.isNotBlank() && password.isNotBlank() && isValidInput
 
         Button(
             onClick = {
@@ -1173,10 +1174,10 @@ fun LoginScreenWithNavigation(
         }
 
         // Validation message
-        if (username.isNotBlank() && !isValidEmail) {
+        if (username.isNotBlank() && !isValidInput) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Please enter a valid email address",
+                text = "Please enter a valid email address or username (no spaces)",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -1189,13 +1190,6 @@ fun LoginScreenWithNavigation(
                 text = authViewModel.errorMessage!!,
                 color = MaterialTheme.colorScheme.error
             )
-        }
-    }
-
-    // Monitor authentication state changes and navigate on successful login
-    LaunchedEffect(authViewModel.isAuthenticated) {
-        if (authViewModel.isAuthenticated) {
-            onLoginSuccess()
         }
     }
 }
