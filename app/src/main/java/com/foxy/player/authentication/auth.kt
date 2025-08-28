@@ -1153,7 +1153,11 @@ fun LoginScreenWithNavigation(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Login button
-        val isValidInput = username.isBlank() || (username.contains("@") && !username.contains(" ")) || (!username.contains("@") && !username.contains(" ")) // Allow usernames without @
+        val isValidInput = username.isBlank() || (username.contains("@") && !username.contains(" ")) || (
+            !username.contains(
+                "@"
+            ) && !username.contains(" ")
+            ) // Allow usernames without @
         val isFormValid = username.isNotBlank() && password.isNotBlank() && isValidInput
 
         Button(
