@@ -1,5 +1,11 @@
 package com.foxy.player.music
 
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.RoomDatabase
 import com.google.gson.annotations.SerializedName
 import java.util.Date
 
@@ -57,6 +63,75 @@ interface TrackDaoInterface {
  */
 class TrackDao : TrackDaoInterface {
     override fun isReady(): Boolean = true
+}
+
+// ===== ROOM DATABASE IMPLEMENTATION =====
+
+/**
+ * Room entity representing a music track in the database.
+ * * This entity maps to the 'tracks' table and contains essential metadata
+ * for each music track in the user's library.
+ */
+@Entity(tableName = "tracks")
+data class TrackEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val filePath: String
+)
+
+/**
+ * Room Data Access Object for track operations.
+ * * Provides type-safe access to track data with compile-time SQL validation.
+ * Uses suspend functions for non-blocking database operations.
+ */
+@Dao
+interface RoomTrackDao {
+    /**
+     * Retrieves all tracks from the database.
+     * * @return List of all track entities. Returns empty list if no tracks exist.
+     */
+    @Query("SELECT * FROM tracks")
+    suspend fun getAllTracks(): List<TrackEntity>
+
+    /**
+     * Inserts a new track into the database.
+     * * @param track The track entity to insert
+     */
+    @Query("INSERT INTO tracks (id, title, artist, album, filePath) VALUES (:id, :title, :artist, :album, :filePath)")
+    suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String)
+
+    /**
+     * Gets the total count of tracks in the database.
+     * * @return Number of tracks
+     */
+    @Query("SELECT COUNT(*) FROM tracks")
+    suspend fun getTrackCount(): Int
+}
+
+/**
+ * Room database for music player data storage.
+ * * This abstract class defines the database configuration and provides
+ * access to DAOs. Room will generate the implementation at compile time.
+ * * Database version 1 - Initial schema with tracks table.
+ */
+@Database(
+    entities = [TrackEntity::class],
+    version = 1,
+    exportSchema = false
+)
+abstract class MusicRoomDatabase : RoomDatabase() {
+
+    /**
+     * Provides access to track data operations.
+     * * @return The track DAO instance
+     */
+    abstract fun trackDao(): RoomTrackDao
+
+    companion object {
+        const val DATABASE_NAME = "music_database"
+    }
 }
 
 // ===== PCLOUD API MODELS =====
