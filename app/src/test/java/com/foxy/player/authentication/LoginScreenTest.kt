@@ -22,8 +22,8 @@ class LoginScreenTest {
         assertTrue("Should have login button", content.hasLoginButton)
         assertTrue("Should have server selection field", content.hasServerSelectionField)
 
-        // Assert - Field labels and placeholders
-        assertEquals("Username placeholder should be correct", "Username", content.usernamePlaceholder)
+        // Assert - Field labels and placeholders (updated for PLY-83)
+        assertEquals("Username placeholder should be correct", "Email or Username", content.usernamePlaceholder)
         assertEquals("Password placeholder should be correct", "Password", content.passwordPlaceholder)
         assertEquals("Login button text should be correct", "Login", content.loginButtonText)
         assertEquals("Server placeholder should be correct", "pCloud Server (optional)", content.serverPlaceholder)
