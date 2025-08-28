@@ -1122,7 +1122,9 @@ fun LoginScreenWithNavigation(
                     )
                 },
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
             )
             ExposedDropdownMenu(
                 expanded = isServerDropdownExpanded,
@@ -1149,7 +1151,13 @@ fun LoginScreenWithNavigation(
         Button(
             onClick = {
                 // PLY-83: Connect to authentication backend
-                authViewModel.login(username, password, selectedServer)
+                // Map UI server selection to backend region format
+                val backendRegion = when (selectedServer) {
+                    "EU" -> "EUROPE"
+                    "US" -> "US"
+                    else -> "US" // Default fallback
+                }
+                authViewModel.login(username, password, backendRegion)
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = isFormValid && !authViewModel.isLoading
