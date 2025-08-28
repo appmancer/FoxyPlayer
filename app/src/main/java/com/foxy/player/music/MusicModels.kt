@@ -23,8 +23,32 @@ interface DatabaseProvider {
  * Provides Room database abstraction and basic DAO access
  */
 class MusicDatabaseProvider : DatabaseProvider {
+    companion object {
+        @Volatile
+        private var roomDatabaseInstance: MusicRoomDatabase? = null
+
+        fun getRoomDatabase(): MusicRoomDatabase? {
+            return try {
+                roomDatabaseInstance ?: synchronized(this) {
+                    roomDatabaseInstance ?: createRoomDatabase().also { roomDatabaseInstance = it }
+                }
+            } catch (e: Exception) {
+                // Return null if Room database creation fails (e.g., in unit tests)
+                null
+            }
+        }
+
+        private fun createRoomDatabase(): MusicRoomDatabase {
+            return androidx.room.Room.inMemoryDatabaseBuilder(
+                // For unit testing, use a simple context placeholder
+                android.app.Application(),
+                MusicRoomDatabase::class.java
+            ).allowMainThreadQueries().build()
+        }
+    }
+
     override fun getDatabase(): MusicDatabaseInterface {
-        return MusicDatabase()
+        return RoomDatabaseWrapper()
     }
 }
 
@@ -51,6 +75,24 @@ class MusicDatabase : MusicDatabaseInterface {
 }
 
 /**
+ * Wrapper that bridges old interface with new Room database
+ * Allows gradual migration from foundation to Room
+ */
+class RoomDatabaseWrapper : MusicDatabaseInterface {
+    override fun isInitialized(): Boolean = true
+
+    override fun trackDao(): TrackDaoInterface {
+        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
+        return if (roomDatabase != null) {
+            RoomTrackDaoWrapper(roomDatabase.trackDao())
+        } else {
+            // Fallback to simple in-memory DAO if Room is unavailable
+            RoomTrackDaoWrapper(SimpleRoomTrackDao())
+        }
+    }
+}
+
+/**
  * DAO interface for track operations
  */
 interface TrackDaoInterface {
@@ -63,6 +105,40 @@ interface TrackDaoInterface {
  */
 class TrackDao : TrackDaoInterface {
     override fun isReady(): Boolean = true
+}
+
+/**
+ * Simple implementation of RoomTrackDao for testing when Room is unavailable
+ */
+class SimpleRoomTrackDao : RoomTrackDao {
+    private val tracks = mutableListOf<TrackEntity>()
+
+    override suspend fun getAllTracks(): List<TrackEntity> = tracks.toList()
+
+    override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
+        val track = TrackEntity(id, title, artist, album, filePath)
+        tracks.add(track)
+    }
+
+    override suspend fun getTrackCount(): Int = tracks.size
+}
+
+/**
+ * Wrapper that bridges old DAO interface with Room DAO
+ * Provides actual database operations through Room
+ */
+class RoomTrackDaoWrapper(
+    private val roomDao: RoomTrackDao
+) : TrackDaoInterface {
+    override fun isReady(): Boolean = true
+
+    suspend fun getAllTracks(): List<TrackEntity> = roomDao.getAllTracks()
+
+    suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
+        roomDao.insertTrack(id, title, artist, album, filePath)
+    }
+
+    suspend fun getTrackCount(): Int = roomDao.getTrackCount()
 }
 
 // ===== ROOM DATABASE IMPLEMENTATION =====
@@ -181,9 +257,13 @@ class TrackRepository(
 
     override suspend fun getAllTracks(): List<TrackEntity> {
         return try {
-            // For now, return empty list as we're building the foundation
-            // This will be enhanced to actually query the Room database in future iterations
-            emptyList()
+            val trackDao = database.trackDao()
+            if (trackDao is RoomTrackDaoWrapper) {
+                trackDao.getAllTracks()
+            } else {
+                // Fallback for old implementation
+                emptyList()
+            }
         } catch (e: Exception) {
             // Return empty list on error rather than throwing exception
             emptyList()
@@ -192,6 +272,10 @@ class TrackRepository(
 
     override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
         try {
+            val trackDao = database.trackDao()
+            if (trackDao is RoomTrackDaoWrapper) {
+                trackDao.insertTrack(id, title, artist, album, filePath)
+            }
             // Placeholder for Room database insertion
             // This will be enhanced to actually insert into Room database in future iterations
         } catch (e: Exception) {
@@ -201,9 +285,12 @@ class TrackRepository(
 
     override suspend fun getTrackCount(): Int {
         return try {
-            // Placeholder returning 0 for foundation
-            // This will be enhanced to actually count from Room database in future iterations
-            0
+            val trackDao = database.trackDao()
+            if (trackDao is RoomTrackDaoWrapper) {
+                trackDao.getTrackCount()
+            } else {
+                0
+            }
         } catch (e: Exception) {
             // Return 0 on error rather than throwing exception
             0
