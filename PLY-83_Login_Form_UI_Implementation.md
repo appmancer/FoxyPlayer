@@ -1,7 +1,7 @@
-# Integrate Authentication UI into App Navigation Flow
+# Login Form UI Implementation
 
 **Objective**
-Add authentication guard and login route to complete user authentication experience following test-driven development approach.
+Replace placeholder login screen with functional username/password form connected to authentication backend following test-driven development approach.
 
 **Context**
 Based on design specifications, implement the functionality with focus on correctness and integration with existing systems.
@@ -17,7 +17,7 @@ Based on design specifications, implement the functionality with focus on correc
 * **Context window optimization**: AI needs all domain code visible simultaneously
 
 **Task**
-Add authentication guard and login route to complete user authentication experience using TDD methodology:
+Replace placeholder login screen with functional username/password form connected to authentication backend using TDD methodology:
 
 * Write tests covering functional requirements
 * Implement core functionality following established patterns

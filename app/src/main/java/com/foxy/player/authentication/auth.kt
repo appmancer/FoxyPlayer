@@ -2,10 +2,33 @@
 
 package com.foxy.player.authentication
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import com.google.gson.Gson
 import java.io.IOException
@@ -52,7 +75,11 @@ data class LoginScreenContent(
     val hasLoginButton: Boolean,
     val usernamePlaceholder: String,
     val passwordPlaceholder: String,
+    val usernameLabel: String = usernamePlaceholder,
+    val passwordLabel: String = passwordPlaceholder,
     val loginButtonText: String,
+    val submitButtonText: String = loginButtonText, // Alias for backwards compatibility
+    val hasSubmitButton: Boolean = hasLoginButton, // Alias for backwards compatibility
     val isPasswordFieldObscured: Boolean,
     val isLoading: Boolean = false,
     val isLoginButtonDisabled: Boolean = false,
@@ -61,10 +88,12 @@ data class LoginScreenContent(
     val hasErrorMessage: Boolean = false,
     val errorMessage: String? = null,
     val hasServerSelectionField: Boolean = true,
+    val hasServerSelection: Boolean = hasServerSelectionField,
     val serverPlaceholder: String = "pCloud Server (optional)",
     val defaultServerValue: String = "api.pcloud.com",
     val isServerFieldEnabled: Boolean = true,
-    val currentServerValue: String = "api.pcloud.com"
+    val currentServerValue: String = "api.pcloud.com",
+    val serverOptions: List<String> = listOf("US", "EU")
 )
 
 // Auth Repository
@@ -650,14 +679,17 @@ class LoginScreen {
     private var _currentServerValue = "api.pcloud.com"
 
     fun content(): LoginScreenContent {
-        // Minimal implementation to make the PLY-45 test pass
+        // PLY-83: Updated implementation for functional login form
         return LoginScreenContent(
             hasUsernameTextField = true,
             hasPasswordTextField = true,
             hasLoginButton = true,
-            usernamePlaceholder = "Username",
+            usernamePlaceholder = "Email or Username",
             passwordPlaceholder = "Password",
+            usernameLabel = "Email or Username",
+            passwordLabel = "Password",
             loginButtonText = if (_isLoading) "Logging in..." else "Login",
+            submitButtonText = if (_isLoading) "Logging in..." else "Login",
             isPasswordFieldObscured = true,
             isLoading = _isLoading,
             isLoginButtonDisabled = _isLoading,
@@ -666,10 +698,12 @@ class LoginScreen {
             hasErrorMessage = _errorMessage != null,
             errorMessage = _errorMessage,
             hasServerSelectionField = true,
+            hasServerSelection = true,
             serverPlaceholder = "pCloud Server (optional)",
             defaultServerValue = "api.pcloud.com",
             isServerFieldEnabled = true,
-            currentServerValue = _currentServerValue
+            currentServerValue = _currentServerValue,
+            serverOptions = listOf("US", "EU")
         )
     }
 
@@ -787,6 +821,42 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
                     )
                     authRepository.triggerLoginEvent(authResponse.userInfo)
                 }
+            }
+        }.start()
+    }
+
+    // PLY-83: Login with server selection for functional login form
+    fun login(username: String, password: String, serverRegion: String) {
+        _isLoading = true
+        _username = username
+        _errorMessage = null
+
+        Thread {
+            Thread.sleep(100) // Simulate network delay
+
+            // Use the server-aware authentication method
+            val result = authRepository.authenticateWithServerSupport(username, password, serverRegion)
+
+            _isLoading = false
+            if (result.isSuccess) {
+                val authResponse = result.getOrNull()
+                if (authResponse != null) {
+                    // Update ViewModel state
+                    _isAuthenticated = true
+                    _authToken = authResponse.authToken
+
+                    // Save to repository state management and trigger login event
+                    authRepository.saveAuthenticationState(
+                        authResponse.authToken,
+                        authResponse.userInfo
+                    )
+                    authRepository.triggerLoginEvent(authResponse.userInfo)
+                }
+            } else {
+                // Handle error state
+                _isAuthenticated = false
+                _authToken = null
+                _errorMessage = result.exceptionOrNull()?.message ?: "Authentication failed"
             }
         }.start()
     }
@@ -983,26 +1053,143 @@ class TestAuthNavigator : AuthNavigator {
     }
 }
 
-// PLY-82: Simplified Login Screen with Navigation Integration
-@Composable fun LoginScreenWithNavigation(
+// PLY-83: Functional Login Screen with Form UI
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LoginScreenWithNavigation(
     authViewModel: AuthViewModel,
     onLoginSuccess: () -> Unit
 ) {
-    // PLACEHOLDER: Minimal login screen for navigation integration testing
-    // TODO: Implement complete login UI with username/password fields and submit button
-    // This screen currently serves as a placeholder to establish authentication flow
-    Text(
-        text = "Login Screen - Placeholder for PLY-82 authentication integration",
-        color = androidx.compose.material3.MaterialTheme.colorScheme.primary
-    )
+    // PLY-83: Functional login form state
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var selectedServer by remember { mutableStateOf("US") }
+    var isServerDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Authentication is NOT automatic - requires explicit user action
-    // Real implementation will include form fields and user-triggered login
-
-    // Monitor authentication state changes and navigate on successful login
+    // Navigation effect: when authentication succeeds, navigate to home
     LaunchedEffect(authViewModel.isAuthenticated) {
         if (authViewModel.isAuthenticated) {
             onLoginSuccess()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "pCloud Music Player",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Username/Email field
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Email or Username") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Password field
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Server selection dropdown
+        ExposedDropdownMenuBox(
+            expanded = isServerDropdownExpanded,
+            onExpandedChange = { isServerDropdownExpanded = !isServerDropdownExpanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                readOnly = true,
+                value = "$selectedServer Server",
+                onValueChange = { },
+                label = { Text("Server") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(
+                        expanded = isServerDropdownExpanded
+                    )
+                },
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = isServerDropdownExpanded,
+                onDismissRequest = { isServerDropdownExpanded = false }
+            ) {
+                listOf("US", "EU").forEach { server ->
+                    DropdownMenuItem(
+                        onClick = {
+                            selectedServer = server
+                            isServerDropdownExpanded = false
+                        },
+                        text = { Text("$server Server") }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Login button
+        val isValidInput = username.isBlank() || (username.contains("@") && !username.contains(" ")) || (!username.contains("@") && !username.contains(" ")) // Allow usernames without @
+        val isFormValid = username.isNotBlank() && password.isNotBlank() && isValidInput
+
+        Button(
+            onClick = {
+                // PLY-83: Connect to authentication backend
+                // Map UI server selection to backend region format
+                val backendRegion = when (selectedServer) {
+                    "EU" -> "EUROPE"
+                    "US" -> "US"
+                    else -> "US" // Default fallback
+                }
+                authViewModel.login(username, password, backendRegion)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = isFormValid && !authViewModel.isLoading
+        ) {
+            Text(if (authViewModel.isLoading) "Logging in..." else "Login")
+        }
+
+        // Validation message
+        if (username.isNotBlank() && !isValidInput) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Please enter a valid email address or username (no spaces)",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        // Error message display
+        if (authViewModel.errorMessage != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = authViewModel.errorMessage!!,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
 }
