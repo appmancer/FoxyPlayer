@@ -81,4 +81,39 @@ class MusicDatabaseFoundationTest {
         assertNotNull("DAO interface should be accessible", daoInterface)
         assertNotNull("Entity class should be accessible", entityClass)
     }
+
+    @Test
+    fun `should integrate Room database with dependency injection and repository pattern`() {
+        // Arrange - create repository with dependency injection
+        val repository = TrackRepository()
+
+        // Act - verify repository provides real database operations
+        val isRepositoryReady = repository.isReady()
+
+        // Assert - verify repository integrates with Room database
+        assertTrue("Repository should be ready for operations", isRepositoryReady)
+
+        // Verify repository has essential CRUD operations
+        assertNotNull(
+            "Repository should have method to get all tracks",
+            repository::class.java.declaredMethods.find { it.name == "getAllTracks" }
+        )
+
+        assertNotNull(
+            "Repository should have method to insert track",
+            repository::class.java.declaredMethods.find { it.name == "insertTrack" }
+        )
+
+        assertNotNull(
+            "Repository should have method to get track count",
+            repository::class.java.declaredMethods.find { it.name == "getTrackCount" }
+        )
+
+        // Verify repository uses dependency injection for database access
+        val repositoryWithCustomDatabase = TrackRepository(MusicDatabaseProvider())
+        assertTrue(
+            "Repository with injected database should be ready",
+            repositoryWithCustomDatabase.isReady()
+        )
+    }
 }
