@@ -18,7 +18,8 @@ class PaginatedDataLayerTest {
             testRepository.insertTrack(
                 id = "track_$index",
                 title = "Song $index",
-                artist = "Artist $index", album = "Album $index",
+                artist = "Artist $index",
+                album = "Album $index",
                 filePath = "/path/to/song_$index.mp3"
             )
         }
