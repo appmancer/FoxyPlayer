@@ -56,7 +56,7 @@ class PaginatedDataLayerTest {
     fun `SimpleRoomTrackDao should implement getTracksForRange method`() = runBlocking {
         // Arrange - Create SimpleRoomTrackDao directly
         val simpleDao = SimpleRoomTrackDao()
-        
+
         // Insert test tracks
         val testTracks = listOf(
             TrackEntity("1", "Song 1", "Artist 1", "Album 1", "/path/1.mp3"),
@@ -65,18 +65,67 @@ class PaginatedDataLayerTest {
             TrackEntity("4", "Song 4", "Artist 4", "Album 4", "/path/4.mp3"),
             TrackEntity("5", "Song 5", "Artist 5", "Album 5", "/path/5.mp3")
         )
-        
+
         testTracks.forEach { track ->
             simpleDao.insertTrack(track)
         }
-        
+
         // Act - Test getTracksForRange method that should exist
         val rangeResult = simpleDao.getTracksForRange(1, 3)
-        
+
         // Assert - Verify method works correctly
         assertEquals("Should return requested number of tracks", 3, rangeResult.size)
         assertEquals("First track should be at start index", "Song 2", rangeResult[0].title)
         assertEquals("Last track should be at start index + count", "Song 4", rangeResult[2].title)
+    }
+
+    @Test
+    fun `TrackRepository should correctly identify RoomTrackDaoWrapper from database`() = runBlocking {
+        // Arrange - Create repository with a test database that maintains state
+        val testDao = SimpleRoomTrackDao()
+        val databaseProvider = object : DatabaseProvider {
+            override fun getDatabase(): MusicDatabaseInterface {
+                return object : MusicDatabaseInterface {
+                    override fun isInitialized(): Boolean = true
+                    override fun trackDao(): TrackDaoInterface {
+                        return RoomTrackDaoWrapper(testDao)
+                    }
+                }
+            }
+        }
+        val repository = TrackRepository(databaseProvider)
+        
+        // Insert a test track to verify the DAO is functioning
+        repository.insertTrack("test1", "Test Song", "Test Artist", "Test Album", "/test/path.mp3")
+        
+        // Act - Get track count (this should work if type checking is correct)
+        val count = repository.getTrackCount()
+        
+        // Assert - Should be able to count tracks (not return 0 due to type check failure)
+        // This test verifies that the DAO type checking works correctly
+        assertEquals("Should return actual track count, not fallback to 0", 1, count)
+        
+        // Also test getAllTracks method
+        val tracks = repository.getAllTracks()
+        assertEquals("Should return actual tracks, not empty list", 1, tracks.size)
+        assertEquals("Track should have correct title", "Test Song", tracks[0].title)
+    }
+
+    @Test
+    fun `SimpleRoomTrackDao should work correctly when wrapped`() = runBlocking {
+        // Arrange - Test the SimpleRoomTrackDao directly  
+        val simpleDao = SimpleRoomTrackDao()
+        val wrapper = RoomTrackDaoWrapper(simpleDao)
+        
+        // Act - Insert and retrieve through wrapper
+        wrapper.insertTrack("test1", "Test Song", "Test Artist", "Test Album", "/test/path.mp3")
+        val count = wrapper.getTrackCount()
+        val tracks = wrapper.getAllTracks()
+        
+        // Assert - Verify wrapper functionality
+        assertEquals("Should count inserted track", 1, count)
+        assertEquals("Should retrieve inserted track", 1, tracks.size)
+        assertEquals("Track should have correct title", "Test Song", tracks[0].title)
     }
 }
 

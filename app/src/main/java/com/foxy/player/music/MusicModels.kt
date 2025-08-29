@@ -336,6 +336,11 @@ class RoomDatabaseWrapper : MusicDatabaseInterface {
  */
 interface TrackDaoInterface {
     fun isReady(): Boolean
+    suspend fun getAllTracks(): List<TrackEntity>
+    suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String)
+    suspend fun getTrackCount(): Int
+    suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity>
+    suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity>
 }
 
 /**
@@ -344,6 +349,11 @@ interface TrackDaoInterface {
  */
 class TrackDao : TrackDaoInterface {
     override fun isReady(): Boolean = true
+    override suspend fun getAllTracks(): List<TrackEntity> = emptyList()
+    override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {}
+    override suspend fun getTrackCount(): Int = 0
+    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> = emptyList()
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> = emptyList()
 }
 
 /**
@@ -378,20 +388,20 @@ class RoomTrackDaoWrapper(
 ) : TrackDaoInterface {
     override fun isReady(): Boolean = true
 
-    suspend fun getAllTracks(): List<TrackEntity> = roomDao.getAllTracks()
+    override suspend fun getAllTracks(): List<TrackEntity> = roomDao.getAllTracks()
 
-    suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
+    override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
         val track = TrackEntity(id, title, artist, album, filePath)
         roomDao.insertTrack(track)
     }
 
-    suspend fun getTrackCount(): Int = roomDao.getTrackCount()
+    override suspend fun getTrackCount(): Int = roomDao.getTrackCount()
 
-    suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
+    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
         return roomDao.getTracksPage(offset, limit)
     }
 
-    suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
         return roomDao.getTracksPage(startIndex, count)
     }
 }
@@ -528,12 +538,7 @@ class TrackRepository(
     override suspend fun getAllTracks(): List<TrackEntity> {
         return try {
             val trackDao = database.trackDao()
-            if (trackDao is RoomTrackDaoWrapper) {
-                trackDao.getAllTracks()
-            } else {
-                // Fallback for old implementation
-                emptyList()
-            }
+            trackDao.getAllTracks()
         } catch (e: Exception) {
             // Return empty list on error rather than throwing exception
             emptyList()
@@ -543,11 +548,7 @@ class TrackRepository(
     override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
         try {
             val trackDao = database.trackDao()
-            if (trackDao is RoomTrackDaoWrapper) {
-                trackDao.insertTrack(id, title, artist, album, filePath)
-            }
-            // Placeholder for Room database insertion
-            // This will be enhanced to actually insert into Room database in future iterations
+            trackDao.insertTrack(id, title, artist, album, filePath)
         } catch (e: Exception) {
             // Log error in real implementation - for now just handle gracefully
         }
@@ -556,11 +557,7 @@ class TrackRepository(
     override suspend fun getTrackCount(): Int {
         return try {
             val trackDao = database.trackDao()
-            if (trackDao is RoomTrackDaoWrapper) {
-                trackDao.getTrackCount()
-            } else {
-                0
-            }
+            trackDao.getTrackCount()
         } catch (e: Exception) {
             // Return 0 on error rather than throwing exception
             0
@@ -583,11 +580,7 @@ class TrackRepository(
     override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
         return try {
             val trackDao = database.trackDao()
-            if (trackDao is RoomTrackDaoWrapper) {
-                trackDao.getTracksPage(offset, limit)
-            } else {
-                emptyList()
-            }
+            trackDao.getTracksPage(offset, limit)
         } catch (e: Exception) {
             emptyList()
         }
@@ -596,11 +589,7 @@ class TrackRepository(
     override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
         return try {
             val trackDao = database.trackDao()
-            if (trackDao is RoomTrackDaoWrapper) {
-                trackDao.getTracksForRange(startIndex, count)
-            } else {
-                emptyList()
-            }
+            trackDao.getTracksForRange(startIndex, count)
         } catch (e: Exception) {
             emptyList()
         }
