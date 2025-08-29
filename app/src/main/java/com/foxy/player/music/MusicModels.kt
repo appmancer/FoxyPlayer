@@ -49,13 +49,13 @@ data class SyncConfiguration(
 /**
  * Background synchronization service for pCloud to SQLite data sync.
  * Implements incremental updates and offline-first architecture.
- * * Features:
+ * Features:
  * - Incremental sync (only new/changed tracks)
  * - Offline-first architecture (local database as primary source)
  * - Configurable sync behavior
  * - Comprehensive error handling
  * - Data integrity validation
- * * @param trackRepository Repository for local track storage
+ * @param trackRepository Repository for local track storage
  * @param pcloudApi Interface for pCloud API operations
  * @param config Configuration for sync behavior
  */
@@ -68,13 +68,13 @@ class BackgroundSyncService(
     /**
      * Performs incremental synchronization between pCloud and local database.
      * Uses timestamp comparison and deduplication to minimize data transfer.
-     * * Algorithm:
+     * Algorithm:
      * 1. Fetch remote tracks from pCloud
      * 2. Get local tracks for comparison
      * 3. Identify new/changed tracks using deduplication
      * 4. Insert only new tracks (incremental update)
      * 5. Validate data integrity
-     * * @return SyncResult containing BackgroundSyncResponse or error details
+     * @return SyncResult containing BackgroundSyncResponse or error details
      */
     suspend fun performIncrementalSync(): SyncResult<BackgroundSyncResponse> {
         val startTime = System.currentTimeMillis()
