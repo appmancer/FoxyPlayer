@@ -38,7 +38,8 @@ class RoomDatabaseIntegrationTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
         // Clean up test database file
-        val dbFile = File(context.filesDir, MusicDatabaseProvider.DATABASE_NAME_FOR_TESTING) if (dbFile.exists()) {
+        val dbFile = File(context.filesDir, MusicDatabaseProvider.DATABASE_NAME_FOR_TESTING)
+        if (dbFile.exists()) {
             dbFile.delete()
         }
     }
