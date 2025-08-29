@@ -98,6 +98,14 @@ class TestTrackRepository : TrackRepositoryInterface {
     }
 
     override suspend fun getTrackCount(): Int = tracks.size
+
+    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
+        return tracks.drop(offset).take(limit)
+    }
+
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
+        return tracks.drop(startIndex).take(count)
+    }
 }
 
 class TestPCloudApi(private val tracksToReturn: List<PCloudItem>) : PCloudApiInterface {

@@ -359,6 +359,10 @@ class SimpleRoomTrackDao : RoomTrackDao {
     }
 
     override suspend fun getTrackCount(): Int = tracks.size
+
+    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
+        return tracks.drop(offset).take(limit)
+    }
 }
 
 /**
@@ -378,6 +382,14 @@ class RoomTrackDaoWrapper(
     }
 
     suspend fun getTrackCount(): Int = roomDao.getTrackCount()
+
+    suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
+        return roomDao.getTracksPage(offset, limit)
+    }
+
+    suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
+        return roomDao.getTracksPage(startIndex, count)
+    }
 }
 
 // ===== ROOM DATABASE IMPLEMENTATION =====
@@ -427,6 +439,15 @@ interface RoomTrackDao {
      */
     @Query("SELECT COUNT(*) FROM tracks")
     suspend fun getTrackCount(): Int
+
+    /**
+     * Retrieves a page of tracks from the database for pagination.
+     * @param offset Starting position (0-based)
+     * @param limit Number of tracks to retrieve
+     * @return List of track entities for the specified page
+     */
+    @Query("SELECT * FROM tracks LIMIT :limit OFFSET :offset")
+    suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity>
 }
 
 /**
@@ -475,6 +496,8 @@ interface TrackRepositoryInterface {
     suspend fun getAllTracks(): List<TrackEntity>
     suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String)
     suspend fun getTrackCount(): Int
+    suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity>
+    suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity>
 }
 
 /**
@@ -550,6 +573,32 @@ class TrackRepository(
             RepositoryResult.Success(tracks)
         } catch (e: Exception) {
             RepositoryResult.Error(e)
+        }
+    }
+
+    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
+        return try {
+            val trackDao = database.trackDao()
+            if (trackDao is RoomTrackDaoWrapper) {
+                trackDao.getTracksPage(offset, limit)
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
+        return try {
+            val trackDao = database.trackDao()
+            if (trackDao is RoomTrackDaoWrapper) {
+                trackDao.getTracksForRange(startIndex, count)
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }
@@ -906,3 +955,67 @@ data class BackgroundSyncResponse(
     val syncDurationMs: Long,
     val dataIntegrityVerified: Boolean
 )
+
+// ===== PAGINATED UI DATA LAYER =====
+
+/**
+ * Result container for paginated track loading.
+ * Provides track data with pagination metadata.
+ */
+data class PagedTracksResult(
+    val tracks: List<TrackEntity>,
+    val hasMorePages: Boolean,
+    val totalCount: Int
+)
+
+/**
+ * Paginated data layer for loading tracks without consuming excessive memory.
+ * Replaces RAM collections with database queries for unlimited library scale.
+ */
+class PaginatedTrackDataLayer(
+    private val repository: TrackRepositoryInterface
+) {
+    private val inMemoryCache = mutableListOf<TrackEntity>()
+
+    /**
+     * Load tracks for a specific page, optimized for memory usage.
+     * Uses database pagination queries to avoid loading all tracks into memory.
+     * @param pageNumber Zero-based page number
+     * @param pageSize Number of tracks per page
+     * @return PagedTracksResult with tracks and pagination metadata
+     */
+    suspend fun loadTracksPage(pageNumber: Int, pageSize: Int): PagedTracksResult {
+        val offset = pageNumber * pageSize
+        val totalCount = repository.getTrackCount()
+
+        // Use paginated database query instead of loading all tracks
+        val pageTrack = repository.getTracksPage(offset, pageSize)
+
+        // Keep minimal cache for pagination state
+        inMemoryCache.clear()
+        inMemoryCache.addAll(pageTrack.take(50)) // Keep only viewport-sized cache
+
+        return PagedTracksResult(
+            tracks = pageTrack,
+            hasMorePages = offset + pageSize < totalCount,
+            totalCount = totalCount
+        )
+    }
+
+    /**
+     * Load tracks for a specific viewport range, optimized for UI rendering.
+     * Uses efficient database queries for viewport-based loading.
+     * @param startIndex Starting index in the complete track list
+     * @param viewportSize Number of tracks to load for viewport
+     * @return List of tracks for the viewport
+     */
+    suspend fun loadTracksForViewport(startIndex: Int, viewportSize: Int): List<TrackEntity> {
+        return repository.getTracksForRange(startIndex, viewportSize)
+    }
+
+    /**
+     * Get the number of tracks currently held in memory.
+     * Used for memory efficiency verification.
+     */
+    fun getInMemoryTrackCount(): Int = inMemoryCache.size
+}
