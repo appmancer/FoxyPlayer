@@ -363,6 +363,10 @@ class SimpleRoomTrackDao : RoomTrackDao {
     override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
         return tracks.drop(offset).take(limit)
     }
+
+    suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
+        return tracks.drop(startIndex).take(count)
+    }
 }
 
 /**

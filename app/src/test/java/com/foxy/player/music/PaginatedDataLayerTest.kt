@@ -51,6 +51,33 @@ class PaginatedDataLayerTest {
         assertEquals("Viewport should load exact requested range", 20, viewportTracks.size)
         assertEquals("First track should match start index", "Song 100", viewportTracks.first().title)
     }
+
+    @Test
+    fun `SimpleRoomTrackDao should implement getTracksForRange method`() = runBlocking {
+        // Arrange - Create SimpleRoomTrackDao directly
+        val simpleDao = SimpleRoomTrackDao()
+        
+        // Insert test tracks
+        val testTracks = listOf(
+            TrackEntity("1", "Song 1", "Artist 1", "Album 1", "/path/1.mp3"),
+            TrackEntity("2", "Song 2", "Artist 2", "Album 2", "/path/2.mp3"),
+            TrackEntity("3", "Song 3", "Artist 3", "Album 3", "/path/3.mp3"),
+            TrackEntity("4", "Song 4", "Artist 4", "Album 4", "/path/4.mp3"),
+            TrackEntity("5", "Song 5", "Artist 5", "Album 5", "/path/5.mp3")
+        )
+        
+        testTracks.forEach { track ->
+            simpleDao.insertTrack(track)
+        }
+        
+        // Act - Test getTracksForRange method that should exist
+        val rangeResult = simpleDao.getTracksForRange(1, 3)
+        
+        // Assert - Verify method works correctly
+        assertEquals("Should return requested number of tracks", 3, rangeResult.size)
+        assertEquals("First track should be at start index", "Song 2", rangeResult[0].title)
+        assertEquals("Last track should be at start index + count", "Song 4", rangeResult[2].title)
+    }
 }
 
 // Test implementation for pagination
