@@ -94,17 +94,17 @@ class PaginatedDataLayerTest {
             }
         }
         val repository = TrackRepository(databaseProvider)
-        
+
         // Insert a test track to verify the DAO is functioning
         repository.insertTrack("test1", "Test Song", "Test Artist", "Test Album", "/test/path.mp3")
-        
+
         // Act - Get track count (this should work if type checking is correct)
         val count = repository.getTrackCount()
-        
+
         // Assert - Should be able to count tracks (not return 0 due to type check failure)
         // This test verifies that the DAO type checking works correctly
         assertEquals("Should return actual track count, not fallback to 0", 1, count)
-        
+
         // Also test getAllTracks method
         val tracks = repository.getAllTracks()
         assertEquals("Should return actual tracks, not empty list", 1, tracks.size)
@@ -113,15 +113,15 @@ class PaginatedDataLayerTest {
 
     @Test
     fun `SimpleRoomTrackDao should work correctly when wrapped`() = runBlocking {
-        // Arrange - Test the SimpleRoomTrackDao directly  
+        // Arrange - Test the SimpleRoomTrackDao directly
         val simpleDao = SimpleRoomTrackDao()
         val wrapper = RoomTrackDaoWrapper(simpleDao)
-        
+
         // Act - Insert and retrieve through wrapper
         wrapper.insertTrack("test1", "Test Song", "Test Artist", "Test Album", "/test/path.mp3")
         val count = wrapper.getTrackCount()
         val tracks = wrapper.getAllTracks()
-        
+
         // Assert - Verify wrapper functionality
         assertEquals("Should count inserted track", 1, count)
         assertEquals("Should retrieve inserted track", 1, tracks.size)
