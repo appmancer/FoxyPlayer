@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,6 +21,7 @@ import com.foxy.player.authentication.AuthenticatedApiClient
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +30,25 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 // ===== ANDROID BACKGROUND SERVICE INTEGRATION =====
+
+/**
+ * Centralized logging utility for the music library
+ */
+private object MusicLogger {
+    private const val TAG_PREFIX = "MusicPlayer"
+    
+    fun i(tag: String, message: String) {
+        Log.i("$TAG_PREFIX.$tag", message)
+    }
+    
+    fun e(tag: String, message: String, throwable: Throwable? = null) {
+        Log.e("$TAG_PREFIX.$tag", message, throwable)
+    }
+    
+    fun w(tag: String, message: String) {
+        Log.w("$TAG_PREFIX.$tag", message)
+    }
+}
 
 /**
  * Android integration service for WorkManager and foreground services.
@@ -145,7 +166,7 @@ class MusicSyncWorker(
             val operationType = inputData.getString("OPERATION_TYPE") ?: "PERIODIC_SYNC"
 
             // Log the sync operation
-            android.util.Log.i("MusicSyncWorker", "Starting $operationType with interval: ${syncIntervalHours}h")
+            MusicLogger.i("SyncWorker", "Starting $operationType with interval: ${syncIntervalHours}h")
 
             // Simulate actual sync work - in real implementation this would:
             // 1. Check for new music files in pCloud
@@ -154,10 +175,10 @@ class MusicSyncWorker(
             // 4. Report progress
             delay(500) // Simulate work
 
-            android.util.Log.i("MusicSyncWorker", "Sync completed successfully")
+            MusicLogger.i("SyncWorker", "Sync completed successfully")
             Result.success()
         } catch (e: Exception) {
-            android.util.Log.e("MusicSyncWorker", "Sync failed: ${e.message}", e)
+            MusicLogger.e("SyncWorker", "Sync failed: ${e.message}", e)
             Result.failure()
         }
     }
@@ -193,7 +214,7 @@ class MusicSyncForegroundService : Service() {
             // Start sync work in background
             performSyncWork(operationType, showProgress)
         } catch (e: Exception) {
-            android.util.Log.e("MusicSyncForegroundService", "Error starting sync: ${e.message}", e)
+            MusicLogger.e("ForegroundService", "Error starting sync: ${e.message}", e)
             stopSelf()
         }
 
@@ -235,19 +256,19 @@ class MusicSyncForegroundService : Service() {
         // 3. Update notification with progress
         // 4. Handle completion or errors
 
-        android.util.Log.i("MusicSyncForegroundService", "Performing $operationType sync")
+        MusicLogger.i("ForegroundService", "Performing $operationType sync")
 
-        // Simulate some work and stop service
-        Thread {
+        // Simulate some work and stop service using coroutines
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                Thread.sleep(2000) // Simulate work
-                android.util.Log.i("MusicSyncForegroundService", "Sync completed")
-            } catch (e: InterruptedException) {
-                android.util.Log.w("MusicSyncForegroundService", "Sync interrupted")
+                delay(2000) // Coroutine-friendly delay instead of Thread.sleep
+                MusicLogger.i("ForegroundService", "Sync completed")
+            } catch (e: Exception) {
+                MusicLogger.w("ForegroundService", "Sync interrupted: ${e.message}")
             } finally {
                 stopSelf()
             }
-        }.start()
+        }
     }
 }
 
@@ -452,8 +473,12 @@ class MusicLibraryProgressService(
         delay(100)
 
         return if (cacheResult.isSuccess) {
-            val response = cacheResult.getOrNull()!!
-            Result.success("Cached metadata: ${response.title} by ${response.artist}")
+            val response = cacheResult.getOrNull()
+            if (response != null) {
+                Result.success("Cached metadata: ${response.title} by ${response.artist}")
+            } else {
+                Result.failure(Exception("Cache result was null despite success"))
+            }
         } else {
             Result.failure(cacheResult.exceptionOrNull() ?: Exception("Caching failed"))
         }
@@ -796,8 +821,12 @@ class AndroidBackgroundSyncIntegrationService(
 
             when {
                 syncResult.isSuccess -> {
-                    val response = syncResult.getOrNull()!!
-                    Result.success(response)
+                    val response = syncResult.getOrNull()
+                    if (response != null) {
+                        Result.success(response)
+                    } else {
+                        Result.failure(Exception("Sync result was null despite success"))
+                    }
                 }
                 else -> {
                     Result.failure(Exception("Sync operation failed"))
