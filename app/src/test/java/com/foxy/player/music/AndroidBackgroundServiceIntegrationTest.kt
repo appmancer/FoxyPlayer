@@ -29,10 +29,12 @@ class AndroidBackgroundServiceIntegrationTest {
 
         // Verify key methods exist (checking both regular and suspend function patterns)
         assertTrue(
-            "schedulePeriodicSync method should exist", serviceClass.methods.any { it.name == "schedulePeriodicSync" }
+            "schedulePeriodicSync method should exist",
+            serviceClass.methods.any { it.name == "schedulePeriodicSync" }
         )
         assertTrue(
-            "startForegroundSync method should exist", serviceClass.methods.any { it.name == "startForegroundSync" || it.name.contains("startForegroundSync") }
+            "startForegroundSync method should exist",
+            serviceClass.methods.any { it.name == "startForegroundSync" || it.name.contains("startForegroundSync") }
         )
         assertTrue(
             "executeScheduledSync method should exist",
