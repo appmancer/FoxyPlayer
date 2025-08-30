@@ -36,15 +36,15 @@ import kotlinx.coroutines.withContext
  */
 private object MusicLogger {
     private const val TAG_PREFIX = "MusicPlayer"
-    
+
     fun i(tag: String, message: String) {
         Log.i("$TAG_PREFIX.$tag", message)
     }
-    
+
     fun e(tag: String, message: String, throwable: Throwable? = null) {
         Log.e("$TAG_PREFIX.$tag", message, throwable)
     }
-    
+
     fun w(tag: String, message: String) {
         Log.w("$TAG_PREFIX.$tag", message)
     }
