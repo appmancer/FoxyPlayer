@@ -78,10 +78,16 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
 
+    // WorkManager dependencies
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
     implementation(libs.okhttp)
     implementation(libs.gson)
     testImplementation(libs.junit)
     testImplementation("androidx.test:core:1.6.1")
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    testImplementation("androidx.work:work-testing:2.9.0")
+    testImplementation("org.mockito:mockito-core:5.1.1")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
