@@ -1421,7 +1421,7 @@ interface OfflineMusicLibraryInterface {
  * - Local cache management
  * - Automatic fallback to cached data when offline
  * - Thread-safe cache operations
- * * @param networkConnectivity Interface for checking network status
+ * @param networkConnectivity Interface for checking network status
  */
 class OfflineMusicLibrary(
     private val networkConnectivity: NetworkConnectivityInterface = DefaultNetworkConnectivity()
@@ -1436,9 +1436,14 @@ class OfflineMusicLibrary(
 
             synchronized(cacheLock) {
                 if (isOnline) {
-                    // In production, this would fetch from pCloud API and update cache
-                    // For now, return cached data with online flag
-                    OfflineResult.Success(cachedTracks.toList(), fromCache = false)
+                    // When online, return cached data indicating it's from cache
+                    // In production, this would fetch fresh data from pCloud API
+                    // TODO: Integrate with BackgroundSyncService to fetch fresh data
+                    if (cachedTracks.isEmpty()) {
+                        OfflineResult.NetworkUnavailable
+                    } else {
+                        OfflineResult.Success(cachedTracks.toList(), fromCache = true)
+                    }
                 } else {
                     // Return cached data when offline
                     if (cachedTracks.isEmpty()) {
