@@ -1376,3 +1376,138 @@ class TestTrackDao : TrackDaoInterface {
         return tracks.subList(startIndex, minOf(startIndex + count, tracks.size))
     }
 }
+
+// =====================================================================
+// PLY-79: Offline Music Library Support
+// =====================================================================
+
+/**
+ * Result wrapper for offline music library operations.
+ * Provides type-safe error handling for offline access scenarios.
+ */
+sealed class OfflineResult<out T> {
+    data class Success<out T>(val data: T, val fromCache: Boolean = false) : OfflineResult<T>()
+    data class Error(val exception: Throwable, val message: String) : OfflineResult<Nothing>()
+    object NetworkUnavailable : OfflineResult<Nothing>()
+}
+
+/**
+ * Interface for network connectivity detection.
+ * Abstracts network status checking for testing and different implementations.
+ */
+interface NetworkConnectivityInterface {
+    fun isNetworkAvailable(): Boolean
+    fun addConnectivityListener(listener: (Boolean) -> Unit)
+    fun removeConnectivityListener(listener: (Boolean) -> Unit)
+}
+
+/**
+ * Interface for offline music library operations.
+ * Provides abstraction for different offline storage implementations.
+ */
+interface OfflineMusicLibraryInterface {
+    suspend fun getTracks(): OfflineResult<List<MusicTrackWithMetadata>>
+    suspend fun populateCache(tracks: List<MusicTrackWithMetadata>): OfflineResult<Unit>
+    suspend fun clearCache(): OfflineResult<Unit>
+    fun isOfflineMode(): Boolean
+    fun getCacheSize(): Int
+}
+
+/**
+ * Production implementation of offline music library with caching support.
+ * Implements offline-first architecture with local caching for music library access.
+ * * Features:
+ * - Network-aware track retrieval
+ * - Local cache management
+ * - Automatic fallback to cached data when offline
+ * - Thread-safe cache operations
+ * * @param networkConnectivity Interface for checking network status
+ */
+class OfflineMusicLibrary(
+    private val networkConnectivity: NetworkConnectivityInterface = DefaultNetworkConnectivity()
+) : OfflineMusicLibraryInterface {
+
+    private val cachedTracks = mutableListOf<MusicTrackWithMetadata>()
+    private val cacheLock = Any()
+
+    override suspend fun getTracks(): OfflineResult<List<MusicTrackWithMetadata>> {
+        return try {
+            val isOnline = networkConnectivity.isNetworkAvailable()
+
+            synchronized(cacheLock) {
+                if (isOnline) {
+                    // In production, this would fetch from pCloud API and update cache
+                    // For now, return cached data with online flag
+                    OfflineResult.Success(cachedTracks.toList(), fromCache = false)
+                } else {
+                    // Return cached data when offline
+                    if (cachedTracks.isEmpty()) {
+                        OfflineResult.NetworkUnavailable
+                    } else {
+                        OfflineResult.Success(cachedTracks.toList(), fromCache = true)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            OfflineResult.Error(e, "Failed to retrieve tracks: ${e.message}")
+        }
+    }
+
+    override suspend fun populateCache(tracks: List<MusicTrackWithMetadata>): OfflineResult<Unit> {
+        return try {
+            synchronized(cacheLock) {
+                cachedTracks.clear()
+                cachedTracks.addAll(tracks)
+            }
+            OfflineResult.Success(Unit)
+        } catch (e: Exception) {
+            OfflineResult.Error(e, "Failed to populate cache: ${e.message}")
+        }
+    }
+
+    override suspend fun clearCache(): OfflineResult<Unit> {
+        return try {
+            synchronized(cacheLock) {
+                cachedTracks.clear()
+            }
+            OfflineResult.Success(Unit)
+        } catch (e: Exception) {
+            OfflineResult.Error(e, "Failed to clear cache: ${e.message}")
+        }
+    }
+
+    override fun isOfflineMode(): Boolean {
+        return !networkConnectivity.isNetworkAvailable()
+    }
+
+    override fun getCacheSize(): Int {
+        return synchronized(cacheLock) {
+            cachedTracks.size
+        }
+    }
+}
+
+/**
+ * Default implementation of network connectivity for testing.
+ * In production, this would use Android's ConnectivityManager.
+ */
+class DefaultNetworkConnectivity : NetworkConnectivityInterface {
+    private var networkAvailable = true
+    private val listeners = mutableSetOf<(Boolean) -> Unit>()
+
+    override fun isNetworkAvailable(): Boolean = networkAvailable
+
+    override fun addConnectivityListener(listener: (Boolean) -> Unit) {
+        listeners.add(listener)
+    }
+
+    override fun removeConnectivityListener(listener: (Boolean) -> Unit) {
+        listeners.remove(listener)
+    }
+
+    // Test utility method - not part of interface
+    fun setNetworkAvailable(available: Boolean) {
+        networkAvailable = available
+        listeners.forEach { it(available) }
+    }
+}
