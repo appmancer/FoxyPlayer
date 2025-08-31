@@ -1289,7 +1289,7 @@ class MigrationFramework(
             true
         } catch (e: Exception) {
             migrationLogger.logError("Migration failed, attempting rollback: ${e.message}")
-            // In a real implementation, we would rollback the database changes here
+            // TODO(TECHDEBT): Implement proper rollback using database transactions to ensure atomicity
             false
         }
     }
