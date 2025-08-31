@@ -206,7 +206,7 @@ class BackgroundSyncService(
         maxRetries: Int = 3,
         baseDelayMs: Long = 1000L
     ): SyncResult<BackgroundSyncResponse> {
-        var lastException: Exception? = null
+        var lastException: Throwable? = null
         var attemptCount = 0
 
         for (attempt in 0..maxRetries) {
@@ -230,7 +230,7 @@ class BackgroundSyncService(
                     is SyncResult.Error -> {
                         // Check if this is a retryable error
                         if (attempt < maxRetries && isRetryableError(result.exception)) {
-                            lastException = Exception(result.exception)
+                            lastException = result.exception
                             // Apply exponential backoff delay
                             val delayMs = baseDelayMs * (1L shl attempt) // 2^attempt
                             kotlinx.coroutines.delay(delayMs)
@@ -262,33 +262,48 @@ class BackgroundSyncService(
 
     /**
      * PLY-94: Determines if an error is retryable based on error type and characteristics.
+     * Uses structured error classification to avoid brittle string matching.
      * @param exception The exception to evaluate
      * @return true if the error should be retried, false otherwise
      */
     private fun isRetryableError(exception: Throwable): Boolean {
-        return when {
-            // Network-related errors (temporary connectivity issues)
-            exception.message?.contains("network", ignoreCase = true) == true -> true
-            exception.message?.contains("timeout", ignoreCase = true) == true -> true
-            exception.message?.contains("connection", ignoreCase = true) == true -> true
-
-            // pCloud API specific retryable errors
-            exception is RuntimeException &&
-                exception.message?.contains("pCloud API error: 2003") == true -> true // Network
-            exception is RuntimeException &&
-                exception.message?.contains("pCloud API error: 4009") == true -> true // Rate limit
-            exception is RuntimeException &&
-                exception.message?.contains("pCloud API error: 5000") == true -> true // Server
-
-            // Generic I/O errors that might be temporary
-            exception is java.io.IOException -> true
-
-            // Do not retry authentication errors, validation errors, or permanent failures
-            exception is IllegalStateException -> false
-            exception is IllegalArgumentException -> false
-            exception.message?.contains("unauthorized", ignoreCase = true) == true -> false
-            exception.message?.contains("forbidden", ignoreCase = true) == true -> false
-
+        return when (exception) {
+            // Network and I/O related errors (typically temporary)
+            is java.io.IOException,
+            is java.net.SocketTimeoutException,
+            is java.net.ConnectException,
+            is java.net.UnknownHostException -> true
+            
+            // Structured pCloud API error handling
+            is RuntimeException -> {
+                val message = exception.message?.lowercase() ?: ""
+                when {
+                    // Network connectivity issues
+                    message.contains("network") || 
+                    message.contains("timeout") || 
+                    message.contains("connection") -> true
+                    
+                    // pCloud API specific error codes (if available in message)
+                    message.contains("pcloud api error: 2003") -> true // Network error
+                    message.contains("pcloud api error: 4009") -> true // Rate limit
+                    message.contains("pcloud api error: 5000") -> true // Server error
+                    
+                    // Permanent errors - do not retry
+                    message.contains("unauthorized") ||
+                    message.contains("forbidden") ||
+                    message.contains("invalid credentials") ||
+                    message.contains("authentication failed") -> false
+                    
+                    else -> false
+                }
+            }
+            
+            // Do not retry validation and state errors
+            is IllegalStateException,
+            is IllegalArgumentException,
+            is SecurityException -> false
+            
+            // Default: do not retry unknown exception types
             else -> false
         }
     }
