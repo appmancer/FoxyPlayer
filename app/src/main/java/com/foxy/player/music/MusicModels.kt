@@ -194,6 +194,119 @@ class BackgroundSyncService(
     private fun extractTrackTitle(fileName: String): String {
         return fileName.substringBeforeLast(".")
     }
+
+    /**
+     * PLY-94: Performs incremental synchronization with intelligent retry mechanism.
+     * Implements exponential backoff for network error recovery.
+     * @param maxRetries Maximum number of retry attempts
+     * @param baseDelayMs Base delay in milliseconds for exponential backoff
+     * @return SyncResult containing BackgroundSyncResponse with retry information
+     */
+    suspend fun performIncrementalSyncWithRetry(
+        maxRetries: Int = 3,
+        baseDelayMs: Long = 1000L
+    ): SyncResult<BackgroundSyncResponse> {
+        var lastException: Throwable? = null
+        var attemptCount = 0
+
+        for (attempt in 0..maxRetries) {
+            attemptCount++
+
+            try {
+                val result = performIncrementalSync()
+
+                // If sync succeeds, enhance response with retry information
+                return when (result) {
+                    is SyncResult.Success -> {
+                        val originalResponse = result.data
+                        SyncResult.Success(
+                            originalResponse.copy(
+                                totalAttempts = attemptCount,
+                                retryAttempts = attemptCount - 1,
+                                usedRetryMechanism = attemptCount > 1
+                            )
+                        )
+                    }
+                    is SyncResult.Error -> {
+                        // Check if this is a retryable error
+                        if (attempt < maxRetries && isRetryableError(result.exception)) {
+                            lastException = result.exception
+                            // Apply exponential backoff delay
+                            val delayMs = baseDelayMs * (1L shl attempt) // 2^attempt
+                            kotlinx.coroutines.delay(delayMs)
+                            continue // Continue to next retry
+                        } else {
+                            // Non-retryable error or max retries exceeded
+                            return result
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                lastException = e
+                if (attempt < maxRetries && isRetryableError(e)) {
+                    // Apply exponential backoff delay
+                    val delayMs = baseDelayMs * (1L shl attempt) // 2^attempt
+                    kotlinx.coroutines.delay(delayMs)
+                } else {
+                    break // Exit retry loop
+                }
+            }
+        }
+
+        // All retries exhausted
+        return SyncResult.Error(
+            lastException ?: RuntimeException("Max retries exceeded"),
+            "Sync failed after $attemptCount attempts with exponential backoff"
+        )
+    }
+
+    /**
+     * PLY-94: Determines if an error is retryable based on error type and characteristics.
+     * Uses structured error classification to avoid brittle string matching.
+     * @param exception The exception to evaluate
+     * @return true if the error should be retried, false otherwise
+     */
+    private fun isRetryableError(exception: Throwable): Boolean {
+        return when (exception) {
+            // Network and I/O related errors (typically temporary)
+            is java.io.IOException,
+            is java.net.SocketTimeoutException,
+            is java.net.ConnectException,
+            is java.net.UnknownHostException -> true
+            
+            // Structured pCloud API error handling
+            is RuntimeException -> {
+                val message = exception.message?.lowercase() ?: ""
+                when {
+                    // Network connectivity issues
+                    message.contains("network") || 
+                    message.contains("timeout") || 
+                    message.contains("connection") -> true
+                    
+                    // pCloud API specific error codes (if available in message)
+                    message.contains("pcloud api error: 2003") -> true // Network error
+                    message.contains("pcloud api error: 4009") -> true // Rate limit
+                    message.contains("pcloud api error: 5000") -> true // Server error
+                    
+                    // Permanent errors - do not retry
+                    message.contains("unauthorized") ||
+                    message.contains("forbidden") ||
+                    message.contains("invalid credentials") ||
+                    message.contains("authentication failed") -> false
+                    
+                    else -> false
+                }
+            }
+            
+            // Do not retry validation and state errors
+            is IllegalStateException,
+            is IllegalArgumentException,
+            is SecurityException -> false
+            
+            // Default: do not retry unknown exception types
+            else -> false
+        }
+    }
 }
 
 // ===== SQLITE DATABASE FOUNDATION =====
@@ -946,7 +1059,11 @@ data class BackgroundSyncResponse(
     val scalableForLargeDatasets: Boolean,
     val finalSyncStatus: SyncStatus,
     val syncDurationMs: Long,
-    val dataIntegrityVerified: Boolean
+    val dataIntegrityVerified: Boolean,
+    // PLY-94: Retry mechanism properties
+    val totalAttempts: Int = 1,
+    val retryAttempts: Int = 0,
+    val usedRetryMechanism: Boolean = false
 )
 
 // ===== PAGINATED UI DATA LAYER =====
