@@ -51,20 +51,15 @@ class MusicDiscoveryService(
 
     /**
      * Implements exponential backoff retry mechanism for API operations.
-     * 
-     * This function provides resilient API calling by automatically retrying failed operations
-     * with increasing delays between attempts, helping handle temporary network issues or 
-     * API rate limiting.
-     * 
-     * @param maxRetries Maximum number of retry attempts (default: 3)
+     * * This function provides resilient API calling by automatically retrying failed operations
+     * with increasing delays between attempts, helping handle temporary network issues or * API rate limiting.
+     * * @param maxRetries Maximum number of retry attempts (default: 3)
      * @param initialDelayMs Initial delay in milliseconds before first retry (default: 100ms)
      * @param maxDelayMs Maximum delay cap in milliseconds to prevent excessive waiting (default: 2000ms)
      * @param operation Suspend function containing the API operation to retry
-     * 
-     * @return Result of the successful operation
+     * * @return Result of the successful operation
      * @throws Exception The last exception encountered if all retries are exhausted
-     * 
-     * Delay progression: 100ms → 200ms → 400ms → 800ms (capped at maxDelayMs)
+     * * Delay progression: 100ms → 200ms → 400ms → 800ms (capped at maxDelayMs)
      * Use cases: pCloud API calls, network operations requiring resilience
      */
     private suspend fun <T> retryWithExponentialBackoff(
@@ -122,25 +117,20 @@ class MusicDiscoveryService(
 
     /**
      * Lists pCloud folders with automatic retry capability using exponential backoff.
-     * 
-     * This function enhances the basic API call with resilient retry logic to handle
+     * * This function enhances the basic API call with resilient retry logic to handle
      * temporary network issues, API rate limiting, or transient server errors.
      * Unlike listPCloudFoldersWithAPI, this function automatically retries failed
      * requests and provides better reliability for production use.
-     * 
-     * @param path The pCloud folder path to list (e.g., "/" for root, "/Music" for subfolder)
-     * 
-     * @return Result<PCloudAPIResponse> containing:
+     * * @param path The pCloud folder path to list (e.g., "/" for root, "/Music" for subfolder)
+     * * @return Result<PCloudAPIResponse> containing:
      *   - Success: Parsed pCloud API response with folder listing
      *   - Failure: Error details if all retry attempts are exhausted
-     * 
-     * Key differences from listPCloudFoldersWithAPI:
+     * * Key differences from listPCloudFoldersWithAPI:
      * - Automatic retry with exponential backoff (up to 3 attempts)
      * - Better handling of transient network failures
      * - Returns empty results instead of hardcoded fallbacks on failure
      * - Suspend function requiring coroutine context
-     * 
-     * Retry behavior: 100ms → 200ms → 400ms delays between attempts
+     * * Retry behavior: 100ms → 200ms → 400ms delays between attempts
      */
     suspend fun listPCloudFoldersWithRetry(path: String): Result<PCloudAPIResponse> {
         return try {
@@ -582,6 +572,33 @@ class MusicDiscoveryService(
                 errorType = "UNKNOWN_ERROR",
                 httpStatusCode = httpStatusCode,
                 errorMessage = "Unknown error: $errorDescription"
+            )
+        }
+        return Result.success(response)
+    }
+
+    fun handleNetworkException(exception: Exception): Result<SpecificApiErrorResponse> {
+        val response = when (exception) {
+            is java.net.SocketTimeoutException -> SpecificApiErrorResponse(
+                errorType = "NETWORK_TIMEOUT",
+                httpStatusCode = 408,
+                errorMessage = "Network request timeout - retry with exponential backoff",
+                suggestedRetryDelayMs = 2000L
+            )
+            is java.net.ConnectException -> SpecificApiErrorResponse(
+                errorType = "CONNECTION_FAILED",
+                httpStatusCode = 503,
+                errorMessage = "Failed to connect to server - check network connectivity"
+            )
+            is java.io.IOException -> SpecificApiErrorResponse(
+                errorType = "NETWORK_IO_ERROR",
+                httpStatusCode = 500,
+                errorMessage = "Network I/O error - ${exception.message}"
+            )
+            else -> SpecificApiErrorResponse(
+                errorType = "UNKNOWN_NETWORK_ERROR",
+                httpStatusCode = 500,
+                errorMessage = "Unknown network error: ${exception.message}"
             )
         }
         return Result.success(response)

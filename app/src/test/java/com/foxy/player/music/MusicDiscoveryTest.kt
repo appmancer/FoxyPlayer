@@ -1749,4 +1749,49 @@ class MusicDiscoveryTest {
         assertNotNull("Should include suggested retry delay", errorResponse.suggestedRetryDelayMs)
         assertTrue("Should suggest reasonable retry delay", errorResponse.suggestedRetryDelayMs!! > 0)
     }
+
+    @Test
+    fun `should detect and handle 401 authentication errors`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should detect and handle 401 authentication error
+        val result = musicDiscoveryService.handleSpecificApiError(401, "Unauthorized")
+
+        // Assert - verify 401 authentication error is properly detected and handled
+        assertTrue("Should return successful result with auth error handling", result.isSuccess)
+        val errorResponse = result.getOrNull()
+        assertNotNull("Error response should not be null", errorResponse)
+        assertEquals("Should detect authentication error type", "AUTHENTICATION_FAILED", errorResponse!!.errorType)
+        assertEquals("Should include auth error code", 401, errorResponse.httpStatusCode)
+        assertTrue("Should include helpful error message", errorResponse.errorMessage.contains("Authentication failed"))
+        assertTrue("Should mention token issues", errorResponse.errorMessage.contains("token"))
+    }
+
+    @Test
+    fun `should detect and handle network timeout errors`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should detect and handle network timeout errors
+        val timeoutException = java.net.SocketTimeoutException("Read timed out")
+        val result = musicDiscoveryService.handleNetworkException(timeoutException)
+
+        // Assert - verify network timeout error is properly detected and handled
+        assertTrue("Should return successful result with timeout error handling", result.isSuccess)
+        val errorResponse = result.getOrNull()
+        assertNotNull("Error response should not be null", errorResponse)
+        assertEquals("Should detect timeout error type", "NETWORK_TIMEOUT", errorResponse!!.errorType)
+        assertEquals("Should include timeout status code", 408, errorResponse.httpStatusCode)
+        assertTrue("Should include helpful timeout message", errorResponse.errorMessage.contains("timeout"))
+        assertTrue("Should suggest retry", errorResponse.errorMessage.contains("retry"))
+        assertNotNull("Should include suggested retry delay", errorResponse.suggestedRetryDelayMs)
+        assertTrue("Should suggest reasonable retry delay", errorResponse.suggestedRetryDelayMs!! > 0)
+    }
 }
