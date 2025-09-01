@@ -534,6 +534,18 @@ data class TrackEntity(
 )
 
 /**
+ * Room entity representing an album in the database.
+ * * This entity maps to the 'albums' table and contains album metadata
+ * for organizing music tracks by album.
+ */
+@Entity(tableName = "albums")
+data class AlbumEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val artist: String
+)
+
+/**
  * Room Data Access Object for track operations.
  * Provides type-safe access to track data with compile-time SQL validation.
  * Uses suspend functions for non-blocking database operations.
@@ -579,10 +591,10 @@ interface RoomTrackDao {
  * Room database for music player data storage.
  * This abstract class defines the database configuration and provides
  * access to DAOs. Room will generate the implementation at compile time.
- * Database version 1 - Initial schema with tracks table.
+ * Database version 1 - Initial schema with tracks and albums tables.
  */
 @Database(
-    entities = [TrackEntity::class],
+    entities = [TrackEntity::class, AlbumEntity::class],
     version = 1,
     exportSchema = false
 )
