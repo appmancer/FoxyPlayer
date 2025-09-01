@@ -674,7 +674,7 @@ class MusicDiscoveryService(
         }
 
         val exceptionDetails = "${exception.javaClass.simpleName}: ${exception.message}"
-        
+
         val debugContext = mapOf(
             "systemTime" to System.currentTimeMillis().toString(),
             "circuitBreakerState" to getCircuitBreakerState().state

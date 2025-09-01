@@ -1848,7 +1848,7 @@ class MusicDiscoveryTest {
         assertTrue("Should return successful result with error report", errorReport.isSuccess)
         val report = errorReport.getOrNull()
         assertNotNull("Error report should not be null", report)
-        
+
         // Verify comprehensive error details
         assertEquals("Should include endpoint", "/listfolder?path=/Music", report!!.endpoint)
         assertEquals("Should include error type", "NETWORK_TIMEOUT", report.errorType)
@@ -1858,7 +1858,7 @@ class MusicDiscoveryTest {
         assertNotNull("Should include exception details", report.exceptionDetails)
         assertTrue("Should include stack trace info", report.exceptionDetails.contains("SocketTimeoutException"))
         assertTrue("Should include timeout duration", report.exceptionDetails.contains("10000ms"))
-        
+
         // Verify debugging information
         assertNotNull("Should include debugging context", report.debugContext)
         assertTrue("Should include system info", report.debugContext.containsKey("systemTime"))
