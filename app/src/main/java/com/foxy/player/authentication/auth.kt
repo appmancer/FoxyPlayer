@@ -392,10 +392,10 @@ class AuthRepository(private val baseUrl: String = "") {
 
                 val response = httpClient.newCall(request).execute()
                 println("AUTH: Response code: ${response.code}")
-
                 if (response.isSuccessful) {
                     val jsonResponse = response.body?.string() ?: ""
                     println("AUTH: Response body: $jsonResponse")
+
                     val parseResult = parseAuthResponse(jsonResponse)
                     println("AUTH: Parse result success: ${parseResult.isSuccess}")
 
@@ -862,7 +862,6 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     // PLY-83: Login with server selection for functional login form
     fun login(username: String, password: String, serverRegion: String) {
         println("LOGIN: Starting authentication for user: $username, region: $serverRegion")
-        println("LOGIN: Password length: ${password.length}, starts with: ${password.take(3)}...")
         _isLoading = true
         _username = username
         _errorMessage = null
@@ -888,7 +887,6 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
             }
             println("LOGIN: Authentication result received, isSuccess=${result.isSuccess}")
 
-            _isLoading = false
             if (result.isSuccess) {
                 println("LOGIN: Authentication successful!")
                 val authResponse = result.getOrNull()
