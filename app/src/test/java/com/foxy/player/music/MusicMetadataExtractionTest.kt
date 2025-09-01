@@ -3,6 +3,7 @@ package com.foxy.player.music
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.UserInfo
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -166,5 +167,69 @@ class MusicMetadataExtractionTest {
 
         // CRITICAL: This test will FAIL until simulation flags are eliminated
         // and replaced with real error detection and handling
+    }
+
+    @Test
+    fun `should extract metadata using multi-strategy approach with confidence scoring`() = runBlocking {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Test file with structured path for heuristic extraction
+        val audioFileUrl = "https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3"
+        val audioFileName = "SampleAudio_0.4mb_mp3.mp3"
+        val filePath = "/Artists/The Beatles/Abbey Road/Come Together.mp3"
+
+        // Act - call multi-strategy metadata extraction method (doesn't exist yet)
+        val result = musicDiscoveryService.extractMetadataWithMultiStrategy(
+            audioFileUrl = audioFileUrl,
+            audioFileName = audioFileName,
+            filePath = filePath
+        )
+
+        // Assert - verify multi-strategy extraction with confidence scoring
+        assertTrue("Should return successful result from multi-strategy extraction", result.isSuccess)
+        val multiStrategyResult = result.getOrNull()
+        assertNotNull("Multi-strategy result should not be null", multiStrategyResult)
+
+        // Verify confidence scoring system
+        assertTrue("Should provide overall confidence score", multiStrategyResult!!.overallConfidence >= 0.0)
+        assertTrue("Overall confidence should not exceed 1.0", multiStrategyResult.overallConfidence <= 1.0)
+
+        // Verify metadata from multiple strategies
+        assertNotNull("Should extract metadata", multiStrategyResult.metadata)
+        val metadata = multiStrategyResult.metadata!!
+
+        // Verify strategy results are included
+        assertTrue(
+            "Should include MediaMetadataRetriever strategy results", multiStrategyResult.strategyResults.containsKey("MediaMetadataRetriever")
+        )
+        assertTrue(
+            "Should include Heuristic strategy results", multiStrategyResult.strategyResults.containsKey("HeuristicPath")
+        )
+        assertTrue(
+            "Should include Filename strategy results", multiStrategyResult.strategyResults.containsKey("FilenameParsing")
+        )
+
+        // Verify individual strategy confidence scores
+        val retrieverStrategy = multiStrategyResult.strategyResults["MediaMetadataRetriever"]!!
+        val heuristicStrategy = multiStrategyResult.strategyResults["HeuristicPath"]!!
+        val filenameStrategy = multiStrategyResult.strategyResults["FilenameParsing"]!!
+
+        assertTrue("MediaMetadataRetriever should have confidence score", retrieverStrategy.confidence >= 0.0)
+        assertTrue("Heuristic strategy should have confidence score", heuristicStrategy.confidence >= 0.0)
+        assertTrue("Filename strategy should have confidence score", filenameStrategy.confidence >= 0.0)
+
+        // Verify cross-validation and weighted averaging
+        assertTrue("Should use cross-validation for improved accuracy", multiStrategyResult.usedCrossValidation)
+        assertTrue("Should use weighted averaging based on confidence", multiStrategyResult.usedWeightedAveraging)
+
+        // Verify final metadata quality
+        assertTrue("Final metadata should have title", metadata.title.isNotEmpty())
+        assertTrue("Final metadata should have artist", metadata.artist.isNotEmpty())
+        assertTrue("Final metadata should have album", metadata.album.isNotEmpty())
+        assertTrue("Final metadata should have valid duration", metadata.durationMs >= 0)
     }
 }

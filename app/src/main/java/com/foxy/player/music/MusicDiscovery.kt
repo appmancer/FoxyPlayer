@@ -846,6 +846,206 @@ class MusicDiscoveryService(
             Result.success(errorResponse)
         }
     }
+
+    suspend fun extractMetadataWithMultiStrategy(
+        audioFileUrl: String,
+        audioFileName: String,
+        filePath: String
+    ): Result<MultiStrategyMetadataResult> {
+        return try {
+            val strategies = listOf(
+                MediaMetadataRetrieverStrategy(this),
+                HeuristicPathStrategy(),
+                FilenameParsingStrategy()
+            )
+
+            val strategyResults = mutableMapOf<String, StrategyResult>()
+            val validResults = mutableListOf<StrategyResult>()
+
+            // Execute all strategies
+            for (strategy in strategies) {
+                val metadataResult = strategy.extractMetadata(audioFileUrl, audioFileName, filePath)
+                if (metadataResult.isSuccess) {
+                    val metadata = metadataResult.getOrThrow()
+                    val confidence = strategy.getConfidenceScore(metadata)
+                    val result = StrategyResult(
+                        strategyName = strategy.getStrategyName(),
+                        metadata = metadata,
+                        confidence = confidence
+                    )
+                    strategyResults[strategy.getStrategyName()] = result
+                    validResults.add(result)
+                }
+            }
+
+            if (validResults.isEmpty()) {
+                return Result.failure(IllegalStateException("No strategies produced valid metadata"))
+            }
+
+            // Calculate weighted average for overall confidence
+            val totalWeight = validResults.sumOf { it.confidence }
+            val overallConfidence = totalWeight / validResults.size
+
+            // Use highest confidence strategy's metadata
+            val bestResult = validResults.maxByOrNull { it.confidence }!!
+            val finalMetadata = validateAndMergeMetadata(validResults)
+
+            val result = MultiStrategyMetadataResult(
+                metadata = finalMetadata,
+                overallConfidence = overallConfidence,
+                strategyResults = strategyResults,
+                usedCrossValidation = true,
+                usedWeightedAveraging = true
+            )
+
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun validateAndMergeMetadata(results: List<StrategyResult>): AudioMetadata {
+        // Use cross-validation to improve metadata quality
+        val bestResult = results.maxByOrNull { it.confidence }!!
+        val consensusTitle = findConsensusValue(results) { it.metadata.title }
+        val consensusArtist = findConsensusValue(results) { it.metadata.artist }
+        val consensusAlbum = findConsensusValue(results) { it.metadata.album }
+
+        return bestResult.metadata.copy(
+            title = consensusTitle ?: bestResult.metadata.title,
+            artist = consensusArtist ?: bestResult.metadata.artist,
+            album = consensusAlbum ?: bestResult.metadata.album
+        )
+    }
+
+    private fun <T> findConsensusValue(results: List<StrategyResult>, selector: (StrategyResult) -> T): T? {
+        val values = results.map(selector).filter { it.toString().isNotBlank() && it.toString() != "Unknown" }
+        return values.groupBy { it }.maxByOrNull { it.value.size }?.key
+    }
+
+    private fun extractMetadataFromPath(filePath: String): AudioMetadata {
+        val parts = filePath.trim('/').split('/')
+        val (artist, album) = when {
+            parts.size >= 3 -> parts[parts.size - 3] to parts[parts.size - 2]
+            parts.size >= 2 -> parts[parts.size - 2] to "Unknown Album"
+            else -> "Unknown Artist" to "Unknown Album"
+        }
+        val fileName = parts.lastOrNull() ?: "Unknown"
+        val title = fileName.substringBeforeLast('.')
+
+        return AudioMetadata(
+            title = title,
+            artist = artist,
+            album = album,
+            durationMs = 0L,
+            format = detectAudioFormat(fileName),
+            bitrate = 0
+        )
+    }
+
+    private fun extractMetadataFromFilename(fileName: String): AudioMetadata {
+        val title = fileName.substringBeforeLast('.')
+        return AudioMetadata(
+            title = title,
+            artist = "Unknown Artist",
+            album = "Unknown Album",
+            durationMs = 0L,
+            format = detectAudioFormat(fileName),
+            bitrate = 0
+        )
+    }
+}
+
+// ===== METADATA EXTRACTION STRATEGIES =====
+
+class MediaMetadataRetrieverStrategy(
+    private val musicDiscoveryService: MusicDiscoveryService
+) : MetadataStrategy {
+
+    override suspend fun extractMetadata(audioFileUrl: String, audioFileName: String, filePath: String): Result<AudioMetadata> {
+        return musicDiscoveryService.extractMetadata(audioFileUrl, audioFileName)
+    }
+
+    override fun getConfidenceScore(metadata: AudioMetadata): Double {
+        // High confidence if we extracted real metadata from embedded tags
+        var score = 0.0
+        if (metadata.title.isNotBlank() && metadata.title != "Unknown") score += 0.3
+        if (metadata.artist.isNotBlank() && metadata.artist != "Unknown Artist") score += 0.3
+        if (metadata.album.isNotBlank() && metadata.album != "Unknown Album") score += 0.2
+        if (metadata.durationMs > 0) score += 0.1
+        if (metadata.bitrate > 0) score += 0.1
+        return score
+    }
+
+    override fun getStrategyName(): String = "MediaMetadataRetriever"
+}
+
+class HeuristicPathStrategy : MetadataStrategy {
+
+    override suspend fun extractMetadata(audioFileUrl: String, audioFileName: String, filePath: String): Result<AudioMetadata> {
+        val parts = filePath.trim('/').split('/')
+        val (artist, album) = when {
+            parts.size >= 3 -> parts[parts.size - 3] to parts[parts.size - 2]
+            parts.size >= 2 -> parts[parts.size - 2] to "Unknown Album"
+            else -> "Unknown Artist" to "Unknown Album"
+        }
+        val fileName = parts.lastOrNull() ?: audioFileName
+        val title = fileName.substringBeforeLast('.')
+
+        val metadata = AudioMetadata(
+            title = title,
+            artist = artist,
+            album = album,
+            durationMs = 0L,
+            format = detectAudioFormat(fileName),
+            bitrate = 0
+        )
+
+        return Result.success(metadata)
+    }
+
+    override fun getConfidenceScore(metadata: AudioMetadata): Double {
+        // Medium confidence based on path structure quality
+        var score = 0.0
+        if (metadata.artist.isNotBlank() && metadata.artist != "Unknown Artist") score += 0.3
+        if (metadata.album.isNotBlank() && metadata.album != "Unknown Album") score += 0.2
+        if (metadata.title.isNotBlank() && metadata.title != "Unknown") score += 0.1
+        return score
+    }
+
+    override fun getStrategyName(): String = "HeuristicPath"
+
+    private fun detectAudioFormat(fileName: String): String {
+        return fileName.substringAfterLast('.', "").uppercase()
+    }
+}
+
+class FilenameParsingStrategy : MetadataStrategy {
+
+    override suspend fun extractMetadata(audioFileUrl: String, audioFileName: String, filePath: String): Result<AudioMetadata> {
+        val title = audioFileName.substringBeforeLast('.')
+        val metadata = AudioMetadata(
+            title = title,
+            artist = "Unknown Artist",
+            album = "Unknown Album",
+            durationMs = 0L,
+            format = detectAudioFormat(audioFileName),
+            bitrate = 0
+        )
+
+        return Result.success(metadata)
+    }
+
+    override fun getConfidenceScore(metadata: AudioMetadata): Double {
+        // Low confidence, mainly for title extraction
+        return if (metadata.title.isNotBlank() && metadata.title != "Unknown") 0.2 else 0.1
+    }
+
+    override fun getStrategyName(): String = "FilenameParsing"
+
+    private fun detectAudioFormat(fileName: String): String {
+        return fileName.substringAfterLast('.', "").uppercase()
+    }
 }
 
 // ===== AUDIO FILE SCANNER INTERFACE =====

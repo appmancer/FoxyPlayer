@@ -998,6 +998,28 @@ data class DetailedErrorReport(
     val debugContext: Map<String, String>
 )
 
+// ===== MULTI-STRATEGY METADATA EXTRACTION MODELS =====
+
+interface MetadataStrategy {
+    suspend fun extractMetadata(audioFileUrl: String, audioFileName: String, filePath: String): Result<AudioMetadata>
+    fun getConfidenceScore(metadata: AudioMetadata): Double
+    fun getStrategyName(): String
+}
+
+data class StrategyResult(
+    val strategyName: String,
+    val metadata: AudioMetadata,
+    val confidence: Double
+)
+
+data class MultiStrategyMetadataResult(
+    val metadata: AudioMetadata,
+    val overallConfidence: Double,
+    val strategyResults: Map<String, StrategyResult>,
+    val usedCrossValidation: Boolean,
+    val usedWeightedAveraging: Boolean
+)
+
 // ===== CACHE AND STATUS ENUMS =====
 
 // Android architecture support - Cache status for UI state management
