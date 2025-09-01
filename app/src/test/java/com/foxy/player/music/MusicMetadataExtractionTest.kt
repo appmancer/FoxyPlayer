@@ -3,6 +3,7 @@ package com.foxy.player.music
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.UserInfo
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -166,5 +167,124 @@ class MusicMetadataExtractionTest {
 
         // CRITICAL: This test will FAIL until simulation flags are eliminated
         // and replaced with real error detection and handling
+    }
+
+    @Test
+    fun `should extract metadata using multi-strategy approach with confidence scoring`() = runBlocking {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Test file with structured path for heuristic extraction
+        val audioFileUrl = "https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3"
+        val audioFileName = "SampleAudio_0.4mb_mp3.mp3"
+        val filePath = "/Artists/The Beatles/Abbey Road/Come Together.mp3"
+
+        // Act - call multi-strategy metadata extraction method (doesn't exist yet)
+        val result = musicDiscoveryService.extractMetadataWithMultiStrategy(
+            audioFileUrl = audioFileUrl,
+            audioFileName = audioFileName,
+            filePath = filePath
+        )
+
+        // Assert - verify multi-strategy extraction with confidence scoring
+        assertTrue("Should return successful result from multi-strategy extraction", result.isSuccess)
+        val multiStrategyResult = result.getOrNull()
+        assertNotNull("Multi-strategy result should not be null", multiStrategyResult)
+
+        // Verify confidence scoring system
+        assertTrue("Should provide overall confidence score", multiStrategyResult!!.overallConfidence >= 0.0)
+        assertTrue("Overall confidence should not exceed 1.0", multiStrategyResult.overallConfidence <= 1.0)
+
+        // Verify metadata from multiple strategies
+        assertNotNull("Should extract metadata", multiStrategyResult.metadata)
+        val metadata = multiStrategyResult.metadata!!
+
+        // Verify strategy results are included
+        assertTrue(
+            "Should include MediaMetadataRetriever strategy results",
+            multiStrategyResult.strategyResults.containsKey("MediaMetadataRetriever")
+        )
+        assertTrue(
+            "Should include Heuristic strategy results",
+            multiStrategyResult.strategyResults.containsKey("HeuristicPath")
+        )
+        assertTrue(
+            "Should include Filename strategy results",
+            multiStrategyResult.strategyResults.containsKey("FilenameParsing")
+        )
+
+        // Verify individual strategy confidence scores
+        val retrieverStrategy = multiStrategyResult.strategyResults["MediaMetadataRetriever"]!!
+        val heuristicStrategy = multiStrategyResult.strategyResults["HeuristicPath"]!!
+        val filenameStrategy = multiStrategyResult.strategyResults["FilenameParsing"]!!
+
+        assertTrue("MediaMetadataRetriever should have confidence score", retrieverStrategy.confidence >= 0.0)
+        assertTrue("Heuristic strategy should have confidence score", heuristicStrategy.confidence >= 0.0)
+        assertTrue("Filename strategy should have confidence score", filenameStrategy.confidence >= 0.0)
+
+        // Verify cross-validation and weighted averaging
+        assertTrue("Should use cross-validation for improved accuracy", multiStrategyResult.usedCrossValidation)
+        assertTrue("Should use weighted averaging based on confidence", multiStrategyResult.usedWeightedAveraging)
+
+        // Verify final metadata quality
+        assertTrue("Final metadata should have title", metadata.title.isNotEmpty())
+        assertTrue("Final metadata should have artist", metadata.artist.isNotEmpty())
+        assertTrue("Final metadata should have album", metadata.album.isNotEmpty())
+        assertTrue("Final metadata should have valid duration", metadata.durationMs >= 0)
+    }
+
+    @Test
+    fun `should handle metadata extraction errors gracefully with detailed logging`() = runBlocking {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Test with invalid/corrupted file URLs that will cause strategy failures
+        val invalidAudioFileUrl = "https://invalid-url-that-will-fail.com/nonexistent.mp3"
+        val audioFileName = "corrupted_file.mp3"
+        val filePath = "/Invalid/Path/corrupted_file.mp3"
+
+        // Act - call multi-strategy extraction with error monitoring (method doesn't exist yet)
+        val result = musicDiscoveryService.extractMetadataWithMultiStrategyAndErrorLogging(
+            audioFileUrl = invalidAudioFileUrl,
+            audioFileName = audioFileName,
+            filePath = filePath
+        )
+
+        // Assert - verify graceful error handling with detailed logging
+        assertTrue("Should return successful result even with errors", result.isSuccess)
+        val errorResult = result.getOrNull()
+        assertNotNull("Error result should not be null", errorResult)
+
+        // Verify error handling features
+        assertNotNull("Should provide detailed error log", errorResult!!.errorLog)
+        assertTrue("Should have logged strategy errors", errorResult.errorLog.strategyErrors.isNotEmpty())
+
+        // Verify fallback mechanism
+        assertTrue("Should use fallback metadata when strategies fail", errorResult.usedFallbackMetadata)
+        assertNotNull("Should provide fallback metadata", errorResult.fallbackMetadata)
+
+        // Verify error categorization
+        assertTrue("Should categorize errors by type", errorResult.errorLog.errorsByCategory.isNotEmpty())
+        // Note: Network errors might not always be generated in test environment, so check if any error category exists
+        assertTrue(
+            "Should include at least one error category",
+            errorResult.errorLog.errorsByCategory.keys.isNotEmpty()
+        )
+
+        // Verify monitoring and instrumentation
+        assertTrue("Should provide performance metrics", errorResult.performanceMetrics.executionTimeMs >= 0)
+        assertTrue("Should track strategy attempt counts", errorResult.performanceMetrics.strategyAttempts >= 3)
+
+        // Verify final metadata is still usable (from filename fallback)
+        val finalMetadata = errorResult.fallbackMetadata
+        assertNotNull("Fallback metadata should be available", finalMetadata)
+        assertTrue("Should extract title from filename", finalMetadata!!.title.isNotEmpty())
+        assertEquals("Should identify correct format", "MP3", finalMetadata.format)
     }
 }
