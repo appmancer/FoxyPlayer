@@ -49,7 +49,24 @@ class MusicDiscoveryService(
     private val cache = mutableMapOf<String, List<String>>()
     private var totalApiCalls = 0
 
-    // Exponential backoff retry mechanism
+    /**
+     * Implements exponential backoff retry mechanism for API operations.
+     * 
+     * This function provides resilient API calling by automatically retrying failed operations
+     * with increasing delays between attempts, helping handle temporary network issues or 
+     * API rate limiting.
+     * 
+     * @param maxRetries Maximum number of retry attempts (default: 3)
+     * @param initialDelayMs Initial delay in milliseconds before first retry (default: 100ms)
+     * @param maxDelayMs Maximum delay cap in milliseconds to prevent excessive waiting (default: 2000ms)
+     * @param operation Suspend function containing the API operation to retry
+     * 
+     * @return Result of the successful operation
+     * @throws Exception The last exception encountered if all retries are exhausted
+     * 
+     * Delay progression: 100ms → 200ms → 400ms → 800ms (capped at maxDelayMs)
+     * Use cases: pCloud API calls, network operations requiring resilience
+     */
     private suspend fun <T> retryWithExponentialBackoff(
         maxRetries: Int = 3,
         initialDelayMs: Long = 100,
@@ -103,6 +120,28 @@ class MusicDiscoveryService(
         )
     }
 
+    /**
+     * Lists pCloud folders with automatic retry capability using exponential backoff.
+     * 
+     * This function enhances the basic API call with resilient retry logic to handle
+     * temporary network issues, API rate limiting, or transient server errors.
+     * Unlike listPCloudFoldersWithAPI, this function automatically retries failed
+     * requests and provides better reliability for production use.
+     * 
+     * @param path The pCloud folder path to list (e.g., "/" for root, "/Music" for subfolder)
+     * 
+     * @return Result<PCloudAPIResponse> containing:
+     *   - Success: Parsed pCloud API response with folder listing
+     *   - Failure: Error details if all retry attempts are exhausted
+     * 
+     * Key differences from listPCloudFoldersWithAPI:
+     * - Automatic retry with exponential backoff (up to 3 attempts)
+     * - Better handling of transient network failures
+     * - Returns empty results instead of hardcoded fallbacks on failure
+     * - Suspend function requiring coroutine context
+     * 
+     * Retry behavior: 100ms → 200ms → 400ms delays between attempts
+     */
     suspend fun listPCloudFoldersWithRetry(path: String): Result<PCloudAPIResponse> {
         return try {
             retryWithExponentialBackoff {

@@ -1430,8 +1430,8 @@ class MusicDiscoveryTest {
         // Real API responses should contain actual folder data from user's pCloud account
         // OR be empty if API is unavailable (no hardcoded fallbacks)
         assertTrue(
-            "Should return either real folder data OR empty list (no hardcoded fallbacks)",
-            folderListing.folders.isEmpty() || folderListing.folders.isNotEmpty()
+            "Should return either an empty list or real folder data (not hardcoded fallback)",
+            folderListing.folders.isEmpty() || folderListing.folders != listOf("Music", "Audio", "Downloads")
         )
     }
 
