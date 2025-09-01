@@ -198,10 +198,10 @@ class RealPCloudAPITest {
 
         val authResponse = parseResult.getOrNull()!!
         assertNotNull("Auth response should not be null", authResponse)
-        assertEquals("Should extract correct email", "sjp@datilo.net", authResponse.userInfo.email)
+        assertEquals("Should extract correct email", "test@example.com", authResponse.userInfo.email)
         assertEquals(
             "Should extract correct auth token",
-            "DOtgukZVnEQZ54VYwK4DE4Bwgc4lJaoDxkLyx17V",
+            "MockAuthToken123456789ABCDEF",
             authResponse.authToken
         )
 

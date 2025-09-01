@@ -6,38 +6,38 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Demonstrates current real pCloud data integration
+ * Demonstrates mock pCloud data integration for testing
  */
 class CurrentRealDataDemo {
 
     @Test
     fun `demonstrate real pCloud data parsing`() {
-        println("🌐 Current Real pCloud Data Integration Demo")
+        println("🌐 Mock pCloud Data Integration Demo")
         println("=" + "=".repeat(50))
 
         val authRepository = AuthRepository()
 
-        // This is REAL pCloud API response data from actual API call
+        // This is MOCK pCloud API response data for testing (not real credentials)
         val realPCloudResponse = authRepository.getExamplePCloudResponse()
 
-        println("📋 Real pCloud API Response (first 200 chars):")
+        println("📋 Mock pCloud API Response (first 200 chars):")
         println(realPCloudResponse.take(200) + "...")
 
-        // Parse real pCloud response
+        // Parse mock pCloud response
         val parseResult = authRepository.parseAuthResponse(realPCloudResponse)
-        assertTrue("Should parse real pCloud response", parseResult.isSuccess)
+        assertTrue("Should parse mock pCloud response", parseResult.isSuccess)
 
         val authResponse = parseResult.getOrNull()!!
 
-        println("\n✅ Successfully Parsed Real Data:")
-        println("📧 Real Email: ${authResponse.userInfo.email}")
-        println("🎫 Real Auth Token: ${authResponse.authToken}")
+        println("\n✅ Successfully Parsed Mock Data:")
+        println("📧 Mock Email: ${authResponse.userInfo.email}")
+        println("🎫 Mock Auth Token: ${authResponse.authToken}")
 
-        // Verify this contains real user data from actual pCloud account
-        assertEquals("Real email should match", "sjp@datilo.net", authResponse.userInfo.email)
+        // Verify this contains mock test data (not real credentials)
+        assertEquals("Mock email should match", "test@example.com", authResponse.userInfo.email)
         assertEquals(
-            "Real token should match",
-            "DOtgukZVnEQZ54VYwK4DE4Bwgc4lJaoDxkLyx17V",
+            "Mock token should match",
+            "MockAuthToken123456789ABCDEF",
             authResponse.authToken
         )
 
@@ -50,17 +50,17 @@ class CurrentRealDataDemo {
             "Should contain real quota",
             realPCloudResponse.contains("\"quota\": 536870912000")
         )
-        assertTrue("Should contain real userid", realPCloudResponse.contains("\"userid\": 3808539"))
+        assertTrue("Should contain mock userid", realPCloudResponse.contains("\"userid\": 1234567"))
 
-        println("💾 Real Account Data Found:")
-        println("  👤 UserID: 3808539")
+        println("💾 Mock Account Data Found:")
+        println("  👤 UserID: 1234567")
         println("  💎 Premium: true")
         println("  💽 Quota: 500GB")
         println("  📊 Used: ~137GB")
         println("  🌍 Currency: GBP")
         println("  📅 Registered: Thu, 27 Jul 2023")
 
-        println("\n🎉 This demonstrates we CAN parse real pCloud data!")
+        println("\n🎉 This demonstrates we CAN parse mock pCloud data!")
         println("📡 The HTTP infrastructure is ready for real API calls")
     }
 

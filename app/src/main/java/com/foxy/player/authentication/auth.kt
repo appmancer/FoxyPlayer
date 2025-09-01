@@ -344,19 +344,19 @@ class AuthRepository(private val baseUrl: String = "") {
 
     // Provides real pCloud API response format for testing integration
     fun getExamplePCloudResponse(): String {
-        // Real pCloud success response based on actual API call to eapi.pcloud.com
+        // Mock pCloud success response for testing (not real credentials)
         return """
             {
                 "cryptosetup": false,
                 "plan": 1,
                 "cryptosubscription": false,
-                "userid": 3808539,
+                "userid": 1234567,
                 "publiclinkquota": 536870912000,
                 "result": 0,
                 "premiumexpires": "Mon, 15 Sep 2025 09:02:37 +0000",
-                "email": "sjp@datilo.net",
+                "email": "test@example.com",
                 "trashrevretentiondays": 30,
-                "auth": "DOtgukZVnEQZ54VYwK4DE4Bwgc4lJaoDxkLyx17V",
+                "auth": "MockAuthToken123456789ABCDEF",
                 "emailverified": true,
                 "usedpublinkbranding": false,
                 "quota": 536870912000,

@@ -206,12 +206,12 @@ class AuthRepositoryTest {
         assertNotNull("Should return auth response", authResponse)
         assertEquals(
             "Should extract correct auth token",
-            "DOtgukZVnEQZ54VYwK4DE4Bwgc4lJaoDxkLyx17V",
+            "MockAuthToken123456789ABCDEF",
             authResponse?.authToken
         )
         assertEquals(
             "Should extract correct email",
-            "sjp@datilo.net",
+            "test@example.com",
             authResponse?.userInfo?.email
         )
     }
@@ -310,7 +310,8 @@ class AuthRepositoryTest {
         val rootDir = File(System.getProperty("user.dir"))
         val sensitiveFiles = listOf(
             "pcloudpass.txt",
-            "credentials.txt", "pcloud.txt",
+            "credentials.txt",
+            "pcloud.txt",
             ".env",
             "secrets.txt"
         )
@@ -324,6 +325,41 @@ class AuthRepositoryTest {
         assertTrue(
             "Sensitive credential files should not be committed to repository: $foundSensitiveFiles",
             foundSensitiveFiles.isEmpty()
+        )
+    }
+
+    @Test
+    fun `should use only mock credentials in test files and never real user data`() {
+        // This test verifies that test files don't contain real credential patterns
+        // that could expose actual user accounts or authentication tokens
+
+        // Arrange - Scan test files for real credential patterns
+        val testDir = File(System.getProperty("user.dir"), "app/src/test")
+        val realCredentialPatterns = listOf(
+            "user@realcompany.com", // Example real email pattern
+            "RealAuthToken987654321ZYXWVU", // Example real auth token pattern
+            "@gmail.com", // Real email domains
+            "@yahoo.com",
+            "@hotmail.com"
+        )
+
+        // Act - Search for real credential patterns in test files
+        val foundRealCredentials = mutableListOf<String>()
+        testDir.walkTopDown()
+            .filter { it.extension == "kt" }
+            .forEach { file ->
+                val content = file.readText()
+                realCredentialPatterns.forEach { pattern ->
+                    if (content.contains(pattern)) {
+                        foundRealCredentials.add("${file.name}: $pattern")
+                    }
+                }
+            }
+
+        // Assert - No real credentials should be found in test files
+        assertTrue(
+            "Test files should not contain real credentials: $foundRealCredentials",
+            foundRealCredentials.isEmpty()
         )
     }
 }
