@@ -1598,6 +1598,59 @@ class MusicDiscoveryTest {
     }
 
     @Test
+    fun `should properly handle API errors without falling back to hardcoded responses`() {
+        // Arrange - setup test data with authenticated state for real error handling
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should handle real API errors without hardcoded fallbacks
+        val result = musicDiscoveryService.listPCloudFoldersWithAPI("/nonexistent")
+
+        // Assert - should get proper error handling, NOT hardcoded fallback data
+        if (result.isSuccess) {
+            val response = result.getOrNull()!!
+            val folderListing = response.folderListing
+
+            // CRITICAL: Should NOT contain the hardcoded fallback folders from
+            // DefaultFolderListingStrategy
+            assertFalse(
+                "Should NOT return hardcoded fallback folders ['UserContent', 'MediaFiles', " +
+                    "'Documents', 'SharedFolders']",
+                folderListing.folders.containsAll(
+                    listOf("UserContent", "MediaFiles", "Documents", "SharedFolders")
+                )
+            )
+
+            // Should handle errors with exponential backoff retry mechanism instead of hardcoded responses
+            assertTrue(
+                "Should handle API errors properly without hardcoded fallbacks",
+                folderListing.folders.isEmpty() || !folderListing.folders.contains("UserContent")
+            )
+        } else {
+            // If error occurs, should be genuine API error with proper error handling
+            val exception = result.exceptionOrNull()!!
+            assertTrue(
+                "Should contain real error details for proper error handling",
+                exception.message?.isNotEmpty() == true
+            )
+        }
+
+        // Additional test: Verify no hardcoded strategy fallback is used
+        val audioResult = musicDiscoveryService.listAudioFiles("/invalid")
+        if (audioResult.isSuccess) {
+            val audioResponse = audioResult.getOrNull()!!
+
+            // Should NOT use generatePathBasedFileList with hardcoded extensions
+            assertFalse(
+                "Should NOT generate hardcoded path-based files as fallback",
+                audioResponse.audioFiles.any { it.matches(Regex(".*_file\\d+\\.(mp3|flac|wav)")) }
+            )
+        }
+    }
+
+    @Test
     fun `should generate path-based file lists using helper function`() {
         // Arrange - setup test data with authenticated state
         val authRepository = AuthRepository("https://eapi.pcloud.com")
