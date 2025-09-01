@@ -1,6 +1,8 @@
 package com.foxy.player.authentication
 
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -158,7 +160,7 @@ class AuthRepositoryTest {
     fun `should authenticate with real pCloud API when credentials are available`() {
         val credentialsFile = File("pcloud.txt")
         if (!credentialsFile.exists()) {
-            println("⚠️ pcloud.txt not found - skipping real API test")
+            System.err.println("⚠️ pcloud.txt not found - skipping real API test")
             return
         }
 
@@ -167,7 +169,7 @@ class AuthRepositoryTest {
             val realUsername = credentials[2].trim()
             val realPassword = credentials[3].trim()
 
-            println("📧 Testing real pCloud API with email: $realUsername")
+            System.err.println("📧 Testing real pCloud API with email: $realUsername")
 
             val authRepository = AuthRepository("https://eapi.pcloud.com")
             val result = authRepository.authenticateWithRealPCloudAPI(realUsername, realPassword)
@@ -180,14 +182,14 @@ class AuthRepositoryTest {
                 assertNotNull("Should have real auth token", authToken)
                 assertFalse("Should NOT be mock token", authToken == "mock_auth_token_12345")
 
-                println("✅ Real pCloud API authentication successful!")
+                System.err.println("✅ Real pCloud API authentication successful!")
             } else {
-                println("❌ Real authentication failed: ${result.exceptionOrNull()?.message}")
-                println("💡 This is expected if credentials are invalid")
+                System.err.println("❌ Real authentication failed: ${result.exceptionOrNull()?.message}")
+                System.err.println("💡 This is expected if credentials are invalid")
             }
         } catch (e: Exception) {
-            println("💥 Error during real pCloud API test: ${e.message}")
-            println("💡 This is expected if credentials file format is unexpected")
+            System.err.println("💥 Error during real pCloud API test: ${e.message}")
+            System.err.println("💡 This is expected if credentials file format is unexpected")
         }
     }
 
@@ -307,7 +309,7 @@ class AuthRepositoryTest {
         // to the repository, preventing exposure of real authentication data
 
         // Arrange - Check for sensitive files that should not be in the repository
-        val rootDir = File(System.getProperty("user.dir"))
+        val rootDir = File(System.getProperty("user.dir") ?: ".")
         val sensitiveFiles = listOf(
             "pcloudpass.txt",
             "credentials.txt",
@@ -375,29 +377,50 @@ class AuthRepositoryTest {
         val testUsername = "test@example.com"
         val testPassword = "validpassword123"
 
+        // Setup CountDownLatch for reliable async testing
+        val authCompletionLatch = CountDownLatch(1)
+
+        // Create a simple callback mechanism to track authentication completion
+        var authenticationCompleted = false
+        var initialLoadingState = false
+
         // Act - Simulate login button click by calling the ViewModel login method
         // This is the same method that the UI button calls
         authViewModel.login(testUsername, testPassword, "AUTO")
 
-        // Give the authentication process time to start (it runs in a background thread)
-        Thread.sleep(50)
+        // Give the authentication process time to start and capture initial state
+        val initialStateLatch = CountDownLatch(1)
+        Thread {
+            Thread.sleep(50) // Minimal delay to capture initial state
+            initialLoadingState = authViewModel.isLoading
+            initialStateLatch.countDown()
+        }.start()
+
+        assertTrue("Should capture initial state", initialStateLatch.await(1, TimeUnit.SECONDS))
 
         // Assert - Verify the login process started (should be in loading state)
-        assertTrue("Login should start loading state", authViewModel.isLoading)
+        assertTrue("Login should start loading state", initialLoadingState)
 
-        // Wait for authentication to complete - give it more time for real API calls
-        var attempts = 0
-        val maxAttempts = 20 // Up to 2 seconds total
-        while (authViewModel.isLoading && attempts < maxAttempts) {
-            Thread.sleep(100)
-            attempts++
-        }
+        // Wait for authentication to complete using polling with timeout
+        Thread {
+            var attempts = 0
+            val maxAttempts = 20 // Up to 2 seconds total
+            while (authViewModel.isLoading && attempts < maxAttempts) {
+                Thread.sleep(100)
+                attempts++
+            }
+            authenticationCompleted = true
+            authCompletionLatch.countDown()
+        }.start()
+
+        // Wait up to 3 seconds for authentication completion
+        assertTrue("Authentication should complete or timeout", authCompletionLatch.await(3, TimeUnit.SECONDS))
 
         // Assert - Authentication should have completed (no longer loading) or we timed out
         // Either way, verify that real authentication was attempted
         if (authViewModel.isLoading) {
             // If still loading after timeout, that's fine - it means real network call is happening
-            println("Authentication still in progress - indicates real network call")
+            System.err.println("Authentication still in progress - indicates real network call")
         } else {
             // If completed, verify it was a real authentication attempt
             assertFalse("Login should complete loading state", authViewModel.isLoading)
@@ -430,22 +453,39 @@ class AuthRepositoryTest {
         val testUsername = "test@example.com"
         val testPassword = "validpassword123"
 
+        // Setup CountDownLatch for reliable async testing
+        val authCompletionLatch = CountDownLatch(1)
+        var initialLoadingState = false
+
         // Act - Simulate login button click with invalid server
         authViewModel.login(testUsername, testPassword, "AUTO")
 
-        // Give the authentication process time to start
-        Thread.sleep(50)
+        // Give the authentication process time to start and capture initial state
+        val initialStateLatch = CountDownLatch(1)
+        Thread {
+            Thread.sleep(50) // Minimal delay to capture initial state
+            initialLoadingState = authViewModel.isLoading
+            initialStateLatch.countDown()
+        }.start()
+
+        assertTrue("Should capture initial state", initialStateLatch.await(1, TimeUnit.SECONDS))
 
         // Assert - Verify the login process started (should be in loading state)
-        assertTrue("Login should start loading state", authViewModel.isLoading)
+        assertTrue("Login should start loading state", initialLoadingState)
 
-        // Wait for authentication to complete and fail
-        var attempts = 0
-        val maxAttempts = 30 // Up to 3 seconds for network timeout
-        while (authViewModel.isLoading && attempts < maxAttempts) {
-            Thread.sleep(100)
-            attempts++
-        }
+        // Wait for authentication to complete and fail using reliable async pattern
+        Thread {
+            var attempts = 0
+            val maxAttempts = 30 // Up to 3 seconds for network timeout
+            while (authViewModel.isLoading && attempts < maxAttempts) {
+                Thread.sleep(100)
+                attempts++
+            }
+            authCompletionLatch.countDown()
+        }.start()
+
+        // Wait up to 4 seconds for authentication completion
+        assertTrue("Authentication should complete or timeout", authCompletionLatch.await(4, TimeUnit.SECONDS))
 
         // The authentication should either complete with error or still be in progress
         // Both cases indicate that real authentication was attempted
@@ -480,7 +520,7 @@ class AuthRepositoryTest {
             }
         } else {
             // If still in loading state, that's also acceptable - indicates real network attempt
-            println("Authentication still in progress after timeout - indicates real network call attempt")
+            System.err.println("Authentication still in progress after timeout - indicates real network call attempt")
         }
 
         // The key verification: ensure we're not authenticated with invalid credentials
