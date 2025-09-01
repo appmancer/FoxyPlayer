@@ -693,17 +693,6 @@ class MusicDiscoveryService(
         return Result.success(report)
     }
 
-    private fun detectAudioFormat(fileName: String): String {
-        return when {
-            fileName.lowercase().endsWith(".mp3") -> "MP3"
-            fileName.lowercase().endsWith(".flac") -> "FLAC"
-            fileName.lowercase().endsWith(".wav") -> "WAV"
-            fileName.lowercase().endsWith(".aac") -> "AAC"
-            fileName.lowercase().endsWith(".m4a") -> "AAC"
-            else -> "MP3" // default fallback
-        }
-    }
-
     fun extractMetadata(audioFileUrl: String, audioFileName: String): Result<AudioMetadata> {
         // For unit tests, use mock data when URL is not a real file
         if (audioFileUrl.startsWith("https://sample.com/") || audioFileUrl.startsWith(
@@ -855,8 +844,8 @@ class MusicDiscoveryService(
         return try {
             val strategies = listOf(
                 MediaMetadataRetrieverStrategy(this),
-                HeuristicPathStrategy(),
-                FilenameParsingStrategy()
+                HeuristicPathStrategy(this),
+                FilenameParsingStrategy(this)
             )
 
             val strategyResults = mutableMapOf<String, StrategyResult>()
@@ -933,8 +922,8 @@ class MusicDiscoveryService(
         return try {
             val strategies = listOf(
                 MediaMetadataRetrieverStrategy(this),
-                HeuristicPathStrategy(),
-                FilenameParsingStrategy()
+                HeuristicPathStrategy(this),
+                FilenameParsingStrategy(this)
             )
 
             val strategyErrors = mutableListOf<StrategyError>()
@@ -1020,24 +1009,41 @@ class MusicDiscoveryService(
         }
     }
 
-    private fun extractMetadataFromPath(filePath: String): AudioMetadata {
+    // ===== SHARED UTILITIES FOR METADATA EXTRACTION =====
+
+    /**
+     * Shared utility to parse file path for artist/album/title metadata
+     * Used by multiple metadata extraction strategies
+     */
+    internal fun parsePathForMetadata(
+        filePath: String,
+        fallbackFileName: String = "Unknown"
+    ): Triple<String, String, String> {
         val parts = filePath.trim('/').split('/')
         val (artist, album) = when {
             parts.size >= 3 -> parts[parts.size - 3] to parts[parts.size - 2]
             parts.size >= 2 -> parts[parts.size - 2] to "Unknown Album"
             else -> "Unknown Artist" to "Unknown Album"
         }
-        val fileName = parts.lastOrNull() ?: "Unknown"
+        val fileName = parts.lastOrNull() ?: fallbackFileName
         val title = fileName.substringBeforeLast('.')
 
-        return AudioMetadata(
-            title = title,
-            artist = artist,
-            album = album,
-            durationMs = 0L,
-            format = detectAudioFormat(fileName),
-            bitrate = 0
-        )
+        return Triple(artist, album, title)
+    }
+
+    /**
+     * Shared utility to detect audio format from filename extension
+     */
+    internal fun detectAudioFormat(fileName: String): String {
+        return when {
+            fileName.lowercase().endsWith(".mp3") -> "MP3"
+            fileName.lowercase().endsWith(".flac") -> "FLAC"
+            fileName.lowercase().endsWith(".wav") -> "WAV"
+            fileName.lowercase().endsWith(".aac") -> "AAC"
+            fileName.lowercase().endsWith(".ogg") -> "OGG"
+            fileName.lowercase().endsWith(".m4a") -> "M4A"
+            else -> fileName.substringAfterLast('.', "").uppercase()
+        }
     }
 
     private fun extractMetadataFromFilename(fileName: String): AudioMetadata {
@@ -1059,7 +1065,11 @@ class MediaMetadataRetrieverStrategy(
     private val musicDiscoveryService: MusicDiscoveryService
 ) : MetadataStrategy {
 
-    override suspend fun extractMetadata(audioFileUrl: String, audioFileName: String, filePath: String): Result<AudioMetadata> {
+    override suspend fun extractMetadata(
+        audioFileUrl: String,
+        audioFileName: String,
+        filePath: String
+    ): Result<AudioMetadata> {
         return musicDiscoveryService.extractMetadata(audioFileUrl, audioFileName)
     }
 
@@ -1077,24 +1087,24 @@ class MediaMetadataRetrieverStrategy(
     override fun getStrategyName(): String = "MediaMetadataRetriever"
 }
 
-class HeuristicPathStrategy : MetadataStrategy {
+class HeuristicPathStrategy(
+    private val musicDiscoveryService: MusicDiscoveryService
+) : MetadataStrategy {
 
-    override suspend fun extractMetadata(audioFileUrl: String, audioFileName: String, filePath: String): Result<AudioMetadata> {
-        val parts = filePath.trim('/').split('/')
-        val (artist, album) = when {
-            parts.size >= 3 -> parts[parts.size - 3] to parts[parts.size - 2]
-            parts.size >= 2 -> parts[parts.size - 2] to "Unknown Album"
-            else -> "Unknown Artist" to "Unknown Album"
-        }
-        val fileName = parts.lastOrNull() ?: audioFileName
-        val title = fileName.substringBeforeLast('.')
+    override suspend fun extractMetadata(
+        audioFileUrl: String,
+        audioFileName: String,
+        filePath: String
+    ): Result<AudioMetadata> {
+        val (artist, album, title) = musicDiscoveryService.parsePathForMetadata(filePath, audioFileName)
+        val fileName = filePath.split('/').lastOrNull() ?: audioFileName
 
         val metadata = AudioMetadata(
             title = title,
             artist = artist,
             album = album,
             durationMs = 0L,
-            format = detectAudioFormat(fileName),
+            format = musicDiscoveryService.detectAudioFormat(fileName),
             bitrate = 0
         )
 
@@ -1111,22 +1121,24 @@ class HeuristicPathStrategy : MetadataStrategy {
     }
 
     override fun getStrategyName(): String = "HeuristicPath"
-
-    private fun detectAudioFormat(fileName: String): String {
-        return fileName.substringAfterLast('.', "").uppercase()
-    }
 }
 
-class FilenameParsingStrategy : MetadataStrategy {
+class FilenameParsingStrategy(
+    private val musicDiscoveryService: MusicDiscoveryService
+) : MetadataStrategy {
 
-    override suspend fun extractMetadata(audioFileUrl: String, audioFileName: String, filePath: String): Result<AudioMetadata> {
+    override suspend fun extractMetadata(
+        audioFileUrl: String,
+        audioFileName: String,
+        filePath: String
+    ): Result<AudioMetadata> {
         val title = audioFileName.substringBeforeLast('.')
         val metadata = AudioMetadata(
             title = title,
             artist = "Unknown Artist",
             album = "Unknown Album",
             durationMs = 0L,
-            format = detectAudioFormat(audioFileName),
+            format = musicDiscoveryService.detectAudioFormat(audioFileName),
             bitrate = 0
         )
 
@@ -1139,10 +1151,6 @@ class FilenameParsingStrategy : MetadataStrategy {
     }
 
     override fun getStrategyName(): String = "FilenameParsing"
-
-    private fun detectAudioFormat(fileName: String): String {
-        return fileName.substringAfterLast('.', "").uppercase()
-    }
 }
 
 // ===== AUDIO FILE SCANNER INTERFACE =====
