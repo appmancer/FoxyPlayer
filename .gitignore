@@ -98,6 +98,12 @@ AGENTS.md
 .spectrum/
 pcloud.txt
 
+# Sensitive credential files
+pcloudpass.txt
+credentials.txt
+secrets.txt
+.env
+
 # Additional files to ignore
 .idea/
 port

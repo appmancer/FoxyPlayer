@@ -344,19 +344,19 @@ class AuthRepository(private val baseUrl: String = "") {
 
     // Provides real pCloud API response format for testing integration
     fun getExamplePCloudResponse(): String {
-        // Real pCloud success response based on actual API call to eapi.pcloud.com
+        // Mock pCloud success response for testing (not real credentials)
         return """
             {
                 "cryptosetup": false,
                 "plan": 1,
                 "cryptosubscription": false,
-                "userid": 3808539,
+                "userid": 1234567,
                 "publiclinkquota": 536870912000,
                 "result": 0,
                 "premiumexpires": "Mon, 15 Sep 2025 09:02:37 +0000",
-                "email": "sjp@datilo.net",
+                "email": "test@example.com",
                 "trashrevretentiondays": 30,
-                "auth": "DOtgukZVnEQZ54VYwK4DE4Bwgc4lJaoDxkLyx17V",
+                "auth": "MockAuthToken123456789ABCDEF",
                 "emailverified": true,
                 "usedpublinkbranding": false,
                 "quota": 536870912000,
@@ -400,9 +400,16 @@ class AuthRepository(private val baseUrl: String = "") {
                     println("AUTH: Parse result success: ${parseResult.isSuccess}")
 
                     if (parseResult.isSuccess) {
-                        // Store successful server for future use
-                        lastSuccessfulServer = serverUrl
                         return parseResult
+                    } else {
+                        // Preserve the original parsing error instead of generic message
+                        val parseError = parseResult.exceptionOrNull()
+                        return Result.failure(
+                            Exception(
+                                "Authentication response parsing failed on server $serverUrl: ${parseError?.message}",
+                                parseError
+                            )
+                        )
                     }
                 } else {
                     println("AUTH: HTTP error: ${response.code} - ${response.message}")
@@ -439,6 +446,15 @@ class AuthRepository(private val baseUrl: String = "") {
 
                 if (parseResult.isSuccess) {
                     return parseResult
+                } else {
+                    // Preserve the original parsing error instead of generic message
+                    val parseError = parseResult.exceptionOrNull()
+                    return Result.failure(
+                        Exception(
+                            "Authentication response parsing failed on server $serverUrl: ${parseError?.message}",
+                            parseError
+                        )
+                    )
                 }
             }
 
@@ -1118,9 +1134,9 @@ fun LoginScreenWithNavigation(
     authViewModel: AuthViewModel,
     onLoginSuccess: () -> Unit
 ) {
-    // PLY-83: Functional login form state - pre-filled for testing
-    var username by remember { mutableStateOf("sjp@datilo.net") }
-    var password by remember { mutableStateOf("0ck!XUcc6^COd5DF") }
+    // PLY-83: Functional login form state - empty for production
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
     // Navigation effect: when authentication succeeds, navigate to home
     LaunchedEffect(authViewModel.isAuthenticated) {
