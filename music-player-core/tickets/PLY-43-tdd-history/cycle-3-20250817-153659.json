@@ -1,0 +1,16 @@
+{
+  "cycle_number": 3,
+  "phase": "completed",
+  "test_description": "should handle time-based token expiration and detect expired tokens",
+  "started": "2025-08-17T15:34:30+01:00",
+  "ticket": "PLY-43",
+  "confirmed": true,
+  "confirmed_at": "2025-08-17T14:34:30Z",
+  "green_started": "2025-08-17T14:35:40Z",
+  "green_confirmed": true,
+  "green_confirmed_at": "2025-08-17T14:35:40Z",
+  "refactor_started": "2025-08-17T14:36:50Z",
+  "commit_started": "2025-08-17T14:36:50Z",
+  "completed_at": "2025-08-17T14:36:59Z",
+  "commit_message": "Implement time-based token expiration with automatic cleanup"
+}
