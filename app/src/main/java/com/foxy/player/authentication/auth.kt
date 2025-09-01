@@ -11,10 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -380,6 +377,7 @@ class AuthRepository(private val baseUrl: String = "") {
 
         for (serverUrl in servers) {
             try {
+                println("AUTH: Trying server: $serverUrl")
                 val requestBody = FormBody.Builder()
                     .add("username", username)
                     .add("password", password)
@@ -393,16 +391,21 @@ class AuthRepository(private val baseUrl: String = "") {
                     .build()
 
                 val response = httpClient.newCall(request).execute()
-
+                println("AUTH: Response code: ${response.code}")
                 if (response.isSuccessful) {
                     val jsonResponse = response.body?.string() ?: ""
+                    println("AUTH: Response body: $jsonResponse")
+
                     val parseResult = parseAuthResponse(jsonResponse)
+                    println("AUTH: Parse result success: ${parseResult.isSuccess}")
 
                     if (parseResult.isSuccess) {
                         // Store successful server for future use
                         lastSuccessfulServer = serverUrl
                         return parseResult
                     }
+                } else {
+                    println("AUTH: HTTP error: ${response.code} - ${response.message}")
                 }
             } catch (e: Exception) {
                 // Continue to next server
@@ -412,6 +415,37 @@ class AuthRepository(private val baseUrl: String = "") {
 
         // If we get here, both servers failed
         return Result.failure(IOException("Authentication failed on both US and EU servers"))
+    }
+
+    fun authenticateWithSpecificServer(username: String, password: String, serverUrl: String): Result<AuthResponse> {
+        return try {
+            val requestBody = FormBody.Builder()
+                .add("username", username)
+                .add("password", password)
+                .add("getauth", "1")
+                .add("logout", "1")
+                .build()
+
+            val request = Request.Builder()
+                .url("$serverUrl/userinfo")
+                .post(requestBody)
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+
+            if (response.isSuccessful) {
+                val jsonResponse = response.body?.string() ?: ""
+                val parseResult = parseAuthResponse(jsonResponse)
+
+                if (parseResult.isSuccess) {
+                    return parseResult
+                }
+            }
+
+            Result.failure(IOException("Authentication failed on server: $serverUrl"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     // PLY-43: Secure Storage Integration Methods
@@ -728,11 +762,11 @@ class LoginScreen {
 // Auth ViewModel (MVVM Pattern)
 class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     // State management for authentication
-    private var _isLoading = false
-    private var _isAuthenticated = false
-    private var _authToken: String? = null
-    private var _username: String = ""
-    private var _errorMessage: String? = null
+    private var _isLoading by mutableStateOf(false)
+    private var _isAuthenticated by mutableStateOf(false)
+    private var _authToken: String? by mutableStateOf(null)
+    private var _username: String by mutableStateOf("")
+    private var _errorMessage: String? by mutableStateOf(null)
 
     val isLoading: Boolean get() = _isLoading
     val isAuthenticated: Boolean get() = _isAuthenticated
@@ -827,20 +861,37 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     // PLY-83: Login with server selection for functional login form
     fun login(username: String, password: String, serverRegion: String) {
+        println("LOGIN: Starting authentication for user: $username, region: $serverRegion")
         _isLoading = true
         _username = username
         _errorMessage = null
 
         Thread {
             Thread.sleep(100) // Simulate network delay
+            println("LOGIN: About to call authenticateWithAutoServerDetection")
 
-            // Use the server-aware authentication method
-            val result = authRepository.authenticateWithServerSupport(username, password, serverRegion)
+            // Use real authentication with user-selected server
+            val result = when (serverRegion) {
+                "EUROPE" -> {
+                    println("LOGIN: Using EU server only")
+                    authRepository.authenticateWithSpecificServer(username, password, "https://eapi.pcloud.com")
+                }
+                "US" -> {
+                    println("LOGIN: Using US server only")
+                    authRepository.authenticateWithSpecificServer(username, password, "https://api.pcloud.com")
+                }
+                else -> {
+                    println("LOGIN: Using auto-detection (both servers)")
+                    authRepository.authenticateWithAutoServerDetection(username, password)
+                }
+            }
+            println("LOGIN: Authentication result received, isSuccess=${result.isSuccess}")
 
-            _isLoading = false
             if (result.isSuccess) {
+                println("LOGIN: Authentication successful!")
                 val authResponse = result.getOrNull()
                 if (authResponse != null) {
+                    println("LOGIN: Got auth response, saving state")
                     // Update ViewModel state
                     _isAuthenticated = true
                     _authToken = authResponse.authToken
@@ -851,12 +902,19 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
                         authResponse.userInfo
                     )
                     authRepository.triggerLoginEvent(authResponse.userInfo)
+                    println("LOGIN: State saved and login event triggered")
+                } else {
+                    println("LOGIN: Auth response was null")
                 }
             } else {
+                println("LOGIN: Authentication failed")
+                val error = result.exceptionOrNull()
+                println("LOGIN: Error details: ${error?.message}")
                 // Handle error state
                 _isAuthenticated = false
                 _authToken = null
                 _errorMessage = result.exceptionOrNull()?.message ?: "Authentication failed"
+                println("LOGIN: Error message set to: $_errorMessage")
             }
         }.start()
     }
@@ -1060,11 +1118,9 @@ fun LoginScreenWithNavigation(
     authViewModel: AuthViewModel,
     onLoginSuccess: () -> Unit
 ) {
-    // PLY-83: Functional login form state
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var selectedServer by remember { mutableStateOf("US") }
-    var isServerDropdownExpanded by remember { mutableStateOf(false) }
+    // PLY-83: Functional login form state - pre-filled for testing
+    var username by remember { mutableStateOf("sjp@datilo.net") }
+    var password by remember { mutableStateOf("0ck!XUcc6^COd5DF") }
 
     // Navigation effect: when authentication succeeds, navigate to home
     LaunchedEffect(authViewModel.isAuthenticated) {
@@ -1111,65 +1167,20 @@ fun LoginScreenWithNavigation(
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Server selection dropdown
-        ExposedDropdownMenuBox(
-            expanded = isServerDropdownExpanded,
-            onExpandedChange = { isServerDropdownExpanded = !isServerDropdownExpanded },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            OutlinedTextField(
-                readOnly = true,
-                value = "$selectedServer Server",
-                onValueChange = { },
-                label = { Text("Server") },
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(
-                        expanded = isServerDropdownExpanded
-                    )
-                },
-                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = isServerDropdownExpanded,
-                onDismissRequest = { isServerDropdownExpanded = false }
-            ) {
-                listOf("US", "EU").forEach { server ->
-                    DropdownMenuItem(
-                        onClick = {
-                            selectedServer = server
-                            isServerDropdownExpanded = false
-                        },
-                        text = { Text("$server Server") }
-                    )
-                }
-            }
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Login button
-        val isValidInput = username.isBlank() || (username.contains("@") && !username.contains(" ")) || (
-            !username.contains(
-                "@"
-            ) && !username.contains(" ")
-            ) // Allow usernames without @
+        // Login button - proper email validation
+        val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
+        val isValidEmail = username.matches(emailRegex)
+        val isValidUsername = username.matches("^[A-Za-z0-9_.-]+$".toRegex()) // alphanumeric, underscore, dot, dash
+        val isValidInput = isValidEmail || isValidUsername
         val isFormValid = username.isNotBlank() && password.isNotBlank() && isValidInput
 
         Button(
             onClick = {
-                // PLY-83: Connect to authentication backend
-                // Map UI server selection to backend region format
-                val backendRegion = when (selectedServer) {
-                    "EU" -> "EUROPE"
-                    "US" -> "US"
-                    else -> "US" // Default fallback
-                }
-                authViewModel.login(username, password, backendRegion)
+                println("LOGIN: Button clicked, calling authViewModel.login()")
+                // Auto-detect server (tries both EU and US automatically)
+                authViewModel.login(username, password, "AUTO")
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = isFormValid && !authViewModel.isLoading
@@ -1181,7 +1192,7 @@ fun LoginScreenWithNavigation(
         if (username.isNotBlank() && !isValidInput) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Please enter a valid email address or username (no spaces)",
+                text = "Please enter a valid email address or username (letters, numbers, dots, dashes, underscores only)",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall
             )
