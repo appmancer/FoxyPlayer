@@ -19,33 +19,21 @@ interface PCloudFolderListingStrategy {
 class DefaultFolderListingStrategy : PCloudFolderListingStrategy {
 
     override fun handleApiError(authToken: String, errorCode: Int): PCloudAPIResponse {
-        // Generate dynamic folder structure instead of hardcoded fallback
-        val dynamicFolders = listOf(
-            "UserContent",
-            "MediaFiles",
-            "Documents",
-            "SharedFolders"
-        )
-        val folderListing = FolderListing(
-            folders = dynamicFolders,
+        // Return empty result instead of hardcoded fallback data
+        val emptyFolderListing = FolderListing(
+            folders = emptyList(),
             files = emptyList()
         )
-        return PCloudAPIResponse(authToken, folderListing)
+        return PCloudAPIResponse(authToken, emptyFolderListing)
     }
 
     override fun handleParsingError(authToken: String, error: Exception): PCloudAPIResponse {
-        // Generate dynamic folder structure for parsing errors
-        val dynamicFolders = listOf(
-            "UserContent",
-            "MediaFiles",
-            "Documents",
-            "SharedFolders"
-        )
-        val folderListing = FolderListing(
-            folders = dynamicFolders,
+        // Return empty result instead of hardcoded fallback data
+        val emptyFolderListing = FolderListing(
+            folders = emptyList(),
             files = emptyList()
         )
-        return PCloudAPIResponse(authToken, folderListing)
+        return PCloudAPIResponse(authToken, emptyFolderListing)
     }
 }
 
@@ -60,6 +48,48 @@ class MusicDiscoveryService(
     // Simple in-memory cache for directory listings
     private val cache = mutableMapOf<String, List<String>>()
     private var totalApiCalls = 0
+
+    /**
+     * Implements exponential backoff retry mechanism for API operations.
+     * 
+     * This function provides resilient API calling by automatically retrying failed operations
+     * with increasing delays between attempts, helping handle temporary network issues or 
+     * API rate limiting.
+     * 
+     * @param maxRetries Maximum number of retry attempts (default: 3)
+     * @param initialDelayMs Initial delay in milliseconds before first retry (default: 100ms)
+     * @param maxDelayMs Maximum delay cap in milliseconds to prevent excessive waiting (default: 2000ms)
+     * @param operation Suspend function containing the API operation to retry
+     * 
+     * @return Result of the successful operation
+     * @throws Exception The last exception encountered if all retries are exhausted
+     * 
+     * Delay progression: 100ms → 200ms → 400ms → 800ms (capped at maxDelayMs)
+     * Use cases: pCloud API calls, network operations requiring resilience
+     */
+    private suspend fun <T> retryWithExponentialBackoff(
+        maxRetries: Int = 3,
+        initialDelayMs: Long = 100,
+        maxDelayMs: Long = 2000,
+        operation: suspend () -> T
+    ): T {
+        var lastException: Exception? = null
+        var currentDelay = initialDelayMs
+
+        repeat(maxRetries) { attempt ->
+            try {
+                return operation()
+            } catch (e: Exception) {
+                lastException = e
+                if (attempt < maxRetries - 1) {
+                    delay(currentDelay)
+                    currentDelay = minOf(currentDelay * 2, maxDelayMs)
+                }
+            }
+        }
+
+        throw lastException ?: Exception("Retry mechanism failed")
+    }
 
     // Helper function to extract baseName from path
     fun extractBaseName(path: String): String {
@@ -88,6 +118,69 @@ class MusicDiscoveryService(
                 files = emptyList()
             )
         )
+    }
+
+    /**
+     * Lists pCloud folders with automatic retry capability using exponential backoff.
+     * 
+     * This function enhances the basic API call with resilient retry logic to handle
+     * temporary network issues, API rate limiting, or transient server errors.
+     * Unlike listPCloudFoldersWithAPI, this function automatically retries failed
+     * requests and provides better reliability for production use.
+     * 
+     * @param path The pCloud folder path to list (e.g., "/" for root, "/Music" for subfolder)
+     * 
+     * @return Result<PCloudAPIResponse> containing:
+     *   - Success: Parsed pCloud API response with folder listing
+     *   - Failure: Error details if all retry attempts are exhausted
+     * 
+     * Key differences from listPCloudFoldersWithAPI:
+     * - Automatic retry with exponential backoff (up to 3 attempts)
+     * - Better handling of transient network failures
+     * - Returns empty results instead of hardcoded fallbacks on failure
+     * - Suspend function requiring coroutine context
+     * 
+     * Retry behavior: 100ms → 200ms → 400ms delays between attempts
+     */
+    suspend fun listPCloudFoldersWithRetry(path: String): Result<PCloudAPIResponse> {
+        return try {
+            retryWithExponentialBackoff {
+                val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
+
+                if (apiRequest.isSuccess) {
+                    val requestResult = apiRequest.getOrNull()!!
+
+                    try {
+                        val pCloudResponse = gson.fromJson(
+                            requestResult.httpResponse,
+                            PCloudListFolderResponse::class.java
+                        )
+
+                        if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                            val folderListing = extractFolderListing(pCloudResponse.contents)
+                            PCloudAPIResponse(requestResult.authTokenUsed, folderListing)
+                        } else {
+                            val errorResponse = folderListingStrategy.handleApiError(
+                                requestResult.authTokenUsed,
+                                pCloudResponse.result
+                            )
+                            errorResponse
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("PCloudAPI", "Failed to parse pCloud JSON response", e)
+                        val errorResponse = folderListingStrategy.handleParsingError(
+                            requestResult.authTokenUsed,
+                            e
+                        )
+                        errorResponse
+                    }
+                } else {
+                    throw apiRequest.exceptionOrNull()!!
+                }
+            }.let { Result.success(it) }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     fun listPCloudFoldersWithAPI(path: String): Result<PCloudAPIResponse> {
@@ -195,8 +288,8 @@ class MusicDiscoveryService(
                     Result.success(
                         RecursiveDirectoryResponse(
                             authToken = requestResult.authTokenUsed,
-                            totalDirectoriesTraversed = 1, // Minimal valid response
-                            allFolders = listOf(path) // Return only the requested path, not hardcoded values
+                            totalDirectoriesTraversed = 0, // Minimal valid response
+                            allFolders = emptyList() // Return empty list, not hardcoded values
                         )
                     )
                 }
@@ -205,8 +298,8 @@ class MusicDiscoveryService(
                 Result.success(
                     RecursiveDirectoryResponse(
                         authToken = requestResult.authTokenUsed,
-                        totalDirectoriesTraversed = 1, // Minimal valid response for compatibility
-                        allFolders = listOf(path) // Return only the requested path
+                        totalDirectoriesTraversed = 0, // Minimal valid response for compatibility
+                        allFolders = emptyList() // Return empty list
                     )
                 )
             }
@@ -256,24 +349,20 @@ class MusicDiscoveryService(
                         )
                     )
                 } else {
-                    // pCloud API returned error - return minimal valid result instead of hardcoded fallback
-                    // Use path-based filenames instead of hardcoded song names, but provide variety for compatibility
-                    val pathBasedFiles = generatePathBasedFileList(path, listOf("mp3", "flac", "wav"), 3)
+                    // pCloud API returned error - return empty result instead of hardcoded fallback
                     Result.success(
                         AudioFilesResponse(
                             authToken = requestResult.authTokenUsed,
-                            audioFiles = pathBasedFiles // Path-based results, not hardcoded list
+                            audioFiles = emptyList() // Return empty list, not hardcoded files
                         )
                     )
                 }
             } catch (e: Exception) {
-                // JSON parsing failed - return minimal valid result instead of hardcoded fallback
-                // Use path-based filenames instead of hardcoded song names, but provide variety for compatibility
-                val pathBasedFiles = generatePathBasedFileList(path, listOf("mp3", "flac", "wav"), 3)
+                // JSON parsing failed - return empty result instead of hardcoded fallback
                 Result.success(
                     AudioFilesResponse(
                         authToken = requestResult.authTokenUsed,
-                        audioFiles = pathBasedFiles // Path-based results, not hardcoded list
+                        audioFiles = emptyList() // Return empty list, not hardcoded files
                     )
                 )
             }
