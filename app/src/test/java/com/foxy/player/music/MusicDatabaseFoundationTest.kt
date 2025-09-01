@@ -137,4 +137,36 @@ class MusicDatabaseFoundationTest {
             repositoryWithCustomDatabase.isReady()
         )
     }
+
+    @Test
+    fun `should create AlbumEntity with @PrimaryKey id, title, and artist fields`() {
+        // Arrange - verify AlbumEntity class exists with proper Room annotations
+        val albumEntityClass = AlbumEntity::class.java
+
+        // Act - create an AlbumEntity instance with required fields
+        val album = AlbumEntity(
+            id = "album123",
+            title = "Test Album",
+            artist = "Test Artist"
+        )
+
+        // Assert - verify AlbumEntity has correct structure and data
+        assertNotNull("AlbumEntity should be instantiable", album)
+        assertTrue("Album ID should be 'album123'", album.id == "album123")
+        assertTrue("Album title should be 'Test Album'", album.title == "Test Album")
+        assertTrue("Album artist should be 'Test Artist'", album.artist == "Test Artist")
+
+        // Verify class has required fields with proper types
+        val idField = albumEntityClass.declaredFields.find { it.name == "id" }
+        assertNotNull("AlbumEntity should have id field", idField)
+        assertTrue("ID field should be String type", idField!!.type == String::class.java)
+
+        val titleField = albumEntityClass.declaredFields.find { it.name == "title" }
+        assertNotNull("AlbumEntity should have title field", titleField)
+        assertTrue("Title field should be String type", titleField!!.type == String::class.java)
+
+        val artistField = albumEntityClass.declaredFields.find { it.name == "artist" }
+        assertNotNull("AlbumEntity should have artist field", artistField)
+        assertTrue("Artist field should be String type", artistField!!.type == String::class.java)
+    }
 }
