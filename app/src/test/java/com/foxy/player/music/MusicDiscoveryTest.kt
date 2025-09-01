@@ -1726,4 +1726,142 @@ class MusicDiscoveryTest {
             }
         }
     }
+
+    @Test
+    fun `should detect and handle 429 rate limiting errors`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should detect and handle 429 rate limiting error
+        val result = musicDiscoveryService.handleSpecificApiError(429, "Too Many Requests")
+
+        // Assert - verify 429 rate limiting error is properly detected and handled
+        assertTrue("Should return successful result with rate limiting error handling", result.isSuccess)
+        val errorResponse = result.getOrNull()
+        assertNotNull("Error response should not be null", errorResponse)
+        assertEquals("Should detect rate limiting error type", "RATE_LIMITING", errorResponse!!.errorType)
+        assertEquals("Should include rate limiting error code", 429, errorResponse.httpStatusCode)
+        assertTrue("Should include helpful error message", errorResponse.errorMessage.contains("rate limit"))
+        assertTrue("Should suggest retry with backoff", errorResponse.errorMessage.contains("retry"))
+        assertNotNull("Should include suggested retry delay", errorResponse.suggestedRetryDelayMs)
+        assertTrue("Should suggest reasonable retry delay", errorResponse.suggestedRetryDelayMs!! > 0)
+    }
+
+    @Test
+    fun `should detect and handle 401 authentication errors`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should detect and handle 401 authentication error
+        val result = musicDiscoveryService.handleSpecificApiError(401, "Unauthorized")
+
+        // Assert - verify 401 authentication error is properly detected and handled
+        assertTrue("Should return successful result with auth error handling", result.isSuccess)
+        val errorResponse = result.getOrNull()
+        assertNotNull("Error response should not be null", errorResponse)
+        assertEquals("Should detect authentication error type", "AUTHENTICATION_FAILED", errorResponse!!.errorType)
+        assertEquals("Should include auth error code", 401, errorResponse.httpStatusCode)
+        assertTrue("Should include helpful error message", errorResponse.errorMessage.contains("Authentication failed"))
+        assertTrue("Should mention token issues", errorResponse.errorMessage.contains("token"))
+    }
+
+    @Test
+    fun `should detect and handle network timeout errors`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should detect and handle network timeout errors
+        val timeoutException = java.net.SocketTimeoutException("Read timed out")
+        val result = musicDiscoveryService.handleNetworkException(timeoutException)
+
+        // Assert - verify network timeout error is properly detected and handled
+        assertTrue("Should return successful result with timeout error handling", result.isSuccess)
+        val errorResponse = result.getOrNull()
+        assertNotNull("Error response should not be null", errorResponse)
+        assertEquals("Should detect timeout error type", "NETWORK_TIMEOUT", errorResponse!!.errorType)
+        assertEquals("Should include timeout status code", 408, errorResponse.httpStatusCode)
+        assertTrue("Should include helpful timeout message", errorResponse.errorMessage.contains("timeout"))
+        assertTrue("Should suggest retry", errorResponse.errorMessage.contains("retry"))
+        assertNotNull("Should include suggested retry delay", errorResponse.suggestedRetryDelayMs)
+        assertTrue("Should suggest reasonable retry delay", errorResponse.suggestedRetryDelayMs!! > 0)
+    }
+
+    @Test
+    fun `should implement circuit breaker to prevent API overload`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - simulate multiple failures to trigger circuit breaker
+        musicDiscoveryService.recordApiFailure() // First failure
+        musicDiscoveryService.recordApiFailure() // Second failure
+        musicDiscoveryService.recordApiFailure() // Third failure - should open circuit
+
+        val circuitState = musicDiscoveryService.getCircuitBreakerState()
+        val isOpen = musicDiscoveryService.isCircuitOpen()
+
+        // Assert - verify circuit breaker opens after multiple failures
+        assertNotNull("Circuit breaker state should not be null", circuitState)
+        assertEquals("Circuit should be OPEN after multiple failures", "OPEN", circuitState.state)
+        assertTrue("Circuit should be open after failure threshold", isOpen)
+        assertTrue("Failure count should be tracked", circuitState.failureCount >= 3)
+        assertNotNull("Last failure time should be recorded", circuitState.lastFailureTimeMs)
+
+        // Test circuit breaker prevents API calls when open
+        val result = musicDiscoveryService.makeApiCallWithCircuitBreaker("/listfolder")
+        assertTrue("Should return successful result with circuit breaker info", result.isSuccess)
+        val response = result.getOrNull()
+        assertNotNull("Response should not be null", response)
+        assertTrue("Should indicate circuit is open", response!!.circuitOpen)
+        assertTrue("Should provide circuit breaker message", response.message.lowercase().contains("circuit"))
+    }
+
+    @Test
+    fun `should provide detailed error reporting for debugging`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - generate detailed error report for a complex error scenario
+        val networkException = java.net.SocketTimeoutException("Connection timeout after 10000ms")
+        val errorReport = musicDiscoveryService.generateDetailedErrorReport(
+            endpoint = "/listfolder?path=/Music",
+            exception = networkException,
+            attemptNumber = 3,
+            timestamp = System.currentTimeMillis()
+        )
+
+        // Assert - verify detailed error reporting includes debugging information
+        assertTrue("Should return successful result with error report", errorReport.isSuccess)
+        val report = errorReport.getOrNull()
+        assertNotNull("Error report should not be null", report)
+
+        // Verify comprehensive error details
+        assertEquals("Should include endpoint", "/listfolder?path=/Music", report!!.endpoint)
+        assertEquals("Should include error type", "NETWORK_TIMEOUT", report.errorType)
+        assertEquals("Should include HTTP status", 408, report.httpStatusCode)
+        assertEquals("Should track attempt number", 3, report.attemptNumber)
+        assertNotNull("Should include timestamp", report.timestamp)
+        assertNotNull("Should include exception details", report.exceptionDetails)
+        assertTrue("Should include stack trace info", report.exceptionDetails.contains("SocketTimeoutException"))
+        assertTrue("Should include timeout duration", report.exceptionDetails.contains("10000ms"))
+
+        // Verify debugging information
+        assertNotNull("Should include debugging context", report.debugContext)
+        assertTrue("Should include system info", report.debugContext.containsKey("systemTime"))
+        assertTrue("Should include circuit breaker state", report.debugContext.containsKey("circuitBreakerState"))
+    }
 }

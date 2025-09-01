@@ -49,22 +49,67 @@ class MusicDiscoveryService(
     private val cache = mutableMapOf<String, List<String>>()
     private var totalApiCalls = 0
 
+    // Circuit breaker state
+    private var circuitFailureCount = 0
+    private var lastFailureTime: Long? = null
+    private val failureThreshold = 3
+    private val timeoutMs = 60000L // 1 minute
+
+    fun recordApiFailure() {
+        circuitFailureCount++
+        lastFailureTime = System.currentTimeMillis()
+    }
+
+    fun getCircuitBreakerState(): CircuitBreakerState {
+        val currentTime = System.currentTimeMillis()
+        val isTimeoutExpired = lastFailureTime?.let { (currentTime - it) > timeoutMs } ?: false
+
+        val state = when {
+            circuitFailureCount >= failureThreshold && !isTimeoutExpired -> "OPEN"
+            circuitFailureCount >= failureThreshold && isTimeoutExpired -> "HALF_OPEN"
+            else -> "CLOSED"
+        }
+
+        return CircuitBreakerState(
+            state = state,
+            failureCount = circuitFailureCount,
+            lastFailureTimeMs = lastFailureTime
+        )
+    }
+
+    fun isCircuitOpen(): Boolean {
+        return getCircuitBreakerState().state == "OPEN"
+    }
+
+    fun makeApiCallWithCircuitBreaker(endpoint: String): Result<CircuitBreakerResponse> {
+        if (isCircuitOpen()) {
+            return Result.success(
+                CircuitBreakerResponse(
+                    circuitOpen = true,
+                    message = "Circuit breaker is open - API calls blocked to prevent overload"
+                )
+            )
+        }
+
+        return Result.success(
+            CircuitBreakerResponse(
+                circuitOpen = false,
+                message = "Circuit breaker allows API call to proceed"
+            )
+        )
+    }
+
     /**
      * Implements exponential backoff retry mechanism for API operations.
-     * 
-     * This function provides resilient API calling by automatically retrying failed operations
-     * with increasing delays between attempts, helping handle temporary network issues or 
-     * API rate limiting.
-     * 
-     * @param maxRetries Maximum number of retry attempts (default: 3)
+     * * This function provides resilient API calling by automatically retrying failed operations
+     * with increasing delays between attempts, helping handle temporary network issues or * API rate limiting.
+     * * @param maxRetries Maximum number of retry attempts (default: 3)
      * @param initialDelayMs Initial delay in milliseconds before first retry (default: 100ms)
      * @param maxDelayMs Maximum delay cap in milliseconds to prevent excessive waiting (default: 2000ms)
      * @param operation Suspend function containing the API operation to retry
-     * 
-     * @return Result of the successful operation
+     * * @return Result of the successful operation
      * @throws Exception The last exception encountered if all retries are exhausted
-     * 
-     * Delay progression: 100ms → 200ms → 400ms → 800ms (capped at maxDelayMs)
+     * * Delay progression: 100ms → 200ms → 400ms → 800ms (capped at maxDelayMs)
      * Use cases: pCloud API calls, network operations requiring resilience
      */
     private suspend fun <T> retryWithExponentialBackoff(
@@ -122,25 +167,20 @@ class MusicDiscoveryService(
 
     /**
      * Lists pCloud folders with automatic retry capability using exponential backoff.
-     * 
-     * This function enhances the basic API call with resilient retry logic to handle
+     * * This function enhances the basic API call with resilient retry logic to handle
      * temporary network issues, API rate limiting, or transient server errors.
      * Unlike listPCloudFoldersWithAPI, this function automatically retries failed
      * requests and provides better reliability for production use.
-     * 
-     * @param path The pCloud folder path to list (e.g., "/" for root, "/Music" for subfolder)
-     * 
-     * @return Result<PCloudAPIResponse> containing:
+     * * @param path The pCloud folder path to list (e.g., "/" for root, "/Music" for subfolder)
+     * * @return Result<PCloudAPIResponse> containing:
      *   - Success: Parsed pCloud API response with folder listing
      *   - Failure: Error details if all retry attempts are exhausted
-     * 
-     * Key differences from listPCloudFoldersWithAPI:
+     * * Key differences from listPCloudFoldersWithAPI:
      * - Automatic retry with exponential backoff (up to 3 attempts)
      * - Better handling of transient network failures
      * - Returns empty results instead of hardcoded fallbacks on failure
      * - Suspend function requiring coroutine context
-     * 
-     * Retry behavior: 100ms → 200ms → 400ms delays between attempts
+     * * Retry behavior: 100ms → 200ms → 400ms delays between attempts
      */
     suspend fun listPCloudFoldersWithRetry(path: String): Result<PCloudAPIResponse> {
         return try {
@@ -563,6 +603,94 @@ class MusicDiscoveryService(
         } else {
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
+    }
+
+    fun handleSpecificApiError(httpStatusCode: Int, errorDescription: String): Result<SpecificApiErrorResponse> {
+        val response = when (httpStatusCode) {
+            429 -> SpecificApiErrorResponse(
+                errorType = "RATE_LIMITING",
+                httpStatusCode = 429,
+                errorMessage = "API rate limit exceeded - retry with exponential backoff",
+                suggestedRetryDelayMs = 5000L
+            )
+            401 -> SpecificApiErrorResponse(
+                errorType = "AUTHENTICATION_FAILED",
+                httpStatusCode = 401,
+                errorMessage = "Authentication failed - token expired or invalid"
+            )
+            else -> SpecificApiErrorResponse(
+                errorType = "UNKNOWN_ERROR",
+                httpStatusCode = httpStatusCode,
+                errorMessage = "Unknown error: $errorDescription"
+            )
+        }
+        return Result.success(response)
+    }
+
+    fun handleNetworkException(exception: Exception): Result<SpecificApiErrorResponse> {
+        val response = when (exception) {
+            is java.net.SocketTimeoutException -> SpecificApiErrorResponse(
+                errorType = "NETWORK_TIMEOUT",
+                httpStatusCode = 408,
+                errorMessage = "Network request timeout - retry with exponential backoff",
+                suggestedRetryDelayMs = 2000L
+            )
+            is java.net.ConnectException -> SpecificApiErrorResponse(
+                errorType = "CONNECTION_FAILED",
+                httpStatusCode = 503,
+                errorMessage = "Failed to connect to server - check network connectivity"
+            )
+            is java.io.IOException -> SpecificApiErrorResponse(
+                errorType = "NETWORK_IO_ERROR",
+                httpStatusCode = 500,
+                errorMessage = "Network I/O error - ${exception.message}"
+            )
+            else -> SpecificApiErrorResponse(
+                errorType = "UNKNOWN_NETWORK_ERROR",
+                httpStatusCode = 500,
+                errorMessage = "Unknown network error: ${exception.message}"
+            )
+        }
+        return Result.success(response)
+    }
+
+    fun generateDetailedErrorReport(
+        endpoint: String,
+        exception: Exception,
+        attemptNumber: Int,
+        timestamp: Long
+    ): Result<DetailedErrorReport> {
+        val errorType = when (exception) {
+            is java.net.SocketTimeoutException -> "NETWORK_TIMEOUT"
+            is java.net.ConnectException -> "CONNECTION_FAILED"
+            is java.io.IOException -> "NETWORK_IO_ERROR"
+            else -> "UNKNOWN_ERROR"
+        }
+
+        val httpStatusCode = when (exception) {
+            is java.net.SocketTimeoutException -> 408
+            is java.net.ConnectException -> 503
+            else -> 500
+        }
+
+        val exceptionDetails = "${exception.javaClass.simpleName}: ${exception.message}"
+
+        val debugContext = mapOf(
+            "systemTime" to System.currentTimeMillis().toString(),
+            "circuitBreakerState" to getCircuitBreakerState().state
+        )
+
+        val report = DetailedErrorReport(
+            endpoint = endpoint,
+            errorType = errorType,
+            httpStatusCode = httpStatusCode,
+            attemptNumber = attemptNumber,
+            timestamp = timestamp,
+            exceptionDetails = exceptionDetails,
+            debugContext = debugContext
+        )
+
+        return Result.success(report)
     }
 
     private fun detectAudioFormat(fileName: String): String {

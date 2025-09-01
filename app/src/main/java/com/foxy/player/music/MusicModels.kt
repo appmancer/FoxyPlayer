@@ -970,6 +970,34 @@ data class ErrorHandlingAudioFilesResponse(
     val usedCachedFallback: Boolean = false
 )
 
+data class SpecificApiErrorResponse(
+    val errorType: String,
+    val httpStatusCode: Int,
+    val errorMessage: String,
+    val suggestedRetryDelayMs: Long? = null
+)
+
+data class CircuitBreakerState(
+    val state: String, // "CLOSED", "OPEN", "HALF_OPEN"
+    val failureCount: Int,
+    val lastFailureTimeMs: Long?
+)
+
+data class CircuitBreakerResponse(
+    val circuitOpen: Boolean,
+    val message: String
+)
+
+data class DetailedErrorReport(
+    val endpoint: String,
+    val errorType: String,
+    val httpStatusCode: Int,
+    val attemptNumber: Int,
+    val timestamp: Long,
+    val exceptionDetails: String,
+    val debugContext: Map<String, String>
+)
+
 // ===== CACHE AND STATUS ENUMS =====
 
 // Android architecture support - Cache status for UI state management
