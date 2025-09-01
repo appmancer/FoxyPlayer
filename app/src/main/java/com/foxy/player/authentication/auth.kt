@@ -1118,9 +1118,9 @@ fun LoginScreenWithNavigation(
     authViewModel: AuthViewModel,
     onLoginSuccess: () -> Unit
 ) {
-    // PLY-83: Functional login form state - pre-filled for testing
-    var username by remember { mutableStateOf("sjp@datilo.net") }
-    var password by remember { mutableStateOf("0ck!XUcc6^COd5DF") }
+    // PLY-83: Functional login form state - empty for production
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
     // Navigation effect: when authentication succeeds, navigate to home
     LaunchedEffect(authViewModel.isAuthenticated) {

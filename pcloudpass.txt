@@ -1,0 +1,4 @@
+sjp@orac:~/Workspace/pCloudPlayer$ adb shell input text "0ck!XUcc6^COd5DF"
+bash: !XUcc6: event not found
+sjp@orac:~/Workspace/pCloudPlayer$ 
+
