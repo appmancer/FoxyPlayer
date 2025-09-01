@@ -535,7 +535,7 @@ data class TrackEntity(
 
 /**
  * Room entity representing an album in the database.
- * * This entity maps to the 'albums' table and contains album metadata
+ * This entity maps to the 'albums' table and contains album metadata
  * for organizing music tracks by album.
  */
 @Entity(tableName = "albums")
