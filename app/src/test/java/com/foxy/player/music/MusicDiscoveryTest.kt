@@ -1794,4 +1794,36 @@ class MusicDiscoveryTest {
         assertNotNull("Should include suggested retry delay", errorResponse.suggestedRetryDelayMs)
         assertTrue("Should suggest reasonable retry delay", errorResponse.suggestedRetryDelayMs!! > 0)
     }
+
+    @Test
+    fun `should implement circuit breaker to prevent API overload`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - simulate multiple failures to trigger circuit breaker
+        musicDiscoveryService.recordApiFailure() // First failure
+        musicDiscoveryService.recordApiFailure() // Second failure
+        musicDiscoveryService.recordApiFailure() // Third failure - should open circuit
+
+        val circuitState = musicDiscoveryService.getCircuitBreakerState()
+        val isOpen = musicDiscoveryService.isCircuitOpen()
+
+        // Assert - verify circuit breaker opens after multiple failures
+        assertNotNull("Circuit breaker state should not be null", circuitState)
+        assertEquals("Circuit should be OPEN after multiple failures", "OPEN", circuitState.state)
+        assertTrue("Circuit should be open after failure threshold", isOpen)
+        assertTrue("Failure count should be tracked", circuitState.failureCount >= 3)
+        assertNotNull("Last failure time should be recorded", circuitState.lastFailureTimeMs)
+
+        // Test circuit breaker prevents API calls when open
+        val result = musicDiscoveryService.makeApiCallWithCircuitBreaker("/listfolder")
+        assertTrue("Should return successful result with circuit breaker info", result.isSuccess)
+        val response = result.getOrNull()
+        assertNotNull("Response should not be null", response)
+        assertTrue("Should indicate circuit is open", response!!.circuitOpen)
+        assertTrue("Should provide circuit breaker message", response.message.lowercase().contains("circuit"))
+    }
 }

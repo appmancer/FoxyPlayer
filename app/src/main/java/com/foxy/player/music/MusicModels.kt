@@ -977,6 +977,17 @@ data class SpecificApiErrorResponse(
     val suggestedRetryDelayMs: Long? = null
 )
 
+data class CircuitBreakerState(
+    val state: String, // "CLOSED", "OPEN", "HALF_OPEN"
+    val failureCount: Int,
+    val lastFailureTimeMs: Long?
+)
+
+data class CircuitBreakerResponse(
+    val circuitOpen: Boolean,
+    val message: String
+)
+
 // ===== CACHE AND STATUS ENUMS =====
 
 // Android architecture support - Cache status for UI state management

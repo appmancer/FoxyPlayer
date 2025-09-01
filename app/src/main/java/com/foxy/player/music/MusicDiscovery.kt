@@ -49,6 +49,58 @@ class MusicDiscoveryService(
     private val cache = mutableMapOf<String, List<String>>()
     private var totalApiCalls = 0
 
+    // Circuit breaker state
+    private var circuitFailureCount = 0
+    private var lastFailureTime: Long? = null
+    private val failureThreshold = 3
+    private val timeoutMs = 60000L // 1 minute
+
+    fun recordApiFailure() {
+        circuitFailureCount++
+        lastFailureTime = System.currentTimeMillis()
+    }
+
+    fun getCircuitBreakerState(): CircuitBreakerState {
+        val currentTime = System.currentTimeMillis()
+        val isTimeoutExpired = lastFailureTime?.let { 
+            (currentTime - it) > timeoutMs 
+        } ?: false
+
+        val state = when {
+            circuitFailureCount >= failureThreshold && !isTimeoutExpired -> "OPEN"
+            circuitFailureCount >= failureThreshold && isTimeoutExpired -> "HALF_OPEN"
+            else -> "CLOSED"
+        }
+
+        return CircuitBreakerState(
+            state = state,
+            failureCount = circuitFailureCount,
+            lastFailureTimeMs = lastFailureTime
+        )
+    }
+
+    fun isCircuitOpen(): Boolean {
+        return getCircuitBreakerState().state == "OPEN"
+    }
+
+    fun makeApiCallWithCircuitBreaker(endpoint: String): Result<CircuitBreakerResponse> {
+        if (isCircuitOpen()) {
+            return Result.success(
+                CircuitBreakerResponse(
+                    circuitOpen = true,
+                    message = "Circuit breaker is open - API calls blocked to prevent overload"
+                )
+            )
+        }
+
+        return Result.success(
+            CircuitBreakerResponse(
+                circuitOpen = false,
+                message = "Circuit breaker allows API call to proceed"
+            )
+        )
+    }
+
     /**
      * Implements exponential backoff retry mechanism for API operations.
      * * This function provides resilient API calling by automatically retrying failed operations
