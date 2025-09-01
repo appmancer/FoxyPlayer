@@ -300,4 +300,30 @@ class AuthRepositoryTest {
         // The fix ensures that when HTTP succeeds but JSON parsing fails,
         // developers get the actual parsing error rather than a generic message
     }
+
+    @Test
+    fun `should not have sensitive credential files committed to repository`() {
+        // This test verifies that no sensitive credential files are accidentally committed
+        // to the repository, preventing exposure of real authentication data
+
+        // Arrange - Check for sensitive files that should not be in the repository
+        val rootDir = File(System.getProperty("user.dir"))
+        val sensitiveFiles = listOf(
+            "pcloudpass.txt",
+            "credentials.txt", "pcloud.txt",
+            ".env",
+            "secrets.txt"
+        )
+
+        // Act - Check if any sensitive files exist in the repository root
+        val foundSensitiveFiles = sensitiveFiles.filter { filename ->
+            File(rootDir, filename).exists()
+        }
+
+        // Assert - No sensitive credential files should be present
+        assertTrue(
+            "Sensitive credential files should not be committed to repository: $foundSensitiveFiles",
+            foundSensitiveFiles.isEmpty()
+        )
+    }
 }
