@@ -1,0 +1,18 @@
+{
+  "cycle_number": 1,
+  "phase": "completed",
+  "test_description": "should create AlbumEntity with @PrimaryKey id, title, and artist fields",
+  "started": "2025-09-01T17:38:45+01:00",
+  "ticket": "PLY-131",
+  "confirmed": true,
+  "confirmed_at": "2025-09-01T16:38:45Z",
+  "green_started": "2025-09-01T16:40:21Z",
+  "green_confirmed": true,
+  "green_confirmed_at": "2025-09-01T16:40:21Z",
+  "refactor_started": "2025-09-01T16:43:14Z",
+  "refactor_confirmed": true,
+  "refactor_confirmed_at": "2025-09-01T16:43:14Z",
+  "commit_started": "2025-09-01T16:47:23Z",
+  "completed_at": "2025-09-01T16:47:30Z",
+  "commit_message": "Add AlbumEntity with @PrimaryKey id, title, artist fields"
+}

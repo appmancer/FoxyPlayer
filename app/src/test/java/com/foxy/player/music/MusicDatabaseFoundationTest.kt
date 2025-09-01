@@ -169,4 +169,37 @@ class MusicDatabaseFoundationTest {
         assertNotNull("AlbumEntity should have artist field", artistField)
         assertTrue("Artist field should be String type", artistField!!.type == String::class.java)
     }
+
+    @Test
+    fun `should verify AlbumEntity data class structure meets all requirements`() {
+        // Arrange - verify AlbumEntity is a proper data class with all required characteristics
+        val albumEntityClass = AlbumEntity::class.java
+
+        // Act - create multiple instances to verify data class behavior
+        val album1 = AlbumEntity("id1", "Album One", "Artist One")
+        val album2 = AlbumEntity("id1", "Album One", "Artist One")
+        val album3 = AlbumEntity("id2", "Album Two", "Artist Two")
+
+        // Assert - verify data class properties
+        // Data classes should implement equals properly
+        assertTrue("Data classes with same values should be equal", album1 == album2)
+        assertTrue("Data classes with different values should not be equal", album1 != album3)
+
+        // Data classes should implement hashCode properly
+        assertTrue("Equal objects should have same hashCode", album1.hashCode() == album2.hashCode())
+
+        // Data classes should implement toString properly
+        val toStringResult = album1.toString()
+        assertTrue("toString should contain class name", toStringResult.contains("AlbumEntity"))
+        assertTrue("toString should contain id value", toStringResult.contains("id1"))
+        assertTrue("toString should contain title value", toStringResult.contains("Album One"))
+        assertTrue("toString should contain artist value", toStringResult.contains("Artist One"))
+
+        // Verify copy functionality (data class feature)
+        val copiedAlbum = album1.copy(title = "Modified Title")
+        assertTrue("Copied album should have same id", copiedAlbum.id == album1.id)
+        assertTrue("Copied album should have same artist", copiedAlbum.artist == album1.artist)
+        assertTrue("Copied album should have modified title", copiedAlbum.title == "Modified Title")
+        assertTrue("Copied album should not equal original", copiedAlbum != album1)
+    }
 }
