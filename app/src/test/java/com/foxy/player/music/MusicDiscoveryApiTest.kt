@@ -90,14 +90,14 @@ class MusicDiscoveryApiTest {
         assertNotNull("Audio files response should not be null", audioFilesResponse)
         // Check if audio files were found - they may be empty if API is unavailable
         val hasAudioFiles = audioFilesResponse!!.audioFiles.isNotEmpty()
-        
+
         if (hasAudioFiles) {
             // If files were found, verify they have proper extensions
             assertTrue(
                 "Audio files should include various formats",
                 audioFilesResponse.audioFiles.any { file ->
                     file.endsWith(".mp3") || file.endsWith(".flac") || file.endsWith(".wav") ||
-                    file.endsWith(".m4a") || file.endsWith(".aac") || file.endsWith(".ogg")
+                        file.endsWith(".m4a") || file.endsWith(".aac") || file.endsWith(".ogg")
                 }
             )
             assertTrue(
