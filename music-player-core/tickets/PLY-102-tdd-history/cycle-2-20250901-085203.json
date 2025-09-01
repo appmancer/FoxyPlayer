@@ -1,0 +1,18 @@
+{
+  "cycle_number": 2,
+  "phase": "completed",
+  "test_description": "should preserve parsing error details when authentication fails due to response parsing",
+  "started": "2025-09-01T08:47:07+01:00",
+  "ticket": "PLY-102",
+  "confirmed": true,
+  "confirmed_at": "2025-09-01T07:47:07Z",
+  "green_started": "2025-09-01T07:47:55Z",
+  "green_confirmed": true,
+  "green_confirmed_at": "2025-09-01T07:47:55Z",
+  "refactor_started": "2025-09-01T07:50:07Z",
+  "refactor_confirmed": true,
+  "refactor_confirmed_at": "2025-09-01T07:50:07Z",
+  "commit_started": "2025-09-01T07:51:22Z",
+  "completed_at": "2025-09-01T07:52:03Z",
+  "commit_message": "Improve authentication error handling by preserving parsing details\n\n- Fixed authenticateWithSpecificServer to preserve JSON parsing error details\n- When HTTP succeeds but JSON parsing fails, now returns specific parsing error\n- Instead of generic 'Authentication failed on server X' message\n- Added test to verify parsing error details are properly preserved\n- Improves debugging experience for authentication issues\n\nThis addresses the core PLY-102 issue where authentication response parsing \nerrors were being swallowed and replaced with generic error messages."
+}

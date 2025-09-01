@@ -1,0 +1,18 @@
+{
+  "cycle_number": 1,
+  "phase": "completed",
+  "test_description": "should return cached tracks when network is unavailable",
+  "started": "2025-08-31T19:17:52+01:00",
+  "ticket": "PLY-79",
+  "confirmed": true,
+  "confirmed_at": "2025-08-31T18:17:52Z",
+  "green_started": "2025-08-31T18:18:43Z",
+  "green_confirmed": true,
+  "green_confirmed_at": "2025-08-31T18:18:43Z",
+  "refactor_started": "2025-08-31T18:20:24Z",
+  "refactor_confirmed": true,
+  "refactor_confirmed_at": "2025-08-31T18:20:24Z",
+  "commit_started": "2025-08-31T18:25:00Z",
+  "completed_at": "2025-08-31T18:25:02Z",
+  "commit_message": "Implement offline music library with caching support"
+}

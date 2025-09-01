@@ -1,0 +1,18 @@
+{
+  "cycle_number": 4,
+  "phase": "completed",
+  "test_description": "should extract baseName from path using helper function",
+  "started": "2025-08-22T08:41:26+01:00",
+  "ticket": "PLY-73",
+  "confirmed": true,
+  "confirmed_at": "2025-08-22T07:41:26Z",
+  "green_started": "2025-08-22T07:42:16Z",
+  "green_confirmed": true,
+  "green_confirmed_at": "2025-08-22T07:42:16Z",
+  "refactor_started": "2025-08-22T07:45:53Z",
+  "refactor_confirmed": true,
+  "refactor_confirmed_at": "2025-08-22T07:47:37Z",
+  "commit_started": "2025-08-22T07:48:14Z",
+  "completed_at": "2025-08-22T07:48:32Z",
+  "commit_message": "Extract baseName helper function to reduce code duplication\n\n- Add extractBaseName() helper function for path-based name extraction\n- Add extractBaseNameWithFallback() helper for legacy fallback patterns  \n- Replace 5 instances of duplicated substringAfterLast logic\n- All tests passing with cleaner, more maintainable code\n\nFixes Copilot reviewer suggestion: \"The logic for extracting baseName \nfrom path is duplicated across multiple locations\""
+}
