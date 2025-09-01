@@ -970,6 +970,13 @@ data class ErrorHandlingAudioFilesResponse(
     val usedCachedFallback: Boolean = false
 )
 
+data class SpecificApiErrorResponse(
+    val errorType: String,
+    val httpStatusCode: Int,
+    val errorMessage: String,
+    val suggestedRetryDelayMs: Long? = null
+)
+
 // ===== CACHE AND STATUS ENUMS =====
 
 // Android architecture support - Cache status for UI state management

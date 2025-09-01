@@ -1726,4 +1726,27 @@ class MusicDiscoveryTest {
             }
         }
     }
+
+    @Test
+    fun `should detect and handle 429 rate limiting errors`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - call method that should detect and handle 429 rate limiting error
+        val result = musicDiscoveryService.handleSpecificApiError(429, "Too Many Requests")
+
+        // Assert - verify 429 rate limiting error is properly detected and handled
+        assertTrue("Should return successful result with rate limiting error handling", result.isSuccess)
+        val errorResponse = result.getOrNull()
+        assertNotNull("Error response should not be null", errorResponse)
+        assertEquals("Should detect rate limiting error type", "RATE_LIMITING", errorResponse!!.errorType)
+        assertEquals("Should include rate limiting error code", 429, errorResponse.httpStatusCode)
+        assertTrue("Should include helpful error message", errorResponse.errorMessage.contains("rate limit"))
+        assertTrue("Should suggest retry with backoff", errorResponse.errorMessage.contains("retry"))
+        assertNotNull("Should include suggested retry delay", errorResponse.suggestedRetryDelayMs)
+        assertTrue("Should suggest reasonable retry delay", errorResponse.suggestedRetryDelayMs!! > 0)
+    }
 }

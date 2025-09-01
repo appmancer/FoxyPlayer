@@ -565,6 +565,28 @@ class MusicDiscoveryService(
         }
     }
 
+    fun handleSpecificApiError(httpStatusCode: Int, errorDescription: String): Result<SpecificApiErrorResponse> {
+        val response = when (httpStatusCode) {
+            429 -> SpecificApiErrorResponse(
+                errorType = "RATE_LIMITING",
+                httpStatusCode = 429,
+                errorMessage = "API rate limit exceeded - retry with exponential backoff",
+                suggestedRetryDelayMs = 5000L
+            )
+            401 -> SpecificApiErrorResponse(
+                errorType = "AUTHENTICATION_FAILED",
+                httpStatusCode = 401,
+                errorMessage = "Authentication failed - token expired or invalid"
+            )
+            else -> SpecificApiErrorResponse(
+                errorType = "UNKNOWN_ERROR",
+                httpStatusCode = httpStatusCode,
+                errorMessage = "Unknown error: $errorDescription"
+            )
+        }
+        return Result.success(response)
+    }
+
     private fun detectAudioFormat(fileName: String): String {
         return when {
             fileName.lowercase().endsWith(".mp3") -> "MP3"
