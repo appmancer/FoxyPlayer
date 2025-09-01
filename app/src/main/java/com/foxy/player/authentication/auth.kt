@@ -400,9 +400,16 @@ class AuthRepository(private val baseUrl: String = "") {
                     println("AUTH: Parse result success: ${parseResult.isSuccess}")
 
                     if (parseResult.isSuccess) {
-                        // Store successful server for future use
-                        lastSuccessfulServer = serverUrl
                         return parseResult
+                    } else {
+                        // Preserve the original parsing error instead of generic message
+                        val parseError = parseResult.exceptionOrNull()
+                        return Result.failure(
+                            Exception(
+                                "Authentication response parsing failed on server $serverUrl: ${parseError?.message}",
+                                parseError
+                            )
+                        )
                     }
                 } else {
                     println("AUTH: HTTP error: ${response.code} - ${response.message}")
@@ -439,6 +446,15 @@ class AuthRepository(private val baseUrl: String = "") {
 
                 if (parseResult.isSuccess) {
                     return parseResult
+                } else {
+                    // Preserve the original parsing error instead of generic message
+                    val parseError = parseResult.exceptionOrNull()
+                    return Result.failure(
+                        Exception(
+                            "Authentication response parsing failed on server $serverUrl: ${parseError?.message}",
+                            parseError
+                        )
+                    )
                 }
             }
 
