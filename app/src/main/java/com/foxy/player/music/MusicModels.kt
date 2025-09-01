@@ -988,6 +988,16 @@ data class CircuitBreakerResponse(
     val message: String
 )
 
+data class DetailedErrorReport(
+    val endpoint: String,
+    val errorType: String,
+    val httpStatusCode: Int,
+    val attemptNumber: Int,
+    val timestamp: Long,
+    val exceptionDetails: String,
+    val debugContext: Map<String, String>
+)
+
 // ===== CACHE AND STATUS ENUMS =====
 
 // Android architecture support - Cache status for UI state management

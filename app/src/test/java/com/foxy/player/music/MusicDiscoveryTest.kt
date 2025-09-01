@@ -1826,4 +1826,42 @@ class MusicDiscoveryTest {
         assertTrue("Should indicate circuit is open", response!!.circuitOpen)
         assertTrue("Should provide circuit breaker message", response.message.lowercase().contains("circuit"))
     }
+
+    @Test
+    fun `should provide detailed error reporting for debugging`() {
+        // Arrange - setup test data with authenticated state
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - generate detailed error report for a complex error scenario
+        val networkException = java.net.SocketTimeoutException("Connection timeout after 10000ms")
+        val errorReport = musicDiscoveryService.generateDetailedErrorReport(
+            endpoint = "/listfolder?path=/Music",
+            exception = networkException,
+            attemptNumber = 3,
+            timestamp = System.currentTimeMillis()
+        )
+
+        // Assert - verify detailed error reporting includes debugging information
+        assertTrue("Should return successful result with error report", errorReport.isSuccess)
+        val report = errorReport.getOrNull()
+        assertNotNull("Error report should not be null", report)
+        
+        // Verify comprehensive error details
+        assertEquals("Should include endpoint", "/listfolder?path=/Music", report!!.endpoint)
+        assertEquals("Should include error type", "NETWORK_TIMEOUT", report.errorType)
+        assertEquals("Should include HTTP status", 408, report.httpStatusCode)
+        assertEquals("Should track attempt number", 3, report.attemptNumber)
+        assertNotNull("Should include timestamp", report.timestamp)
+        assertNotNull("Should include exception details", report.exceptionDetails)
+        assertTrue("Should include stack trace info", report.exceptionDetails.contains("SocketTimeoutException"))
+        assertTrue("Should include timeout duration", report.exceptionDetails.contains("10000ms"))
+        
+        // Verify debugging information
+        assertNotNull("Should include debugging context", report.debugContext)
+        assertTrue("Should include system info", report.debugContext.containsKey("systemTime"))
+        assertTrue("Should include circuit breaker state", report.debugContext.containsKey("circuitBreakerState"))
+    }
 }

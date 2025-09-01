@@ -62,9 +62,7 @@ class MusicDiscoveryService(
 
     fun getCircuitBreakerState(): CircuitBreakerState {
         val currentTime = System.currentTimeMillis()
-        val isTimeoutExpired = lastFailureTime?.let { 
-            (currentTime - it) > timeoutMs 
-        } ?: false
+        val isTimeoutExpired = lastFailureTime?.let { (currentTime - it) > timeoutMs } ?: false
 
         val state = when {
             circuitFailureCount >= failureThreshold && !isTimeoutExpired -> "OPEN"
@@ -654,6 +652,45 @@ class MusicDiscoveryService(
             )
         }
         return Result.success(response)
+    }
+
+    fun generateDetailedErrorReport(
+        endpoint: String,
+        exception: Exception,
+        attemptNumber: Int,
+        timestamp: Long
+    ): Result<DetailedErrorReport> {
+        val errorType = when (exception) {
+            is java.net.SocketTimeoutException -> "NETWORK_TIMEOUT"
+            is java.net.ConnectException -> "CONNECTION_FAILED"
+            is java.io.IOException -> "NETWORK_IO_ERROR"
+            else -> "UNKNOWN_ERROR"
+        }
+
+        val httpStatusCode = when (exception) {
+            is java.net.SocketTimeoutException -> 408
+            is java.net.ConnectException -> 503
+            else -> 500
+        }
+
+        val exceptionDetails = "${exception.javaClass.simpleName}: ${exception.message}"
+        
+        val debugContext = mapOf(
+            "systemTime" to System.currentTimeMillis().toString(),
+            "circuitBreakerState" to getCircuitBreakerState().state
+        )
+
+        val report = DetailedErrorReport(
+            endpoint = endpoint,
+            errorType = errorType,
+            httpStatusCode = httpStatusCode,
+            attemptNumber = attemptNumber,
+            timestamp = timestamp,
+            exceptionDetails = exceptionDetails,
+            debugContext = debugContext
+        )
+
+        return Result.success(report)
     }
 
     private fun detectAudioFormat(fileName: String): String {
