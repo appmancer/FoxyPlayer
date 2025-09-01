@@ -1020,6 +1020,32 @@ data class MultiStrategyMetadataResult(
     val usedWeightedAveraging: Boolean
 )
 
+// ===== ERROR HANDLING AND LOGGING MODELS =====
+
+data class StrategyError(
+    val strategyName: String,
+    val errorMessage: String,
+    val errorType: String,
+    val timestamp: Long
+)
+
+data class ErrorLog(
+    val strategyErrors: List<StrategyError>,
+    val errorsByCategory: Map<String, List<StrategyError>>
+)
+
+data class PerformanceMetrics(
+    val executionTimeMs: Long,
+    val strategyAttempts: Int
+)
+
+data class MultiStrategyErrorResult(
+    val errorLog: ErrorLog,
+    val usedFallbackMetadata: Boolean,
+    val fallbackMetadata: AudioMetadata?,
+    val performanceMetrics: PerformanceMetrics
+)
+
 // ===== CACHE AND STATUS ENUMS =====
 
 // Android architecture support - Cache status for UI state management

@@ -923,6 +923,103 @@ class MusicDiscoveryService(
         return values.groupBy { it }.maxByOrNull { it.value.size }?.key
     }
 
+    suspend fun extractMetadataWithMultiStrategyAndErrorLogging(
+        audioFileUrl: String,
+        audioFileName: String,
+        filePath: String
+    ): Result<MultiStrategyErrorResult> {
+        val startTime = System.currentTimeMillis()
+
+        return try {
+            val strategies = listOf(
+                MediaMetadataRetrieverStrategy(this),
+                HeuristicPathStrategy(),
+                FilenameParsingStrategy()
+            )
+
+            val strategyErrors = mutableListOf<StrategyError>()
+            var attemptCount = 0
+
+            // Execute all strategies and collect errors
+            for (strategy in strategies) {
+                attemptCount++
+                try {
+                    val metadataResult = strategy.extractMetadata(audioFileUrl, audioFileName, filePath)
+                    if (metadataResult.isFailure) {
+                        val exception = metadataResult.exceptionOrNull()!!
+                        val error = createStrategyError(strategy.getStrategyName(), exception)
+                        strategyErrors.add(error)
+                    }
+                } catch (e: Exception) {
+                    val error = createStrategyError(strategy.getStrategyName(), e)
+                    strategyErrors.add(error)
+                }
+            }
+
+            val fallbackMetadata = createFallbackMetadata(audioFileName)
+            val errorLog = createErrorLog(strategyErrors)
+            val performanceMetrics = createPerformanceMetrics(startTime, attemptCount)
+
+            val errorResult = MultiStrategyErrorResult(
+                errorLog = errorLog,
+                usedFallbackMetadata = true,
+                fallbackMetadata = fallbackMetadata,
+                performanceMetrics = performanceMetrics
+            )
+
+            Result.success(errorResult)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun createStrategyError(strategyName: String, exception: Throwable): StrategyError {
+        return StrategyError(
+            strategyName = strategyName,
+            errorMessage = exception.message ?: "Unknown error",
+            errorType = categorizeError(exception),
+            timestamp = System.currentTimeMillis()
+        )
+    }
+
+    private fun createFallbackMetadata(audioFileName: String): AudioMetadata {
+        return AudioMetadata(
+            title = audioFileName.substringBeforeLast('.'),
+            artist = "Unknown Artist",
+            album = "Unknown Album",
+            durationMs = 0L,
+            format = audioFileName.substringAfterLast('.', "").uppercase(),
+            bitrate = 0
+        )
+    }
+
+    private fun createErrorLog(strategyErrors: List<StrategyError>): ErrorLog {
+        val errorsByCategory = strategyErrors.groupBy { it.errorType }
+        return ErrorLog(
+            strategyErrors = strategyErrors,
+            errorsByCategory = errorsByCategory
+        )
+    }
+
+    private fun createPerformanceMetrics(startTime: Long, attemptCount: Int): PerformanceMetrics {
+        val executionTime = System.currentTimeMillis() - startTime
+        return PerformanceMetrics(
+            executionTimeMs = executionTime,
+            strategyAttempts = attemptCount
+        )
+    }
+
+    private fun categorizeError(exception: Throwable): String {
+        return when {
+            exception is java.net.UnknownHostException || exception is java.net.ConnectException ||
+                exception.message?.contains("network", ignoreCase = true) == true -> "NetworkError"
+            exception is java.io.IOException -> "IOError"
+            exception is SecurityException -> "SecurityError"
+            exception.message?.contains("corrupt", ignoreCase = true) == true -> "CorruptionError"
+            else -> "UnknownError"
+        }
+    }
+
     private fun extractMetadataFromPath(filePath: String): AudioMetadata {
         val parts = filePath.trim('/').split('/')
         val (artist, album) = when {
