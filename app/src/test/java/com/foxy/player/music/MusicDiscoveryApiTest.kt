@@ -1,8 +1,8 @@
 package com.foxy.player.music
 
-import com.foxy.player.authentication.AuthRepository
-import com.foxy.player.authentication.AuthenticatedApiClient
-import com.foxy.player.authentication.UserInfo
+import com.foxy.player.authentication.models.UserInfo
+import com.foxy.player.authentication.network.AuthRepository
+import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.network.MusicDiscoveryService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -1,7 +1,7 @@
 package com.foxy.player.music
 
-import com.foxy.player.authentication.AuthRepository
-import com.foxy.player.authentication.AuthenticatedApiClient
+import com.foxy.player.authentication.network.AuthRepository
+import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.network.MusicDiscoveryService
 import com.foxy.player.music.pcloud.PCloudListFolderResponse
 import java.io.File

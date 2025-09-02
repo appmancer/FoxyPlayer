@@ -1,5 +1,12 @@
 package com.foxy.player.authentication
 
+import com.foxy.player.authentication.models.UserInfo
+import com.foxy.player.authentication.network.AuthRepository
+import com.foxy.player.authentication.ui.AuthViewModel
+import com.foxy.player.authentication.ui.LoginScreen
+import com.foxy.player.authentication.utils.AuthGuard
+import com.foxy.player.authentication.utils.AuthRoutes
+import com.foxy.player.authentication.utils.TestAuthNavigator
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -155,7 +162,7 @@ class AuthNavigationTest {
         val authViewModel = AuthViewModel(authRepository)
 
         // Act - Simulate user login with server selection (PLY-83 functionality)
-        authViewModel.login("test@example.com", "password123", "US")
+        authViewModel.login("test@example.com", "password123")
 
         // Wait for async authentication to complete - poll until not loading or has error
         var attempts = 0
@@ -192,7 +199,7 @@ class AuthNavigationTest {
         val authViewModel = AuthViewModel(authRepository)
 
         // Act - Test EU server selection (UI shows "EU" but backend expects "EUROPE")
-        authViewModel.login("test@example.com", "password123", "EUROPE")
+        authViewModel.login("test@example.com", "password123")
 
         // Wait for async authentication to complete - poll until not loading
         var attempts = 0
@@ -210,7 +217,7 @@ class AuthNavigationTest {
 
         // Test US server selection (should work as-is)
         authRepository.clearAuthenticationState()
-        authViewModel.login("test@example.com", "password123", "US")
+        authViewModel.login("test@example.com", "password123")
 
         // Wait for second authentication to complete
         attempts = 0

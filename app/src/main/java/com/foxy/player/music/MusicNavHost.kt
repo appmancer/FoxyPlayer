@@ -17,34 +17,34 @@ class NavControllerNavigator(private val navController: NavHostController) : Nav
 
 @Composable
 fun MusicNavHost(navController: NavHostController) {
-    val authRepo = com.foxy.player.authentication.AuthRepository()
-    val api = com.foxy.player.authentication.AuthenticatedApiClient(authRepo)
+    val authRepo = com.foxy.player.authentication.network.AuthRepository()
+    val api = com.foxy.player.authentication.network.AuthenticatedApiClient(authRepo)
     val discovery = MusicDiscoveryService(api)
     val heuristic = HeuristicMusicDiscovery(discovery)
 
     // PLY-82: Authentication Guard Integration
-    val authGuard = com.foxy.player.authentication.AuthGuard(authRepo)
+    val authGuard = com.foxy.player.authentication.utils.AuthGuard(authRepo)
     val startDestination = authGuard.getStartDestination()
 
     NavHost(navController = navController, startDestination = startDestination) {
         // PLY-82: Add login route
-        composable(com.foxy.player.authentication.AuthRoutes.Login) {
+        composable(com.foxy.player.authentication.utils.AuthRoutes.Login) {
             // Provide AuthViewModel for login screen
-            val authViewModel = viewModel<com.foxy.player.authentication.AuthViewModel>(
+            val authViewModel = viewModel<com.foxy.player.authentication.ui.AuthViewModel>(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
                         @Suppress("UNCHECKED_CAST")
-                        return com.foxy.player.authentication.AuthViewModel(authRepo) as T
+                        return com.foxy.player.authentication.ui.AuthViewModel(authRepo) as T
                     }
                 }
             )
 
             // Create login screen with authentication
-            com.foxy.player.authentication.LoginScreenWithNavigation(
+            com.foxy.player.authentication.ui.LoginScreenWithNavigation(
                 authViewModel = authViewModel,
                 onLoginSuccess = {
                     navController.navigate(Routes.Home) {
-                        popUpTo(com.foxy.player.authentication.AuthRoutes.Login) { inclusive = true }
+                        popUpTo(com.foxy.player.authentication.utils.AuthRoutes.Login) { inclusive = true }
                     }
                 }
             )
@@ -53,7 +53,7 @@ fun MusicNavHost(navController: NavHostController) {
         composable(Routes.Home) {
             // PLY-82: Check authentication before showing home
             if (authGuard.shouldRedirectToLogin()) {
-                navController.navigate(com.foxy.player.authentication.AuthRoutes.Login) {
+                navController.navigate(com.foxy.player.authentication.utils.AuthRoutes.Login) {
                     popUpTo(Routes.Home) { inclusive = true }
                 }
                 return@composable

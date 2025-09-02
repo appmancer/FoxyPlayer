@@ -1,5 +1,6 @@
 package com.foxy.player.authentication
 
+import com.foxy.player.authentication.ui.LoginScreen
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

@@ -1,7 +1,7 @@
 package com.foxy.player.music
 
-import com.foxy.player.authentication.AuthRepository
-import com.foxy.player.authentication.AuthenticatedApiClient
+import com.foxy.player.authentication.network.AuthRepository
+import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.business.RealAudioFileScanner
 import com.foxy.player.music.sync.ScanProgressUpdate
 import com.foxy.player.music.utils.MusicLibraryScanProgressService

@@ -1,5 +1,7 @@
 package com.foxy.player.authentication
 
+import com.foxy.player.authentication.models.TokenValidationException
+import com.foxy.player.authentication.utils.SecureTokenStorage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -49,11 +51,8 @@ class SecureTokenStorageTest {
         val expiredResult = secureStorage.retrieveToken(TEST_ALIAS)
 
         // Assert
-        assertTrue("Expired token retrieval should fail", expiredResult.isFailure)
-        assertTrue(
-            "Should throw TokenExpiredException",
-            expiredResult.exceptionOrNull() is TokenExpiredException
-        )
+        assertTrue("Expired token retrieval should succeed with null", expiredResult.isSuccess)
+        assertEquals("Should return null for expired token", null, expiredResult.getOrNull())
     }
 
     @Test
@@ -90,7 +89,8 @@ class SecureTokenStorageTest {
 
         // Now it should be expired
         val expiredResult = secureStorage.retrieveToken(TEST_ALIAS)
-        assertTrue("Token should expire after inactivity", expiredResult.isFailure)
+        assertTrue("Token should return null after inactivity", expiredResult.isSuccess)
+        assertEquals("Should return null for inactive token", null, expiredResult.getOrNull())
     }
 
     @Test
@@ -161,7 +161,7 @@ class SecureTokenStorageTest {
         Thread.sleep(80)
 
         // Act - Retrieve token (should trigger refresh)
-        val retrieveResult = secureStorage.retrieveToken(TEST_ALIAS)
+        val retrieveResult = secureStorage.retrieveTokenWithAutoRefresh(TEST_ALIAS)
 
         // Assert
         assertTrue("Token retrieval should succeed with refresh", retrieveResult.isSuccess)
@@ -191,12 +191,14 @@ class SecureTokenStorageTest {
         assertTrue("Expiring token removal should succeed", removeResult2.isSuccess)
 
         // Verify tokens are gone
-        assertTrue("Token should be removed", secureStorage.retrieveToken(TEST_ALIAS).isFailure)
-        assertTrue("Expiring token should be removed", secureStorage.retrieveToken("${TEST_ALIAS}_exp").isFailure)
+        val result1 = secureStorage.retrieveToken(TEST_ALIAS)
+        val result2 = secureStorage.retrieveToken("${TEST_ALIAS}_exp")
+        assertTrue("Token should be removed", result1.isSuccess && result1.getOrNull() == null)
+        assertTrue("Expiring token should be removed", result2.isSuccess && result2.getOrNull() == null)
     }
 
     @Test
-    fun `should fail to retrieve non-existent token`() {
+    fun `should return null for non-existent token`() {
         // Arrange
         val secureStorage = SecureTokenStorage()
 
@@ -204,10 +206,7 @@ class SecureTokenStorageTest {
         val result = secureStorage.retrieveToken("non_existent_alias")
 
         // Assert
-        assertTrue("Retrieving non-existent token should fail", result.isFailure)
-        assertTrue(
-            "Should throw IllegalArgumentException",
-            result.exceptionOrNull() is IllegalArgumentException
-        )
+        assertTrue("Retrieving non-existent token should succeed with null", result.isSuccess)
+        assertEquals("Should return null for non-existent token", null, result.getOrNull())
     }
 }
