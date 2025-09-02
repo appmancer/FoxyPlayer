@@ -3,8 +3,6 @@ package com.foxy.player.music.network
 import com.foxy.player.authentication.models.UserInfo
 import com.foxy.player.authentication.network.AuthRepository
 import com.foxy.player.authentication.network.AuthenticatedApiClient
-import com.foxy.player.music.network.MusicDiscoveryService
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
