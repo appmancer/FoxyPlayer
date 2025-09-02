@@ -94,27 +94,13 @@ class PaginatedDataLayerTest {
         val databaseProvider = object : DatabaseProvider {
             override fun getDatabase(): MusicDatabaseInterface {
                 return object : MusicDatabaseInterface {
-                    override fun isInitialized(): Boolean = true
-                    override fun isReady(): Boolean = true
-                    override fun trackDao(): RoomTrackDao? {
-                        return testDao
-                    }
                     override suspend fun getAllTracks(): List<TrackEntity> = testDao.getAllTracks()
-                    override suspend fun insertTrack(track: TrackEntity) = testDao.insertTrack(
-                        track.id,
-                        track.title,
-                        track.artist,
-                        track.album,
-                        track.filePath
-                    )
-                    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> = testDao.getTracksPage(
-                        offset,
-                        limit
-                    )
-                    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> = testDao.getTracksForRange(
-                        startIndex,
-                        count
-                    )
+                    override suspend fun insertTrack(track: TrackEntity) = testDao.insertTrack(track)
+                    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> = testDao.getTracksPage(offset, limit)
+                    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> = testDao.getTracksForRange(startIndex, count)
+                    override fun isReady(): Boolean = true
+                    override fun isInitialized(): Boolean = true
+                    override fun trackDao(): RoomTrackDao? = testDao
                 }
             }
         }
@@ -167,7 +153,6 @@ class TestPaginatedTrackRepository : TrackRepositoryInterface {
 
     override suspend fun getTrackCount(): Int = tracks.size
 
-    // New pagination methods needed
     override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
         return tracks.drop(offset).take(limit)
     }

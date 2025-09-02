@@ -348,14 +348,6 @@ class MusicDatabaseProvider : DatabaseProvider {
 }
 
 /**
- * Database interface for testability and abstraction
- */
-interface MusicDatabaseInterface {
-    fun isInitialized(): Boolean
-    fun trackDao(): TrackDaoInterface
-}
-
-/**
  * Main database class for music data storage
  * This will be converted to Room @Database in future iterations
  */
@@ -363,9 +355,14 @@ class MusicDatabase : MusicDatabaseInterface {
     private var initialized = true
 
     override fun isInitialized(): Boolean = initialized
+    override fun isReady(): Boolean = initialized
+    override suspend fun getAllTracks(): List<TrackEntity> = emptyList()
+    override suspend fun insertTrack(track: TrackEntity) { }
+    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> = emptyList()
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> = emptyList()
 
-    override fun trackDao(): TrackDaoInterface {
-        return TrackDao()
+    override fun trackDao(): RoomTrackDao? {
+        return SimpleRoomTrackDao()
     }
 }
 
@@ -375,14 +372,35 @@ class MusicDatabase : MusicDatabaseInterface {
  */
 class RoomDatabaseWrapper : MusicDatabaseInterface {
     override fun isInitialized(): Boolean = true
+    override fun isReady(): Boolean = true
 
-    override fun trackDao(): TrackDaoInterface {
+    override suspend fun getAllTracks(): List<TrackEntity> {
+        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
+        return roomDatabase?.trackDao()?.getAllTracks() ?: emptyList()
+    }
+
+    override suspend fun insertTrack(track: TrackEntity) {
+        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
+        roomDatabase?.trackDao()?.insertTrack(track)
+    }
+
+    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
+        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
+        return roomDatabase?.trackDao()?.getTracksPage(offset, limit) ?: emptyList()
+    }
+
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
+        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
+        return roomDatabase?.trackDao()?.getTracksPage(startIndex, count) ?: emptyList()
+    }
+
+    override fun trackDao(): RoomTrackDao? {
         val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
         return if (roomDatabase != null) {
-            RoomTrackDaoWrapper(roomDatabase.trackDao())
+            roomDatabase.trackDao()
         } else {
             // Fallback to simple in-memory DAO if Room is unavailable
-            RoomTrackDaoWrapper(SimpleRoomTrackDao())
+            SimpleRoomTrackDao()
         }
     }
 }
@@ -413,29 +431,6 @@ class TrackDao : TrackDaoInterface {
 }
 
 /**
- * Simple implementation of RoomTrackDao for testing when Room is unavailable
- */
-class SimpleRoomTrackDao : RoomTrackDao {
-    private val tracks = mutableListOf<TrackEntity>()
-
-    override suspend fun getAllTracks(): List<TrackEntity> = tracks.toList()
-
-    override suspend fun insertTrack(track: TrackEntity) {
-        tracks.add(track)
-    }
-
-    override suspend fun getTrackCount(): Int = tracks.size
-
-    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
-        return tracks.drop(offset).take(limit)
-    }
-
-    suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
-        return tracks.drop(startIndex).take(count)
-    }
-}
-
-/**
  * Wrapper that bridges old DAO interface with Room DAO
  * Provides actual database operations through Room
  */
@@ -463,100 +458,6 @@ class RoomTrackDaoWrapper(
 }
 
 // ===== ROOM DATABASE IMPLEMENTATION =====
-
-/**
- * Room entity representing a music track in the database.
- * * This entity maps to the 'tracks' table and contains essential metadata
- * for each music track in the user's library.
- */
-@Entity(tableName = "tracks")
-data class TrackEntity(
-    @PrimaryKey val id: String,
-    val title: String,
-    val artist: String,
-    val album: String,
-    val filePath: String
-)
-
-/**
- * Room entity representing an album in the database.
- * This entity maps to the 'albums' table and contains album metadata
- * for organizing music tracks by album.
- */
-@Entity(tableName = "albums")
-data class AlbumEntity(
-    @PrimaryKey val id: String,
-    val title: String,
-    val artist: String
-)
-
-/**
- * Room Data Access Object for track operations.
- * Provides type-safe access to track data with compile-time SQL validation.
- * Uses suspend functions for non-blocking database operations.
- */
-@Dao
-interface RoomTrackDao {
-    /**
-     * Retrieves all tracks from the database.
-     * @return List of all track entities. Returns empty list if no tracks exist.
-     */
-    @Query("SELECT * FROM tracks")
-    suspend fun getAllTracks(): List<TrackEntity>
-
-    /**
-     * Inserts a new track into the database.
-     * @param id The unique identifier for the track
-     * @param title The title of the track
-     * @param artist The artist name
-     * @param album The album name
-     * @param filePath The file path where the track is stored
-     */
-    @Insert
-    suspend fun insertTrack(track: TrackEntity)
-
-    /**
-     * Gets the total count of tracks in the database.
-     * @return Number of tracks
-     */
-    @Query("SELECT COUNT(*) FROM tracks")
-    suspend fun getTrackCount(): Int
-
-    /**
-     * Retrieves a page of tracks from the database for pagination.
-     * @param offset Starting position (0-based)
-     * @param limit Number of tracks to retrieve
-     * @return List of track entities for the specified page
-     */
-    @Query("SELECT * FROM tracks LIMIT :limit OFFSET :offset")
-    suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity>
-}
-
-/**
- * Room database for music player data storage.
- * This abstract class defines the database configuration and provides
- * access to DAOs. Room will generate the implementation at compile time.
- * Database version 1 - Initial schema with tracks and albums tables.
- */
-@Database(
-    entities = [TrackEntity::class, AlbumEntity::class],
-    version = 1,
-    exportSchema = false
-)
-abstract class MusicRoomDatabase : RoomDatabase() {
-
-    /**
-     * Provides access to track data operations.
-     * @return The track DAO instance
-     */
-    abstract fun trackDao(): RoomTrackDao
-
-    companion object {
-        const val DATABASE_NAME = "music_database"
-    }
-}
-
-// ===== REPOSITORY PATTERN IMPLEMENTATION =====
 
 // ===== PAGINATED UI DATA LAYER =====
 

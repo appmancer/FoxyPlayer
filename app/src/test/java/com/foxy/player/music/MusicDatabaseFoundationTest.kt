@@ -2,6 +2,8 @@ package com.foxy.player.music
 
 import com.foxy.player.music.database.DatabaseProvider
 import com.foxy.player.music.database.MusicDatabaseProvider
+import com.foxy.player.music.database.MusicRoomDatabase
+import com.foxy.player.music.database.RoomTrackDao
 import com.foxy.player.music.entities.AlbumEntity
 import com.foxy.player.music.entities.TrackEntity
 import com.foxy.player.music.repository.TrackRepository
@@ -48,7 +50,7 @@ class MusicDatabaseFoundationTest {
         try {
             database.trackDao()
             // If no exception, fallback is working (which is also valid)
-            assertTrue("Database should be functional", database.isReady())
+            assertTrue("Database should be functional", database.isInitialized())
         } catch (e: IllegalStateException) {
             // Verify error message guides developers to proper initialization
             val errorMessage = e.message ?: ""
