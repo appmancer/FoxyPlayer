@@ -1,6 +1,6 @@
 package com.foxy.player.authentication
 
-import com.foxy.player.authentication.models.*
+import com.foxy.player.authentication.models.AuthResponse
 import com.foxy.player.authentication.network.AuthRepository
 import com.foxy.player.authentication.ui.AuthViewModel
 import java.io.File

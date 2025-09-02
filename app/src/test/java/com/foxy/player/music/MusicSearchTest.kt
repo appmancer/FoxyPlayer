@@ -2,7 +2,7 @@ package com.foxy.player.music
 
 import com.foxy.player.authentication.network.AuthRepository
 import com.foxy.player.authentication.network.AuthenticatedApiClient
-import com.foxy.player.music.ui.*
+import com.foxy.player.music.ui.MusicTrack
 import org.junit.Test
 
 class MusicSearchTest {

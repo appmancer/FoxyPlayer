@@ -1,7 +1,5 @@
 package com.foxy.player.music
 
-import com.foxy.player.music.ui.*
-
 /**
  * TDD test for offline music library support.
  * Tests the ability to access cached music tracks when network is unavailable.
