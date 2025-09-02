@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.foxy.player.music.network.MusicDiscoveryService
 
 class NavControllerNavigator(private val navController: NavHostController) : Navigator {
     override fun navigate(route: String) {

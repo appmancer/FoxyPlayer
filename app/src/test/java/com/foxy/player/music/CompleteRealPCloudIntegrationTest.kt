@@ -2,7 +2,8 @@ package com.foxy.player.music
 
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
-import com.foxy.player.music.pcloud.*
+import com.foxy.player.music.network.MusicDiscoveryService
+import com.foxy.player.music.pcloud.PCloudListFolderResponse
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

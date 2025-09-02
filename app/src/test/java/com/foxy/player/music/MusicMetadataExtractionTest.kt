@@ -3,6 +3,7 @@ package com.foxy.player.music
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.UserInfo
+import com.foxy.player.music.network.MusicDiscoveryService
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

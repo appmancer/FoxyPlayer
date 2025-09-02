@@ -1,5 +1,6 @@
 package com.foxy.player.music
 
+import com.foxy.player.music.network.MusicDiscoveryService
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 

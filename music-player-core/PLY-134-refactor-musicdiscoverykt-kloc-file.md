@@ -1,7 +1,7 @@
-# AlbumEntity Data Class
+# Refactor MusicDiscovery.kt KLOC File
 
 **Objective**
-Add @Entity AlbumEntity data class with id, title, artist fields to MusicModels.kt
+Split MusicDiscovery.kt (1132 lines) into business/, network/, utils/ modules - separate concerns while maintaining single file per domain
 
 **Implementation Notes**
 

@@ -1,7 +1,7 @@
-# Refactor MusicModels.kt KLOC File
+# Refactor MusicDiscovery.kt KLOC File
 
 **Objective**
-Break down MusicModels.kt (1406 lines) into focused domain modules: models/, data/, utils/ - maintain single domain per file for better maintainability
+Split MusicDiscovery.kt (1132 lines) into business/, network/, utils/ modules - separate concerns while maintaining single file per domain
 
 **Implementation Notes**
 
