@@ -96,8 +96,10 @@ class PaginatedDataLayerTest {
                 return object : MusicDatabaseInterface {
                     override suspend fun getAllTracks(): List<TrackEntity> = testDao.getAllTracks()
                     override suspend fun insertTrack(track: TrackEntity) = testDao.insertTrack(track)
-                    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> = testDao.getTracksPage(offset, limit)
-                    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> = testDao.getTracksForRange(startIndex, count)
+                    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> =
+                        testDao.getTracksPage(offset, limit)
+                    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> =
+                        testDao.getTracksForRange(startIndex, count)
                     override fun isReady(): Boolean = true
                     override fun isInitialized(): Boolean = true
                     override fun trackDao(): RoomTrackDao? = testDao

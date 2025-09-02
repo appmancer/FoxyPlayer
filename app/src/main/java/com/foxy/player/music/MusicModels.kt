@@ -1,14 +1,6 @@
 package com.foxy.player.music
 
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Entity
-import androidx.room.Insert
-import androidx.room.PrimaryKey
-import androidx.room.Query
-import androidx.room.RoomDatabase
 import com.foxy.player.music.database.*
-import com.foxy.player.music.entities.AlbumEntity
 import com.foxy.player.music.entities.TrackEntity
 import com.foxy.player.music.pcloud.*
 import com.foxy.player.music.repository.TrackRepositoryInterface
@@ -253,211 +245,10 @@ class BackgroundSyncService(
 }
 
 // ===== SQLITE DATABASE FOUNDATION =====
-
-/**
- * Database provider interface for dependency injection
- */
-interface DatabaseProvider {
-    fun getDatabase(): MusicDatabaseInterface
-}
-
-/**
- * SQLite Database Foundation for Music Player
- * Provides Room database abstraction and basic DAO access with proper Android context management.
- * * This provider implements the Singleton pattern with thread-safe initialization
- * and provides a clean abstraction over Room database operations.
- */
-class MusicDatabaseProvider : DatabaseProvider {
-    companion object {
-        @Volatile
-        private var roomDatabaseInstance: MusicRoomDatabase? = null
-
-        // Context to be injected for Room database creation
-        @Volatile
-        private var applicationContext: android.content.Context? = null
-
-        /**
-         * Initialize the provider with Android application context.
-         * Must be called before using the database, typically in Application.onCreate().
-         * @param context The application context (will be converted to applicationContext automatically)
-         * @throws IllegalArgumentException if context is null
-         */
-        fun initialize(context: android.content.Context?) {
-            require(context != null) { "Application context cannot be null" }
-            applicationContext = context.applicationContext
-        }
-
-        /**
-         * Get the Room database instance using thread-safe singleton pattern.
-         * @return Room database instance or null if initialization failed
-         * @throws IllegalStateException if not initialized with context
-         */
-        fun getRoomDatabase(): MusicRoomDatabase? {
-            return try {
-                roomDatabaseInstance ?: synchronized(this) {
-                    roomDatabaseInstance ?: createRoomDatabase().also { roomDatabaseInstance = it }
-                }
-            } catch (e: IllegalStateException) {
-                // Re-throw initialization errors
-                throw e
-            } catch (e: Exception) {
-                // Log error in production - for now return null to maintain backward compatibility
-                null
-            }
-        }
-
-        /**
-         * Create Room database instance with proper error handling.
-         * @return Configured Room database instance
-         * @throws IllegalStateException if provider not initialized with context
-         */
-        private fun createRoomDatabase(): MusicRoomDatabase {
-            val context = applicationContext ?: throw IllegalStateException(
-                "MusicDatabaseProvider must be initialized with context before use. " +
-                    "Call MusicDatabaseProvider.initialize(context) in Application.onCreate()"
-            )
-
-            return androidx.room.Room.databaseBuilder(
-                context,
-                MusicRoomDatabase::class.java,
-                DATABASE_NAME
-            ).build()
-        }
-
-        private const val DATABASE_NAME = "music_database"
-
-        // Expose database name for testing
-        const val DATABASE_NAME_FOR_TESTING = DATABASE_NAME
-
-        /**
-         * Reset database instance for testing purposes.
-         * Should only be used in test environments.
-         */
-        internal fun resetForTesting() {
-            synchronized(this) {
-                roomDatabaseInstance?.close()
-                roomDatabaseInstance = null
-                applicationContext = null
-            }
-        }
-    }
-
-    override fun getDatabase(): MusicDatabaseInterface {
-        return RoomDatabaseWrapper()
-    }
-}
-
-/**
- * Main database class for music data storage
- * This will be converted to Room @Database in future iterations
- */
-class MusicDatabase : MusicDatabaseInterface {
-    private var initialized = true
-
-    override fun isInitialized(): Boolean = initialized
-    override fun isReady(): Boolean = initialized
-    override suspend fun getAllTracks(): List<TrackEntity> = emptyList()
-    override suspend fun insertTrack(track: TrackEntity) { }
-    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> = emptyList()
-    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> = emptyList()
-
-    override fun trackDao(): RoomTrackDao? {
-        return SimpleRoomTrackDao()
-    }
-}
-
-/**
- * Wrapper that bridges old interface with new Room database
- * Allows gradual migration from foundation to Room
- */
-class RoomDatabaseWrapper : MusicDatabaseInterface {
-    override fun isInitialized(): Boolean = true
-    override fun isReady(): Boolean = true
-
-    override suspend fun getAllTracks(): List<TrackEntity> {
-        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
-        return roomDatabase?.trackDao()?.getAllTracks() ?: emptyList()
-    }
-
-    override suspend fun insertTrack(track: TrackEntity) {
-        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
-        roomDatabase?.trackDao()?.insertTrack(track)
-    }
-
-    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
-        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
-        return roomDatabase?.trackDao()?.getTracksPage(offset, limit) ?: emptyList()
-    }
-
-    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
-        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
-        return roomDatabase?.trackDao()?.getTracksPage(startIndex, count) ?: emptyList()
-    }
-
-    override fun trackDao(): RoomTrackDao? {
-        val roomDatabase = MusicDatabaseProvider.getRoomDatabase()
-        return if (roomDatabase != null) {
-            roomDatabase.trackDao()
-        } else {
-            // Fallback to simple in-memory DAO if Room is unavailable
-            SimpleRoomTrackDao()
-        }
-    }
-}
-
-/**
- * DAO interface for track operations
- */
-interface TrackDaoInterface {
-    fun isReady(): Boolean
-    suspend fun getAllTracks(): List<TrackEntity>
-    suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String)
-    suspend fun getTrackCount(): Int
-    suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity>
-    suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity>
-}
-
-/**
- * Data Access Object for track operations
- * This will be converted to Room @Dao in future iterations
- */
-class TrackDao : TrackDaoInterface {
-    override fun isReady(): Boolean = true
-    override suspend fun getAllTracks(): List<TrackEntity> = emptyList()
-    override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {}
-    override suspend fun getTrackCount(): Int = 0
-    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> = emptyList()
-    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> = emptyList()
-}
-
-/**
- * Wrapper that bridges old DAO interface with Room DAO
- * Provides actual database operations through Room
- */
-class RoomTrackDaoWrapper(
-    private val roomDao: RoomTrackDao
-) : TrackDaoInterface {
-    override fun isReady(): Boolean = true
-
-    override suspend fun getAllTracks(): List<TrackEntity> = roomDao.getAllTracks()
-
-    override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
-        val track = TrackEntity(id, title, artist, album, filePath)
-        roomDao.insertTrack(track)
-    }
-
-    override suspend fun getTrackCount(): Int = roomDao.getTrackCount()
-
-    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
-        return roomDao.getTracksPage(offset, limit)
-    }
-
-    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
-        return roomDao.getTracksPage(startIndex, count)
-    }
-}
+// (These classes have been moved to com.foxy.player.music.database package)
 
 // ===== ROOM DATABASE IMPLEMENTATION =====
+// (These classes have been moved to com.foxy.player.music.database package)
 
 // ===== PAGINATED UI DATA LAYER =====
 
@@ -559,7 +350,7 @@ interface SourceStorageInterface {
  * Abstracts different types of persistent storage implementations.
  */
 interface TargetDatabaseInterface {
-    suspend fun getDao(): TrackDaoInterface
+    suspend fun getDao(): com.foxy.player.music.database.TrackDaoInterface
     suspend fun validateConnection(): Boolean
 }
 
@@ -660,13 +451,7 @@ class MigrationFramework(
         return try {
             // Insert all tracks into target database
             for (track in tracks) {
-                targetDao.insertTrack(
-                    id = track.id,
-                    title = track.title,
-                    artist = track.artist,
-                    album = track.album,
-                    filePath = track.filePath
-                )
+                targetDao.insertTrack(track)
             }
 
             // Clear source storage only after successful migration
@@ -737,7 +522,7 @@ class InMemoryTrackStorage : SourceStorageInterface {
 class TestDatabaseProvider : TargetDatabaseInterface {
     private val testDao = TestTrackDao()
 
-    override suspend fun getDao(): TrackDaoInterface = testDao
+    override suspend fun getDao(): com.foxy.player.music.database.TrackDaoInterface = testDao
     override suspend fun validateConnection(): Boolean = true
 }
 
@@ -745,15 +530,13 @@ class TestDatabaseProvider : TargetDatabaseInterface {
  * Test implementation of TrackDaoInterface for migration testing.
  * Provides in-memory database simulation for testing purposes.
  */
-class TestTrackDao : TrackDaoInterface {
+class TestTrackDao : com.foxy.player.music.database.TrackDaoInterface {
     private val tracks = mutableListOf<TrackEntity>()
 
-    override fun isReady(): Boolean = true
     override suspend fun getAllTracks(): List<TrackEntity> = tracks.toList()
-    override suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
-        tracks.add(TrackEntity(id, title, artist, album, filePath))
+    override suspend fun insertTrack(track: TrackEntity) {
+        tracks.add(track)
     }
-    override suspend fun getTrackCount(): Int = tracks.size
     override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
         return tracks.drop(offset).take(limit)
     }
