@@ -7,7 +7,7 @@ import com.foxy.player.music.entities.TrackEntity
 
 /**
  * Result wrapper for repository operations that may fail.
- * * Provides proper error handling without throwing exceptions,
+ * Provides proper error handling without throwing exceptions,
  * following modern Android development patterns.
  */
 sealed class RepositoryResult<out T> {
@@ -17,7 +17,7 @@ sealed class RepositoryResult<out T> {
 
 /**
  * Repository interface for track data operations.
- * * Provides an abstraction layer between the data access layer (Room) and
+ * Provides an abstraction layer between the data access layer (Room) and
  * the business logic layer, following the Repository pattern.
  */
 interface TrackRepositoryInterface {
@@ -31,7 +31,7 @@ interface TrackRepositoryInterface {
 
 /**
  * Repository implementation for track data operations.
- * * Integrates with Room database through dependency injection and provides
+ * Integrates with Room database through dependency injection and provides
  * a clean API for track-related data operations with proper error handling.
  */
 class TrackRepository(

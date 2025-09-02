@@ -21,7 +21,7 @@ interface DatabaseProvider {
 /**
  * SQLite Database Foundation for Music Player
  * Provides Room database abstraction and basic DAO access with proper Android context management.
- * * This provider implements the Singleton pattern with thread-safe initialization
+ * This provider implements the Singleton pattern with thread-safe initialization
  * and provides a clean abstraction over Room database operations.
  */
 class MusicDatabaseProvider : DatabaseProvider {
