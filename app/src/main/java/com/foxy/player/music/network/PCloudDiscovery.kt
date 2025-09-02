@@ -1,7 +1,7 @@
 package com.foxy.player.music.network
 
 import android.util.Log
-import com.foxy.player.authentication.AuthenticatedApiClient
+import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.entities.AudioMetadata
 import com.foxy.player.music.entities.FolderListing
 import com.foxy.player.music.pcloud.*

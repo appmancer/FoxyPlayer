@@ -1,6 +1,6 @@
 package com.foxy.player.music
 
-import com.foxy.player.authentication.AuthRepository
+import com.foxy.player.authentication.network.AuthRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

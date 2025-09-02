@@ -1,5 +1,10 @@
 package com.foxy.player.authentication
 
+import com.foxy.player.authentication.models.AccessException
+import com.foxy.player.authentication.models.AuthenticationException
+import com.foxy.player.authentication.models.UserInfo
+import com.foxy.player.authentication.network.AuthRepository
+import com.foxy.player.authentication.network.AuthenticatedApiClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue

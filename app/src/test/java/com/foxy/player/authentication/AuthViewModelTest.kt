@@ -1,5 +1,7 @@
 package com.foxy.player.authentication
 
+import com.foxy.player.authentication.network.AuthRepository
+import com.foxy.player.authentication.ui.AuthViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
