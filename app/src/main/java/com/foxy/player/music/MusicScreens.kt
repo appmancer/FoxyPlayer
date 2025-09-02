@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.foxy.player.music.entities.FolderListing
+import com.foxy.player.music.network.MusicDiscoveryService
 
 @Composable
 fun SongsListScreen(service: MusicDiscoveryService) {

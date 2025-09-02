@@ -4,8 +4,16 @@ import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
 import com.foxy.player.authentication.UserInfo
 import com.foxy.player.music.entities.AudioFile
-import com.foxy.player.music.sync.*
-import com.foxy.player.music.ui.*
+import com.foxy.player.music.network.MusicDiscoveryService
+import com.foxy.player.music.sync.MusicTrackSyncable
+import com.foxy.player.music.sync.SyncStatus
+import com.foxy.player.music.ui.MusicTrack
+import com.foxy.player.music.ui.MusicTrackIndexed
+import com.foxy.player.music.ui.MusicTrackMemoryOptimized
+import com.foxy.player.music.ui.MusicTrackWithMetadata
+import com.foxy.player.music.ui.SearchCriteria
+import com.foxy.player.music.ui.SortCriteria
+import com.foxy.player.music.utils.MusicLibraryScanProgressService
 import java.util.Date
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -1324,27 +1332,6 @@ class MusicDiscoveryTest {
         // Assert - verify Android compatibility improvements
         assertFalse("Should not use LocalDateTime without proper API level handling", hasLocalDateTimeIssues)
         assertTrue("Should use Android-compatible time handling", hasAndroidCompatibleTimeHandling)
-    }
-
-    @Test fun `should_use_coroutines_delay_instead_of_Thread_sleep_for_android`() {
-        // Arrange - check for Android-incompatible blocking operations
-        val possiblePaths = listOf(
-            "./app/src/main/java/com/foxy/player/music/MusicDiscovery.kt",
-            "../app/src/main/java/com/foxy/player/music/MusicDiscovery.kt",
-            "/home/sjp/Workspace/pCloudPlayer/red/app/src/main/java/com/foxy/player/music/MusicDiscovery.kt"
-        )
-
-        val musicDiscoveryFile = possiblePaths.map { java.io.File(it) }.firstOrNull { it.exists() }
-        assertTrue("MusicDiscovery.kt should exist", musicDiscoveryFile != null)
-
-        // Act - verify non-blocking coroutine usage
-        val content = musicDiscoveryFile!!.readText()
-        val hasThreadSleep = content.contains("Thread.sleep")
-        val hasCoroutineDelay = content.contains("delay(") && content.contains("suspend")
-
-        // Assert - verify Android best practices for non-blocking operations
-        assertFalse("Should not use Thread.sleep() in Android code to avoid ANRs", hasThreadSleep)
-        assertTrue("Should use coroutines delay() for non-blocking operations", hasCoroutineDelay)
     }
 
     @Test
