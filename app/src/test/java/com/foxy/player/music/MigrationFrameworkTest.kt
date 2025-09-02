@@ -1,5 +1,6 @@
 package com.foxy.player.music
 
+import com.foxy.player.music.entities.TrackEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

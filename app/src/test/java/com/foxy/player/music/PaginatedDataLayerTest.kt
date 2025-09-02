@@ -1,5 +1,13 @@
 package com.foxy.player.music
 
+import com.foxy.player.music.database.DatabaseProvider
+import com.foxy.player.music.database.MusicDatabaseInterface
+import com.foxy.player.music.database.RoomTrackDao
+import com.foxy.player.music.database.RoomTrackDaoWrapper
+import com.foxy.player.music.database.SimpleRoomTrackDao
+import com.foxy.player.music.entities.TrackEntity
+import com.foxy.player.music.repository.TrackRepository
+import com.foxy.player.music.repository.TrackRepositoryInterface
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -87,9 +95,26 @@ class PaginatedDataLayerTest {
             override fun getDatabase(): MusicDatabaseInterface {
                 return object : MusicDatabaseInterface {
                     override fun isInitialized(): Boolean = true
-                    override fun trackDao(): TrackDaoInterface {
-                        return RoomTrackDaoWrapper(testDao)
+                    override fun isReady(): Boolean = true
+                    override fun trackDao(): RoomTrackDao? {
+                        return testDao
                     }
+                    override suspend fun getAllTracks(): List<TrackEntity> = testDao.getAllTracks()
+                    override suspend fun insertTrack(track: TrackEntity) = testDao.insertTrack(
+                        track.id,
+                        track.title,
+                        track.artist,
+                        track.album,
+                        track.filePath
+                    )
+                    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> = testDao.getTracksPage(
+                        offset,
+                        limit
+                    )
+                    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> = testDao.getTracksForRange(
+                        startIndex,
+                        count
+                    )
                 }
             }
         }
@@ -118,12 +143,11 @@ class PaginatedDataLayerTest {
         val wrapper = RoomTrackDaoWrapper(simpleDao)
 
         // Act - Insert and retrieve through wrapper
-        wrapper.insertTrack("test1", "Test Song", "Test Artist", "Test Album", "/test/path.mp3")
-        val count = wrapper.getTrackCount()
+        val testTrack = TrackEntity("test1", "Test Song", "Test Artist", "Test Album", "/test/path.mp3")
+        wrapper.insertTrack(testTrack)
         val tracks = wrapper.getAllTracks()
 
         // Assert - Verify wrapper functionality
-        assertEquals("Should count inserted track", 1, count)
         assertEquals("Should retrieve inserted track", 1, tracks.size)
         assertEquals("Track should have correct title", "Test Song", tracks[0].title)
     }

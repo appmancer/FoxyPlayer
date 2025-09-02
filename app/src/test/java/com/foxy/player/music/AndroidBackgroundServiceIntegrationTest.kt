@@ -1,5 +1,6 @@
 package com.foxy.player.music
 
+import com.foxy.player.music.sync.*
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
