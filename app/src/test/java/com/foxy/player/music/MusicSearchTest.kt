@@ -2,6 +2,7 @@ package com.foxy.player.music
 
 import com.foxy.player.authentication.AuthRepository
 import com.foxy.player.authentication.AuthenticatedApiClient
+import com.foxy.player.music.ui.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

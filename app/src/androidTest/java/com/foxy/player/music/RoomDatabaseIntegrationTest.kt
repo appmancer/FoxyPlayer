@@ -2,6 +2,8 @@ package com.foxy.player.music
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.foxy.player.music.database.MusicDatabaseProvider
+import com.foxy.player.music.repository.TrackRepository
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.After
