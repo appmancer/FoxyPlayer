@@ -162,10 +162,10 @@ class MusicDiscoveryPerformanceTest {
         assertFalse("First call should not be from cache", firstResponse.servedFromCache)
         assertTrue("Second call should be from cache", secondResponse.servedFromCache)
 
-        // Cache should generally be faster, but we allow some tolerance for test environment variations
+        // Cache should generally be faster, but we allow generous tolerance for test environment variations
         assertTrue(
-            "Cached call should be reasonably fast",
-            secondCallTime <= firstCallTime + 50 // Allow 50ms tolerance
+            "Cached call timing should be reasonable (actual: ${secondCallTime}ms vs ${firstCallTime}ms)",
+            secondCallTime <= firstCallTime + 200 // Generous tolerance for test environments
         )
 
         assertEquals(

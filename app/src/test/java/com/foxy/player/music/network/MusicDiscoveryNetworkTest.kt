@@ -87,14 +87,15 @@ class MusicDiscoveryNetworkTest {
         // Act - call basic method that exists and verify error handling
         val result = musicDiscoveryService.listPCloudFolders("/nonexistent")
 
-        // Assert - verify error handling functionality
-        assertTrue("Should handle errors gracefully", result.isSuccess || result.isFailure)
+        // Assert - verify error handling functionality gracefully handles both success and failure cases
         if (result.isSuccess) {
             val response = result.getOrNull()
-            assertNotNull("Response should not be null", response)
+            assertNotNull("Response should not be null when successful", response)
         } else {
-            // Error case is also acceptable - verify we get a failure result
-            assertTrue("Should return failure result for error case", result.isFailure)
+            // For failure cases, ensure we have proper error information
+            val exception = result.exceptionOrNull()
+            assertNotNull("Exception should not be null for error case", exception)
+            assertTrue("Should be in failure state", result.isFailure)
         }
     }
 
