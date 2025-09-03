@@ -333,6 +333,7 @@ interface MusicDatabaseInterface {
     fun isReady(): Boolean
     fun isInitialized(): Boolean
     fun trackDao(): RoomTrackDao?
+    fun enhancedAlbumDao(): RoomEnhancedAlbumDao?
 }
 
 /**
@@ -371,6 +372,10 @@ class MusicDatabase : MusicDatabaseInterface {
 
     override fun trackDao(): RoomTrackDao? {
         return getRoomTrackDao()
+    }
+
+    override fun enhancedAlbumDao(): RoomEnhancedAlbumDao? {
+        return MusicDatabaseProvider.getRoomDatabase()?.enhancedAlbumDao()
     }
 
     private fun getRoomTrackDao(): RoomTrackDao? {
@@ -419,6 +424,10 @@ class RoomDatabaseWrapper : MusicDatabaseInterface {
             return null
         }
         return dao
+    }
+
+    override fun enhancedAlbumDao(): RoomEnhancedAlbumDao? {
+        return roomDatabase?.enhancedAlbumDao()
     }
 }
 
