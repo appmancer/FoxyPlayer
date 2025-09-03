@@ -63,7 +63,8 @@ class AlbumRepositoryTest {
         val albumsByArtist = albumsByArtistResult.getOrDefault(emptyList())
         albumsByArtist.forEach { album ->
             assertTrue(
-                "Albums should belong to requested artist or list should be empty", album.artist.contains("Test Artist", ignoreCase = true) || albumsByArtist.isEmpty()
+                "Albums should belong to requested artist or list should be empty",
+                album.artist.contains("Test Artist", ignoreCase = true) || albumsByArtist.isEmpty()
             )
         }
     }
@@ -83,9 +84,13 @@ class AlbumRepositoryTest {
         // Search results should be relevant (or empty if no matches)
         val searchResults = searchResult.getOrDefault(emptyList())
         searchResults.forEach { album ->
-            val matchesSearch = album.title.contains("test", ignoreCase = true) || album.artist.contains("test", ignoreCase = true)
+            val matchesSearch = album.title.contains("test", ignoreCase = true) || album.artist.contains(
+                "test",
+                ignoreCase = true
+            )
             assertTrue(
-                "Search results should match query or list should be empty", matchesSearch || searchResults.isEmpty()
+                "Search results should match query or list should be empty",
+                matchesSearch || searchResults.isEmpty()
             )
         }
     }

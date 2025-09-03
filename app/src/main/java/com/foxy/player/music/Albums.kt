@@ -1,9 +1,12 @@
 package com.foxy.player.music
 
+import androidx.lifecycle.ViewModel
 import com.foxy.player.music.database.DatabaseProvider
 import com.foxy.player.music.database.MusicDatabaseInterface
 import com.foxy.player.music.database.MusicDatabaseProvider
 import com.foxy.player.music.entities.EnhancedAlbumEntity
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 // ===== ALBUM RESULT TYPES =====
 
@@ -189,6 +192,58 @@ fun List<EnhancedAlbumEntity>.toUIModels(): List<AlbumUIModel> {
     return this.map { it.toUIModel() }
 }
 
+// ===== ALBUM UI STATES =====
+
+/**
+ * Sealed class representing different states of album list UI.
+ * Implements PLY-127 architecture with proper state management.
+ */
+sealed class AlbumListState {
+    object Loading : AlbumListState()
+    data class Success(val albums: List<AlbumUIModel>) : AlbumListState()
+    data class Error(val message: String) : AlbumListState()
+}
+
+// ===== ALBUM VIEW MODELS =====
+
+/**
+ * ViewModel for album list screen.
+ * Manages album list state and business logic following PLY-127 architecture.
+ */
+class AlbumListViewModel(
+    private val albumDomainService: AlbumDomainService = AlbumDomainService()
+) : ViewModel() {
+
+    private val _albumsState = MutableStateFlow<AlbumListState>(AlbumListState.Loading)
+    val albumsState: StateFlow<AlbumListState> = _albumsState
+
+    /**
+     * Loads albums and updates state accordingly.
+     * TODO: Add proper async implementation with viewModelScope when integrated with UI
+     */
+    fun loadAlbums() {
+        // Minimal implementation for TDD - sets loading state
+        // Real async implementation will be added when integrated with UI layer
+        _albumsState.value = AlbumListState.Loading
+    }
+
+    /**
+     * Searches albums with the given query.
+     * TODO: Implement search functionality when needed
+     */
+    fun searchAlbums(query: String) {
+        _albumsState.value = AlbumListState.Loading
+    }
+
+    /**
+     * Loads albums by artist.
+     * TODO: Implement artist filtering when needed
+     */
+    fun loadAlbumsByArtist(artist: String) {
+        _albumsState.value = AlbumListState.Loading
+    }
+}
+
 // ===== ALBUM DOMAIN OPERATIONS =====
 
 /**
@@ -196,14 +251,14 @@ fun List<EnhancedAlbumEntity>.toUIModels(): List<AlbumUIModel> {
  * Coordinates between repository and presentation layers.
  * Implements PLY-127 architecture with proper error handling.
  */
-class AlbumDomainService(
+open class AlbumDomainService(
     private val albumRepository: AlbumRepositoryInterface = AlbumRepository()
 ) {
 
     /**
      * Retrieves all albums for UI display with proper error handling.
      */
-    suspend fun getAlbumsForUI(): AlbumResult<List<AlbumUIModel>> {
+    open suspend fun getAlbumsForUI(): AlbumResult<List<AlbumUIModel>> {
         return when (val result = albumRepository.getAllAlbums()) {
             is AlbumResult.Success -> AlbumResult.Success(result.data.toUIModels())
             is AlbumResult.Error -> AlbumResult.Error(result.exception, result.message)
@@ -213,7 +268,7 @@ class AlbumDomainService(
     /**
      * Searches albums for UI display with query validation.
      */
-    suspend fun searchAlbumsForUI(query: String): AlbumResult<List<AlbumUIModel>> {
+    open suspend fun searchAlbumsForUI(query: String): AlbumResult<List<AlbumUIModel>> {
         if (query.isBlank()) {
             return AlbumResult.Success(emptyList())
         }
@@ -227,7 +282,7 @@ class AlbumDomainService(
     /**
      * Retrieves albums by artist for UI display.
      */
-    suspend fun getAlbumsByArtistForUI(artist: String): AlbumResult<List<AlbumUIModel>> {
+    open suspend fun getAlbumsByArtistForUI(artist: String): AlbumResult<List<AlbumUIModel>> {
         if (artist.isBlank()) {
             return AlbumResult.Error(
                 IllegalArgumentException("Artist name cannot be blank"),
@@ -244,7 +299,7 @@ class AlbumDomainService(
     /**
      * Retrieves paginated albums for UI display with validation.
      */
-    suspend fun getAlbumsPageForUI(offset: Int, limit: Int): AlbumResult<List<AlbumUIModel>> {
+    open suspend fun getAlbumsPageForUI(offset: Int, limit: Int): AlbumResult<List<AlbumUIModel>> {
         return when (val result = albumRepository.getAlbumsPage(offset, limit)) {
             is AlbumResult.Success -> AlbumResult.Success(result.data.toUIModels())
             is AlbumResult.Error -> AlbumResult.Error(result.exception, result.message)
