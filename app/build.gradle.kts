@@ -88,6 +88,7 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.11.1")
     testImplementation("androidx.work:work-testing:2.9.0")
     testImplementation("org.mockito:mockito-core:5.1.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4:1.6.8")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

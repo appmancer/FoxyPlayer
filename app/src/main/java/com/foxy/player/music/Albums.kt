@@ -1,5 +1,21 @@
 package com.foxy.player.music
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import com.foxy.player.music.database.DatabaseProvider
 import com.foxy.player.music.database.MusicDatabaseInterface
@@ -303,6 +319,69 @@ open class AlbumDomainService(
         return when (val result = albumRepository.getAlbumsPage(offset, limit)) {
             is AlbumResult.Success -> AlbumResult.Success(result.data.toUIModels())
             is AlbumResult.Error -> AlbumResult.Error(result.exception, result.message)
+        }
+    }
+}
+
+// ===== ALBUM UI COMPONENTS =====
+
+/**
+ * Material3 album grid item component for displaying individual albums.
+ * Implements PLY-127 UI specifications with proper Material Design.
+ */
+@Composable
+fun AlbumGridItem(
+    album: AlbumUIModel,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Album artwork placeholder (will be enhanced in future iterations)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🎵",
+                    style = MaterialTheme.typography.headlineLarge
+                )
+            }
+
+            // Album title
+            Text(
+                text = album.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Artist name
+            Text(
+                text = album.artist,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Track count
+            Text(
+                text = "${album.trackCount} tracks",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
