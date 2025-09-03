@@ -2,6 +2,7 @@ package com.foxy.player.music.entities
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -139,3 +140,63 @@ data class FolderListing(
     val folders: List<String> = emptyList(),
     val files: List<String> = emptyList()
 )
+
+/**
+ * Junction table entity for album-track many-to-many relationships.
+ * This entity maps to the 'album_tracks' table and represents
+ * the relationship between albums and tracks with ordering information.
+ * * Uses composite primary key (albumId, trackId) to ensure uniqueness
+ * and includes foreign key constraints for data integrity.
+ */
+@Entity(
+    tableName = "album_tracks",
+    primaryKeys = ["albumId", "trackId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = AlbumEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["albumId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = TrackEntity::class,
+            parentColumns = ["id"], childColumns = ["trackId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["albumId"]),
+        Index(value = ["trackId"]),
+        Index(value = ["trackOrder"])
+    ]
+)
+data class AlbumTrackEntity(
+    /**
+     * Foreign key reference to AlbumEntity.id.
+     * Establishes the album side of the many-to-many relationship.
+     */
+    @ColumnInfo(name = "album_id")
+    val albumId: String,
+
+    /**
+     * Foreign key reference to TrackEntity.id.
+     * Establishes the track side of the many-to-many relationship.
+     */
+    @ColumnInfo(name = "track_id")
+    val trackId: String,
+
+    /**
+     * Order/position of the track within the album.
+     * Used for maintaining album track sequencing (1-based indexing).
+     */
+    @ColumnInfo(name = "track_order")
+    val trackOrder: Int
+) {
+    /**
+     * Validates that the junction entity contains valid relationship data.
+     * @return true if all required fields are properly set
+     */
+    fun isValid(): Boolean {
+        return albumId.isNotBlank() && trackId.isNotBlank() && trackOrder > 0
+    }
+}
