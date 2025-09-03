@@ -26,13 +26,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 import com.foxy.player.music.database.DatabaseProvider
 import com.foxy.player.music.database.MusicDatabaseInterface
 import com.foxy.player.music.database.MusicDatabaseProvider
 import com.foxy.player.music.entities.EnhancedAlbumEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 // ===== ALBUM RESULT TYPES =====
 
@@ -250,7 +250,7 @@ class AlbumListViewModel(
     fun loadAlbums() {
         viewModelScope.launch {
             _albumsState.value = AlbumListState.Loading
-            
+
             when (val result = albumRepository.getAllAlbums()) {
                 is AlbumResult.Success -> {
                     val uiModels = result.data.toUIModels()

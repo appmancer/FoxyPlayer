@@ -21,8 +21,10 @@ class AlbumListScreenTest {
                 trackCount = 10
             ),
             AlbumUIModel(
-                id = "album-2", title = "Test Album 2",
-                artist = "Test Artist 2", trackCount = 15
+                id = "album-2",
+                title = "Test Album 2",
+                artist = "Test Artist 2",
+                trackCount = 15
             )
         )
 
@@ -38,13 +40,15 @@ class AlbumListScreenTest {
 
         // Assert - Verify album list screen interface exists for UI rendering
         assertTrue(
-            "Album UI models should be valid for display", testAlbums.all { it.isValid() }
+            "Album UI models should be valid for display",
+            testAlbums.all { it.isValid() }
         )
 
         // Assert - Verify AlbumListScreen component exists and can be instantiated
         // This verifies the component is available by checking compilation
         assertTrue(
-            "Album UI models should be valid for display", testAlbums.all { it.isValid() }
+            "Album UI models should be valid for display",
+            testAlbums.all { it.isValid() }
         )
 
         // Verify the AlbumListScreen exists by ensuring the test compiles
