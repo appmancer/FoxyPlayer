@@ -1,0 +1,7 @@
+860:    fun `should support database indexing for fast search queries under 100ms`() {
+861:        // Arrange - setup test data with database indexing service
+865:        val databaseIndexService = MusicDatabaseIndexService(authenticatedApiClient)
+883:        // Act - perform search with database indexing and measure performance
+886:        val result = databaseIndexService.searchWithDatabaseIndex(searchQuery, largeTrackCollection)
+897:            "Database indexed search should complete under 100ms, actual: ${searchDurationMs}ms",
+912:        assertTrue("Should indicate database index was used", searchResponse.usedDatabaseIndex)

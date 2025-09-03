@@ -1,0 +1,3 @@
+3:import com.foxy.player.authentication.models.UserInfo
+25:data class PathFileGenerationScenario(
+1237:            "// ===== DATA MODELS =====",

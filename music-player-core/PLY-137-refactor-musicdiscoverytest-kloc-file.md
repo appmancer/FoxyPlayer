@@ -1,7 +1,7 @@
-# Refactor Authentication KLOC File
+# Refactor MusicDiscoveryTest KLOC File
 
 **Objective**
-Break down auth.kt (1340 lines) into business/, network/, utils/, models/ modules - separate authentication concerns while maintaining single file per domain
+Break down MusicDiscoveryTest.kt (1857 lines) into testing/, business/, network/, data/, utils/ modules - separate test concerns while maintaining comprehensive coverage
 
 **Implementation Notes**
 

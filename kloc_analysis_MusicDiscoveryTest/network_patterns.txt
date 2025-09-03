@@ -1,0 +1,362 @@
+4:import com.foxy.player.authentication.network.AuthRepository
+5:import com.foxy.player.authentication.network.AuthenticatedApiClient
+7:import com.foxy.player.music.network.MusicDiscoveryService
+34:    fun `should integrate with authenticated API client for pCloud folder listing`() {
+36:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+37:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+38:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+50:    fun `should call pCloud listfolder API with authenticated request`() {
+52:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+54:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+55:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+57:        // Act - call the method that should make real API call
+58:        val result = musicDiscoveryService.listPCloudFoldersWithAPI("/")
+60:        // Assert - verify API integration
+61:        assertTrue("Should return successful result from real API call", result.isSuccess)
+62:        val apiResponse = result.getOrNull()
+63:        assertNotNull("API response should not be null", apiResponse)
+65:            "API response should contain auth token confirmation",
+66:            apiResponse!!.containsAuthToken("test_auth_token")
+71:    fun `should call real pCloud listfolder API with recursive directory traversal`() {
+73:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+75:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+76:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+82:        assertTrue("Should return successful result from recursive API call", result.isSuccess)
+83:        val recursiveResponse = result.getOrNull()
+84:        assertNotNull("Recursive response should not be null", recursiveResponse)
+86:            "Should have processed directories (may be 0 if API unavailable)",
+87:            recursiveResponse!!.totalDirectoriesTraversed >= 0
+90:            "Should include subdirectories in results (or empty list if API unavailable)",
+91:            recursiveResponse.allFolders.size >= 0
+98:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+100:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+101:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+108:        val audioFilesResponse = result.getOrNull()
+109:        assertNotNull("Audio files response should not be null", audioFilesResponse)
+110:        // Check if audio files were found - they may be empty if API is unavailable
+111:        val hasAudioFiles = audioFilesResponse!!.audioFiles.isNotEmpty()
+117:                audioFilesResponse.audioFiles.any { file ->
+126:                audioFilesResponse.audioFiles.isEmpty()
+131:            audioFilesResponse.audioFiles.none { it.endsWith(".txt") || it.endsWith(".jpg") }
+138:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+140:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+141:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+149:        assertNotNull("First page response should not be null", firstPage)
+170:        assertNotNull("Second page response should not be null", secondPage)
+180:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+182:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+183:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+193:        val firstResponse = firstCallResult.getOrNull()
+194:        val secondResponse = secondCallResult.getOrNull()
+196:        assertNotNull("First response should not be null", firstResponse)
+197:        assertNotNull("Second response should not be null", secondResponse)
+202:            secondResponse!!.servedFromCache
+206:            firstResponse!!.servedFromCache
+212:            firstResponse.audioFiles,
+213:            secondResponse.audioFiles
+216:        // Verify cache has reduced API call count
+218:            "Cache should reduce total API calls",
+219:            secondResponse.totalApiCallsMade == 1
+220:        ) // Only one actual API call despite two method calls
+224:    fun `should handle network and API errors with proper error recovery`() {
+226:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+228:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+229:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+231:        // Act & Assert - Test network timeout handling
+234:            networkTimeout = true
+236:        assertTrue("Should gracefully handle network timeout", timeoutResult.isSuccess)
+237:        val timeoutResponse = timeoutResult.getOrNull()
+238:        assertNotNull("Timeout response should not be null", timeoutResponse)
+239:        assertTrue("Should indicate network timeout error", timeoutResponse!!.hasNetworkError)
+242:            "Network timeout - using cached data or retry mechanism",
+243:            timeoutResponse.errorMessage
+246:        // Act & Assert - Test HTTP error handling (404, 500, etc.)
+247:        val httpErrorResult = musicDiscoveryService.listAudioFilesWithErrorHandling(
+249:            httpError = 404
+251:        assertTrue("Should gracefully handle HTTP 404 error", httpErrorResult.isSuccess)
+252:        val httpErrorResponse = httpErrorResult.getOrNull()
+253:        assertNotNull("HTTP error response should not be null", httpErrorResponse)
+254:        assertTrue("Should indicate HTTP error", httpErrorResponse!!.hasHttpError)
+255:        assertEquals("Should have proper HTTP error code", 404, httpErrorResponse.httpErrorCode)
+257:            "Should have proper error message for HTTP 404",
+259:            httpErrorResponse.errorMessage
+262:        // Act & Assert - Test API authentication error handling
+268:        val authErrorResponse = authErrorResult.getOrNull()
+269:        assertNotNull("Auth error response should not be null", authErrorResponse)
+270:        assertTrue("Should indicate authentication error", authErrorResponse!!.hasAuthError)
+274:            authErrorResponse.errorMessage
+283:        val retryResponse = retryResult.getOrNull()
+284:        assertNotNull("Retry response should not be null", retryResponse)
+285:        assertTrue("Should indicate retry was performed", retryResponse!!.retriesPerformed > 0)
+286:        assertTrue("Should have successful data after retry", retryResponse.audioFiles.isNotEmpty())
+287:        assertEquals("Should show proper retry count", 3, retryResponse.retriesPerformed)
+295:        val fallbackResponse = fallbackResult.getOrNull()
+296:        assertNotNull("Fallback response should not be null", fallbackResponse)
+297:        assertTrue("Should indicate fallback to cached data", fallbackResponse!!.usedCachedFallback)
+298:        assertTrue("Should have cached data available", fallbackResponse.audioFiles.isNotEmpty())
+301:            "Using cached data due to network error",
+302:            fallbackResponse.errorMessage
+309:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+311:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+312:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+315:        val audioFileUrl = "https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3"
+336:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+338:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+339:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+343:            "https://sample.com/test.flac",
+353:            "https://sample.com/test.wav",
+363:            "https://sample.com/test.aac",
+380:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+382:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+383:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+390:            "https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3",
+396:        val response = validResult.getOrNull()
+397:        assertNotNull("Response should not be null", response)
+400:        assertNotNull("Should have error message field available", response!!.errorMessage)
+403:        assertFalse("Should not indicate file corruption in success case", response.hasFileCorruption)
+404:        assertFalse("Should not indicate missing metadata in success case", response.hasMissingMetadata)
+405:        assertFalse("Should not indicate unsupported format in success case", response.hasUnsupportedFormat)
+411:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+413:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+414:        val musicSearchService = MusicSearchService(authenticatedApiClient)
+430:        val searchResponse = result.getOrNull()
+431:        assertNotNull("Search response should not be null", searchResponse)
+434:            searchResponse!!.tracks.any { it.artist == "Queen" }
+438:            searchResponse.tracks.any { it.artist == "Led Zeppelin" }
+443:            searchResponse.tracks.size
+448:            searchResponse.tracks[0].title
+455:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+457:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+458:        val musicSearchService = MusicSearchService(authenticatedApiClient)
+482:        val searchResponse = result.getOrNull()
+483:        assertNotNull("Search response should not be null", searchResponse)
+487:            searchResponse!!.tracks.size
+491:            searchResponse.tracks.any { it.title == "Hotel California" }
+495:            searchResponse.tracks.any { it.title == "Hotel California Live" }
+499:            searchResponse.tracks.any { it.genre != "rock" }
+506:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+508:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+509:        val musicSearchService = MusicSearchService(authenticatedApiClient)
+526:        val browseResponse = result.getOrNull()
+527:        assertNotNull("Browse response should not be null", browseResponse)
+531:            browseResponse!!.artistGroups.size
+535:        val queenGroup = browseResponse.artistGroups.find { it.artist == "Queen" }
+548:        val eaglesGroup = browseResponse.artistGroups.find { it.artist == "Eagles" }
+556:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+558:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+559:        val musicSearchService = MusicSearchService(authenticatedApiClient)
+604:        val alphabeticalResponse = alphabeticalResult.getOrNull()!!
+608:            alphabeticalResponse.tracks[0].title
+613:            alphabeticalResponse.tracks[1].title
+618:            alphabeticalResponse.tracks[2].title
+624:        val durationResponse = durationResult.getOrNull()!!
+628:            durationResponse.tracks[0].durationMs
+630:        assertEquals("Should sort by duration", 180000, durationResponse.tracks[1].durationMs)
+634:            durationResponse.tracks[2].durationMs
+640:        val fileSizeResponse = fileSizeResult.getOrNull()!!
+644:            fileSizeResponse.tracks[0].fileSizeBytes
+646:        assertEquals("Should sort by file size", 5000000, fileSizeResponse.tracks[1].fileSizeBytes)
+650:            fileSizeResponse.tracks[2].fileSizeBytes
+657:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+659:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+660:        val musicSearchService = MusicSearchService(authenticatedApiClient)
+713:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+715:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+716:        val musicSearchService = MusicSearchService(authenticatedApiClient)
+757:        val sortedResponse = result.getOrNull()!!
+763:            sortedResponse.tracks[0].title
+768:            sortedResponse.tracks[1].title
+773:            sortedResponse.tracks[2].title
+779:            sortedResponse.tracks[0].dateAdded.before(sortedResponse.tracks[1].dateAdded)
+783:            sortedResponse.tracks[1].dateAdded.before(sortedResponse.tracks[2].dateAdded)
+790:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+792:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+793:        val metadataCacheService = MusicMetadataCacheService(authenticatedApiClient)
+800:            pCloudUrl = "https://eapi.pcloud.com/audio123"
+853:            "Cache should track API call reduction",
+854:            secondMetadata.totalApiCalls == 0
+855:        ) // No API calls on cached result
+856:        assertEquals("First call should make exactly 1 API call", 1, firstMetadata.totalApiCalls)
+862:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+864:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+865:        val databaseIndexService = MusicDatabaseIndexService(authenticatedApiClient)
+892:        val searchResponse = result.getOrNull()
+893:        assertNotNull("Search response should not be null", searchResponse)
+904:            searchResponse!!.tracks.isNotEmpty()
+908:            searchResponse.tracks.all { it.artist.contains("42") }
+912:        assertTrue("Should indicate database index was used", searchResponse.usedDatabaseIndex)
+915:            searchResponse.indexedSearchTimeMs < 50
+917:        assertTrue("Should report index statistics", searchResponse.indexStats.totalIndexes > 0)
+920:            searchResponse.tracks.size,
+921:            searchResponse.indexStats.indexHits
+928:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+930:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+931:        val memoryOptimizationService = MusicMemoryOptimizationService(authenticatedApiClient)
+969:        val optimizationResponse = result.getOrNull()
+970:        assertNotNull("Memory optimization response should not be null", optimizationResponse)
+982:            optimizationResponse!!.usedMemoryOptimization
+986:            optimizationResponse.memoryReductionPercent > 50.0
+988:        assertTrue("Should maintain data integrity", optimizationResponse.dataIntegrityVerified)
+993:            optimizationResponse.optimizations.usedEfficientDataStructures
+997:            optimizationResponse.optimizations.usedStringInterning
+1001:            optimizationResponse.optimizations.usedObjectPooling
+1005:            optimizationResponse.optimizations.enabledGCOptimization
+1009:        assertTrue("Optimized loading should be fast", optimizationResponse.loadingTimeMs < 10000)
+1013:            optimizationResponse.totalTracksLoaded
+1017:            optimizationResponse.peakMemoryUsageMB > 0
+1024:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1026:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1027:        val backgroundSyncService = MusicBackgroundSyncService(authenticatedApiClient)
+1065:        val syncResponse = result.getOrNull()
+1066:        assertNotNull("Background sync response should not be null", syncResponse)
+1075:        assertTrue("Should indicate incremental sync was used", syncResponse!!.usedIncrementalSync)
+1078:            syncResponse.tracksProcessed < allTracks.size
+1080:        assertEquals("Should sync exactly 100 modified tracks", 100, syncResponse.tracksProcessed)
+1083:        assertTrue("Should run in background thread", syncResponse.backgroundExecution)
+1084:        assertTrue("Should not block UI thread", syncResponse.nonBlockingOperation)
+1087:            syncResponse.scalableForLargeDatasets
+1094:            syncResponse.finalSyncStatus
+1096:        assertTrue("Should track sync duration", syncResponse.syncDurationMs > 0)
+1097:        assertTrue("Should maintain data integrity during sync", syncResponse.dataIntegrityVerified)
+1104:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1105:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1106:        val progressService = MusicLibraryScanProgressService(authenticatedApiClient)
+1319:            // Check for problematic LocalDateTime usage (requires API 26+)
+1320:            if (content.contains("LocalDateTime") && !content.contains("@RequiresApi")) {
+1333:        assertFalse("Should not use LocalDateTime without proper API level handling", hasLocalDateTimeIssues)
+1360:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1362:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1363:        val scanProgressService = MusicLibraryScanProgressService(authenticatedApiClient)
+1375:        val libraryScanResponse = result.getOrNull()!!
+1381:            libraryScanResponse.totalFilesFound == 0
+1387:            libraryScanResponse.scanDurationMs >= 0
+1391:        assertTrue("Should use real progress tracking", libraryScanResponse.usedProgressTracking)
+1395:    fun `listPCloudFoldersWithAPI should return real pCloud folders instead of hardcoded fallback`() {
+1397:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1399:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1400:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1402:        // Act - call the method that should make real API call
+1403:        val result = musicDiscoveryService.listPCloudFoldersWithAPI("/")
+1405:        // Assert - verify real API integration without hardcoded fallbacks
+1406:        assertTrue("Should return successful result from real API call", result.isSuccess)
+1407:        val apiResponse = result.getOrNull()
+1408:        assertNotNull("API response should not be null", apiResponse)
+1410:        val folderListing = apiResponse!!.folderListing
+1414:        // We should get REAL folder data from the pCloud API response, not hardcoded values
+1420:        // Real API responses should contain actual folder data from user's pCloud account
+1421:        // OR be empty if API is unavailable (no hardcoded fallbacks)
+1429:    fun `should return proper pCloud API error instead of hardcoded fallback data when API fails`() {
+1430:        // Arrange - setup test scenario where pCloud API will fail
+1431:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1433:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1434:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1436:        // Act - call method that should handle API failure properly
+1439:        // Assert - should get REAL API error, NOT hardcoded fallback data
+1441:            val response = result.getOrNull()!!
+1446:                response.allFolders == listOf("Music", "Music/Albums", "Music/Playlists", "Audio", "Downloads")
+1449:            // Should contain real API error information, not mock data
+1451:                "Should contain real pCloud API response data or proper error handling",
+1452:                response.allFolders.isEmpty() || response.allFolders.any { folder -> !folder.startsWith("Music") }
+1455:            // If failure, should be real API failure, not generic mock failure
+1458:                "Should contain real pCloud API error details",
+1459:                exception.message?.contains("pCloud") == true || exception.message?.contains("API") == true ||
+1474:    fun `should return real audio file data instead of hardcoded audio file fallbacks when API fails`() {
+1475:        // Arrange - setup scenario where pCloud API will fail for audio files
+1476:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1478:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1479:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1481:        // Act - call method that should handle audio file API failure properly
+1484:        // Assert - should get REAL API response, NOT hardcoded audio file fallback data
+1486:            val response = result.getOrNull()!!
+1491:                response.audioFiles == listOf("song1.mp3", "track2.flac", "audio3.wav", "music4.mp3", "classical.flac")
+1494:            // Should contain real API error information or empty results, not mock audio files
+1496:                "Should contain real pCloud API response data or proper error handling",
+1497:                response.audioFiles.isEmpty() || response.audioFiles.none {
+1504:            // If failure, should be real API failure, not generic mock failure
+1507:                "Should contain real pCloud API error details",
+1508:                exception.message?.contains("pCloud") == true || exception.message?.contains("API") == true ||
+1525:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1527:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1528:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1535:        val response = result.getOrNull()!!
+1540:            response.audioFiles == listOf("cached_fallback1.mp3", "cached_fallback2.flac")
+1546:            response.usedCachedFallback
+1551:            response.audioFiles.isNotEmpty() && response.audioFiles.none { it.startsWith("cached_fallback") }
+1557:            response.errorMessage?.contains("cache") == true ||
+1558:                response.errorMessage?.contains("network") == true
+1565:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1567:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1568:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1598:    fun `should properly handle API errors without falling back to hardcoded responses`() {
+1600:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1602:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1603:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1605:        // Act - call method that should handle real API errors without hardcoded fallbacks
+1606:        val result = musicDiscoveryService.listPCloudFoldersWithAPI("/nonexistent")
+1610:            val response = result.getOrNull()!!
+1611:            val folderListing = response.folderListing
+1623:            // Should handle errors with exponential backoff retry mechanism instead of hardcoded responses
+1625:                "Should handle API errors properly without hardcoded fallbacks",
+1629:            // If error occurs, should be genuine API error with proper error handling
+1640:            val audioResponse = audioResult.getOrNull()!!
+1645:                audioResponse.audioFiles.any { it.matches(Regex(".*_file\\d+\\.(mp3|flac|wav)")) }
+1653:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1655:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1656:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1723:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1725:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1726:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1729:        val result = musicDiscoveryService.handleSpecificApiError(429, "Too Many Requests")
+1733:        val errorResponse = result.getOrNull()
+1734:        assertNotNull("Error response should not be null", errorResponse)
+1735:        assertEquals("Should detect rate limiting error type", "RATE_LIMITING", errorResponse!!.errorType)
+1736:        assertEquals("Should include rate limiting error code", 429, errorResponse.httpStatusCode)
+1737:        assertTrue("Should include helpful error message", errorResponse.errorMessage.contains("rate limit"))
+1738:        assertTrue("Should suggest retry with backoff", errorResponse.errorMessage.contains("retry"))
+1739:        assertNotNull("Should include suggested retry delay", errorResponse.suggestedRetryDelayMs)
+1740:        assertTrue("Should suggest reasonable retry delay", errorResponse.suggestedRetryDelayMs!! > 0)
+1746:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1748:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1749:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1752:        val result = musicDiscoveryService.handleSpecificApiError(401, "Unauthorized")
+1756:        val errorResponse = result.getOrNull()
+1757:        assertNotNull("Error response should not be null", errorResponse)
+1758:        assertEquals("Should detect authentication error type", "AUTHENTICATION_FAILED", errorResponse!!.errorType)
+1759:        assertEquals("Should include auth error code", 401, errorResponse.httpStatusCode)
+1760:        assertTrue("Should include helpful error message", errorResponse.errorMessage.contains("Authentication failed"))
+1761:        assertTrue("Should mention token issues", errorResponse.errorMessage.contains("token"))
+1765:    fun `should detect and handle network timeout errors`() {
+1767:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1769:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1770:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1772:        // Act - call method that should detect and handle network timeout errors
+1774:        val result = musicDiscoveryService.handleNetworkException(timeoutException)
+1776:        // Assert - verify network timeout error is properly detected and handled
+1778:        val errorResponse = result.getOrNull()
+1779:        assertNotNull("Error response should not be null", errorResponse)
+1780:        assertEquals("Should detect timeout error type", "NETWORK_TIMEOUT", errorResponse!!.errorType)
+1781:        assertEquals("Should include timeout status code", 408, errorResponse.httpStatusCode)
+1782:        assertTrue("Should include helpful timeout message", errorResponse.errorMessage.contains("timeout"))
+1783:        assertTrue("Should suggest retry", errorResponse.errorMessage.contains("retry"))
+1784:        assertNotNull("Should include suggested retry delay", errorResponse.suggestedRetryDelayMs)
+1785:        assertTrue("Should suggest reasonable retry delay", errorResponse.suggestedRetryDelayMs!! > 0)
+1789:    fun `should implement circuit breaker to prevent API overload`() {
+1791:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1793:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1794:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1797:        musicDiscoveryService.recordApiFailure() // First failure
+1798:        musicDiscoveryService.recordApiFailure() // Second failure
+1799:        musicDiscoveryService.recordApiFailure() // Third failure - should open circuit
+1811:        // Test circuit breaker prevents API calls when open
+1812:        val result = musicDiscoveryService.makeApiCallWithCircuitBreaker("/listfolder")
+1814:        val response = result.getOrNull()
+1815:        assertNotNull("Response should not be null", response)
+1816:        assertTrue("Should indicate circuit is open", response!!.circuitOpen)
+1817:        assertTrue("Should provide circuit breaker message", response.message.lowercase().contains("circuit"))
+1823:        val authRepository = AuthRepository("https://eapi.pcloud.com")
+1825:        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+1826:        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+1829:        val networkException = java.net.SocketTimeoutException("Connection timeout after 10000ms")
+1832:            exception = networkException,
+1844:        assertEquals("Should include error type", "NETWORK_TIMEOUT", report.errorType)
+1845:        assertEquals("Should include HTTP status", 408, report.httpStatusCode)

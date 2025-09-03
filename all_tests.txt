@@ -1,0 +1,42 @@
+31:    fun `should integrate with authenticated API client for pCloud folder listing`() {
+47:    fun `should call pCloud listfolder API with authenticated request`() {
+68:    fun `should call real pCloud listfolder API with recursive directory traversal`() {
+93:    fun `should filter results to audio file types MP3 FLAC WAV etc`() {
+133:    fun `should handle pagination for large directories with page tokens`() {
+175:    fun `should cache directory listings for performance optimization`() {
+221:    fun `should handle network and API errors with proper error recovery`() {
+304:    fun `should extract basic metadata from MP3 file`() {
+331:    fun `should extract metadata from different audio formats FLAC WAV AAC`() {
+375:    fun `should handle error conditions gracefully with real error detection`() {
+406:    fun `should filter music tracks by search query`() {
+450:    fun `should filter music tracks by multiple search criteria`() {
+501:    fun `should browse music tracks by artist grouping`() {
+551:    fun `should sort music tracks by different criteria`() {
+652:    fun `should display search interface with text input and results`() {
+684:    fun `MusicTrack_should_use_proper_date_type_for_dateAdded_field`() {
+708:    fun `MusicSearchService_should_sort_tracks_by_dateAdded_in_chronological_order`() {
+785:    fun `should cache music metadata efficiently`() {
+857:    fun `should support database indexing for fast search queries under 100ms`() {
+923:    fun `should optimize memory usage for large music libraries with efficient data structures`() {
+1019:    fun `should implement background sync with incremental updates for large music libraries`() {
+1099:    fun `should provide progress indicators for library scanning operations with real-time updates`() {
+1120:    fun `should verify progress classes exist and compile correctly`() {
+1126:    fun `should_have_only_one_MusicBackgroundSyncService_class_definition`() {
+1158:    fun `should_have_consistent_indentation_without_mixed_spaces_and_tabs`() {
+1209:    fun `should_have_clear_section_separators_for_better_code_navigation`() {
+1255:    fun `should_have_minimal_ktlint_violations_for_improved_readability`() {
+1299:    fun `should_use_android_compatible_time_handling_instead_of_LocalDateTime`() {
+1335:    fun `should_not_manually_call_system_gc_in_android_code`() {
+1355:    fun `should scan directory for real audio files instead of using random numbers`() {
+1392:    fun `listPCloudFoldersWithAPI should return real pCloud folders instead of hardcoded fallback`() {
+1426:    fun `should return proper pCloud API error instead of hardcoded fallback data when API fails`() {
+1471:    fun `should return real audio file data instead of hardcoded audio file fallbacks when API fails`() {
+1520:    fun `should use real cached data instead of hardcoded cached fallback simulation when useCachedFallback is true`() {
+1560:    fun `should extract baseName from path using helper function`() {
+1595:    fun `should properly handle API errors without falling back to hardcoded responses`() {
+1648:    fun `should generate path-based file lists using helper function`() {
+1718:    fun `should detect and handle 429 rate limiting errors`() {
+1741:    fun `should detect and handle 401 authentication errors`() {
+1762:    fun `should detect and handle network timeout errors`() {
+1786:    fun `should implement circuit breaker to prevent API overload`() {
+1818:    fun `should provide detailed error reporting for debugging`() {
