@@ -46,7 +46,7 @@ data class AlbumEntity(
     indices = [
         Index(value = ["title", "artist"]), // Query performance for title+artist (non-unique)
         Index(value = ["path"], unique = true), // Unique file paths
-        Index(value = ["lastModified"]), // Recent albums query
+        Index(value = ["last_modified"]), // Recent albums query - use column name
         Index(value = ["artist"]) // Artist-based filtering
     ]
 )
@@ -152,25 +152,25 @@ data class FolderListing(
  */
 @Entity(
     tableName = "album_tracks",
-    primaryKeys = ["albumId", "trackId"],
+    primaryKeys = ["album_id", "track_id"], // Use actual column names
     foreignKeys = [
         ForeignKey(
             entity = AlbumEntity::class,
             parentColumns = ["id"],
-            childColumns = ["albumId"],
+            childColumns = ["album_id"], // Use actual column name
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
             entity = TrackEntity::class,
             parentColumns = ["id"],
-            childColumns = ["trackId"],
+            childColumns = ["track_id"], // Use actual column name
             onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [
-        Index(value = ["albumId"]),
-        Index(value = ["trackId"]),
-        Index(value = ["trackOrder"])
+        Index(value = ["album_id"]), // Use actual column name
+        Index(value = ["track_id"]), // Use actual column name
+        Index(value = ["track_order"]) // Use actual column name
     ]
 )
 data class AlbumTrackEntity(
@@ -216,17 +216,17 @@ data class AlbumTrackEntity(
         ForeignKey(
             entity = AlbumEntity::class,
             parentColumns = ["id"],
-            childColumns = ["albumId"],
+            childColumns = ["album_id"], // Use actual column name
             onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index(value = ["title"]),
         Index(value = ["artist"]),
-        Index(value = ["albumId"]),
-        Index(value = ["filePath"], unique = true),
-        Index(value = ["lastModified"]),
-        Index(value = ["artist", "albumId"]) // Query performance for artist+album filtering
+        Index(value = ["album_id"]), // Use actual column name
+        Index(value = ["file_path"], unique = true), // Use actual column name
+        Index(value = ["last_modified"]), // Use actual column name
+        Index(value = ["artist", "album_id"]) // Use actual column names
     ]
 )
 data class EnhancedTrackEntity(
@@ -361,25 +361,25 @@ data class TrackWithAlbum(
  */
 @Entity(
     tableName = "enhanced_album_tracks",
-    primaryKeys = ["albumId", "enhancedTrackId"],
+    primaryKeys = ["album_id", "enhanced_track_id"], // Use actual column names
     foreignKeys = [
         ForeignKey(
             entity = AlbumEntity::class,
             parentColumns = ["id"],
-            childColumns = ["albumId"],
+            childColumns = ["album_id"], // Use actual column name
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
             entity = EnhancedTrackEntity::class,
             parentColumns = ["id"],
-            childColumns = ["enhancedTrackId"],
+            childColumns = ["enhanced_track_id"], // Use actual column name
             onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [
-        Index(value = ["albumId"]),
-        Index(value = ["enhancedTrackId"]),
-        Index(value = ["trackOrder"])
+        Index(value = ["album_id"]), // Use actual column name
+        Index(value = ["enhanced_track_id"]), // Use actual column name
+        Index(value = ["track_order"]) // Use actual column name
     ]
 )
 data class EnhancedAlbumTrackEntity(

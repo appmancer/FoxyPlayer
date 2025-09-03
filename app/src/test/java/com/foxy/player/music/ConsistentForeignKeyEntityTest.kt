@@ -112,7 +112,8 @@ class ConsistentForeignKeyEntityTest {
         assertEquals("Second track should have order 2", 2, junctionEntries[1].trackOrder)
         assertTrue("All junction entries should be valid", junctionEntries.all { it.isValid() })
         assertTrue(
-            "All junction entries should reference correct album", junctionEntries.all { it.albumId == albumId }
+            "All junction entries should reference correct album",
+            junctionEntries.all { it.albumId == albumId }
         )
     }
 }

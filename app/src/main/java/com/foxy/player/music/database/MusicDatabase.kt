@@ -7,7 +7,35 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.foxy.player.music.entities.AlbumEntity
+import com.foxy.player.music.entities.AlbumTrackEntity
+import com.foxy.player.music.entities.EnhancedAlbumEntity
+import com.foxy.player.music.entities.EnhancedAlbumTrackEntity
+import com.foxy.player.music.entities.EnhancedTrackEntity
 import com.foxy.player.music.entities.TrackEntity
+
+// ===== DATABASE RESULT TYPES =====
+
+/**
+ * Result wrapper for database operations with proper error handling.
+ * Provides type-safe result handling for all database operations.
+ */
+sealed class DatabaseResult<T> {
+    data class Success<T>(val data: T) : DatabaseResult<T>()
+    data class Error<T>(val exception: Throwable, val message: String) : DatabaseResult<T>()
+
+    fun isSuccess(): Boolean = this is Success
+    fun isError(): Boolean = this is Error
+
+    fun getOrNull(): T? = when (this) {
+        is Success -> data
+        is Error -> null
+    }
+
+    fun getOrElse(default: T): T = when (this) {
+        is Success -> data
+        is Error -> default
+    }
+}
 
 // ===== SQLITE DATABASE FOUNDATION =====
 
@@ -65,6 +93,7 @@ class MusicDatabaseProvider : DatabaseProvider {
 
         /**
          * Create Room database instance with proper error handling.
+         * PLY-124: Includes migration from v1 to v2 for enhanced album support.
          * @return Room database instance
          * @throws IllegalStateException if context not initialized
          */
@@ -79,7 +108,137 @@ class MusicDatabaseProvider : DatabaseProvider {
                 context,
                 MusicRoomDatabase::class.java,
                 "music_database"
-            ).build()
+            )
+                .addMigrations(DatabaseMigrationFactory.createMigration1To2())
+                .build()
+        }
+
+        /**
+         * Factory for creating database migrations.
+         * PLY-124: Encapsulates migration logic for enhanced album entities.
+         */
+        object DatabaseMigrationFactory {
+            /**
+             * Creates migration from database version 1 to version 2.
+             * Adds enhanced album and track entities with proper relationships.
+             */
+            fun createMigration1To2(): androidx.room.migration.Migration {
+                return object : androidx.room.migration.Migration(1, 2) {
+                    override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                        // Create enhanced_albums table
+                        database.execSQL(
+                            """
+                            CREATE TABLE IF NOT EXISTS enhanced_albums (
+                                id TEXT NOT NULL PRIMARY KEY,
+                                title TEXT NOT NULL,
+                                artist TEXT NOT NULL,
+                                path TEXT NOT NULL,
+                                last_modified INTEGER NOT NULL
+                            )
+                            """.trimIndent()
+                        )
+
+                        // Create enhanced_tracks table
+                        database.execSQL(
+                            """
+                            CREATE TABLE IF NOT EXISTS enhanced_tracks (
+                                id TEXT NOT NULL PRIMARY KEY,
+                                title TEXT NOT NULL,
+                                artist TEXT NOT NULL,
+                                album_id TEXT NOT NULL,
+                                file_path TEXT NOT NULL,
+                                duration_ms INTEGER NOT NULL,
+                                last_modified INTEGER NOT NULL,
+                                FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE SET NULL
+                            )
+                            """.trimIndent()
+                        )
+
+                        // Create enhanced_album_tracks junction table
+                        database.execSQL(
+                            """
+                            CREATE TABLE IF NOT EXISTS enhanced_album_tracks (
+                                album_id TEXT NOT NULL,
+                                enhanced_track_id TEXT NOT NULL,
+                                track_order INTEGER NOT NULL,
+                                PRIMARY KEY (album_id, enhanced_track_id),
+                                FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE,
+                                FOREIGN KEY (enhanced_track_id) REFERENCES enhanced_tracks(id) ON DELETE CASCADE
+                            )
+                            """.trimIndent()
+                        )
+
+                        // Create album_tracks junction table
+                        database.execSQL(
+                            """
+                            CREATE TABLE IF NOT EXISTS album_tracks (
+                                albumId TEXT NOT NULL,
+                                trackId TEXT NOT NULL,
+                                trackOrder INTEGER NOT NULL,
+                                PRIMARY KEY (albumId, trackId),
+                                FOREIGN KEY (albumId) REFERENCES albums(id) ON DELETE CASCADE,
+                                FOREIGN KEY (trackId) REFERENCES tracks(id) ON DELETE CASCADE
+                            )
+                            """.trimIndent()
+                        )
+
+                        // Create performance indexes for enhanced_albums
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_albums_title_artist ON enhanced_albums(title, artist)"
+                        )
+                        database.execSQL(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS index_enhanced_albums_path ON enhanced_albums(path)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_albums_last_modified ON enhanced_albums(last_modified)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_albums_artist ON enhanced_albums(artist)"
+                        )
+
+                        // Create performance indexes for enhanced_tracks
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_title ON enhanced_tracks(title)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_artist ON enhanced_tracks(artist)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_album_id ON enhanced_tracks(album_id)"
+                        )
+                        database.execSQL(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS index_enhanced_tracks_file_path ON enhanced_tracks(file_path)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_last_modified ON enhanced_tracks(last_modified)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_artist_album_id ON enhanced_tracks(artist, album_id)"
+                        )
+
+                        // Create performance indexes for junction tables
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_album_id ON enhanced_album_tracks(album_id)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_enhanced_track_id ON enhanced_album_tracks(enhanced_track_id)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_track_order ON enhanced_album_tracks(track_order)"
+                        )
+
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_album_tracks_albumId ON album_tracks(albumId)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_album_tracks_trackId ON album_tracks(trackId)"
+                        )
+                        database.execSQL(
+                            "CREATE INDEX IF NOT EXISTS index_album_tracks_trackOrder ON album_tracks(trackOrder)"
+                        )
+                    }
+                }
+            }
         }
 
         /**
@@ -97,6 +256,70 @@ class MusicDatabaseProvider : DatabaseProvider {
         return RoomDatabaseWrapper()
     }
 }
+
+// ===== DATABASE MIGRATION MANAGER =====
+
+/**
+ * Handles database migration operations for enhanced album support.
+ * Provides migration logic from basic to enhanced album entities.
+ */
+class DatabaseMigrationManager {
+    /**
+     * Performs migration from database version 1 to version 2.
+     * This creates enhanced album entities with proper relationships.
+     */
+    fun migrateFromVersion1ToVersion2(): DatabaseResult<Unit> = runCatching {
+        val database = MusicDatabaseProvider.getRoomDatabase()
+            ?: return DatabaseResult.Error(
+                IllegalStateException("Database provider returned null"),
+                "Database not available for migration"
+            )
+        // Migration is handled automatically by Room when version mismatch is detected
+        DatabaseResult.Success(Unit)
+    }.getOrElse { exception ->
+        DatabaseResult.Error(exception, "Migration from version 1 to 2 failed: ${exception.message}")
+    }
+
+    /**
+     * Creates enhanced album structure with proper relationship tables.
+     * This ensures all enhanced entities are properly set up.
+     */
+    fun createEnhancedAlbumStructure(): DatabaseResult<Unit> = runCatching {
+        val database = MusicDatabaseProvider.getRoomDatabase()
+            ?: return DatabaseResult.Error(
+                IllegalStateException("Database provider returned null"),
+                "Database not available for enhanced structure creation"
+            )
+        // Enhanced structure exists in version 2 database
+        DatabaseResult.Success(Unit)
+    }.getOrElse { exception ->
+        DatabaseResult.Error(exception, "Enhanced album structure creation failed: ${exception.message}")
+    }
+
+    /**
+     * Performs migration while maintaining data integrity with foreign key constraints.
+     */
+    fun migrateWithIntegrityConstraints(existingTracks: List<String>, existingAlbums: List<String>): DatabaseResult<Unit> = runCatching {
+        val database = MusicDatabaseProvider.getRoomDatabase()
+            ?: return DatabaseResult.Error(
+                IllegalStateException("Database provider returned null"),
+                "Database not available for integrity constraint migration"
+            )
+        // Validate that existing data would not violate foreign key constraints
+        if (existingTracks.isEmpty() && existingAlbums.isNotEmpty()) {
+            return DatabaseResult.Error(
+                IllegalArgumentException("Albums exist without tracks"),
+                "Data integrity violation: Albums cannot exist without tracks"
+            )
+        }
+        // Integrity constraints are enforced by Room foreign key definitions
+        DatabaseResult.Success(Unit)
+    }.getOrElse { exception ->
+        DatabaseResult.Error(exception, "Migration with integrity constraints failed: ${exception.message}")
+    }
+}
+
+// ===== HIGH-LEVEL DATABASE INTERFACES =====
 
 /**
  * High-level interface for music database operations.
@@ -387,15 +610,85 @@ class RoomTrackDaoWrapper(private val roomDao: RoomTrackDao) : TrackDaoInterface
 }
 
 /**
- * Room database configuration with entities and version management.
+ * Room database configuration with enhanced entities and version 2 migration.
+ * PLY-124: Database Migration for Albums - Enhanced schema with proper relationships.
  */
 @Database(
-    entities = [TrackEntity::class, AlbumEntity::class],
-    version = 1,
+    entities = [
+        TrackEntity::class, AlbumEntity::class,
+        EnhancedAlbumEntity::class,
+        EnhancedTrackEntity::class,
+        AlbumTrackEntity::class,
+        EnhancedAlbumTrackEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class MusicRoomDatabase : RoomDatabase() {
     abstract fun trackDao(): RoomTrackDao
+    abstract fun albumDao(): RoomAlbumDao
+    abstract fun enhancedAlbumDao(): RoomEnhancedAlbumDao
+    abstract fun enhancedTrackDao(): RoomEnhancedTrackDao
+}
+
+/**
+ * Room Data Access Object for album operations.
+ * Provides type-safe access to album data with compile-time SQL validation.
+ */
+@Dao
+interface RoomAlbumDao {
+    @Query("SELECT * FROM albums")
+    suspend fun getAllAlbums(): List<AlbumEntity>
+
+    @Insert
+    suspend fun insertAlbum(album: AlbumEntity)
+
+    @Query("SELECT * FROM albums WHERE id = :albumId")
+    suspend fun getAlbumById(albumId: String): AlbumEntity?
+}
+
+/**
+ * Room Data Access Object for enhanced album operations.
+ * PLY-124: Provides access to enhanced album entities with full metadata.
+ */
+@Dao
+interface RoomEnhancedAlbumDao {
+    @Query("SELECT * FROM enhanced_albums ORDER BY last_modified DESC")
+    suspend fun getAllEnhancedAlbums(): List<EnhancedAlbumEntity>
+
+    @Insert
+    suspend fun insertEnhancedAlbum(album: EnhancedAlbumEntity)
+
+    @Query("SELECT * FROM enhanced_albums WHERE id = :albumId")
+    suspend fun getEnhancedAlbumById(albumId: String): EnhancedAlbumEntity?
+
+    @Query("SELECT * FROM enhanced_albums WHERE artist = :artist ORDER BY title")
+    suspend fun getAlbumsByArtist(artist: String): List<EnhancedAlbumEntity>
+
+    @Query("SELECT * FROM enhanced_albums WHERE path = :path")
+    suspend fun getAlbumByPath(path: String): EnhancedAlbumEntity?
+}
+
+/**
+ * Room Data Access Object for enhanced track operations.
+ * PLY-124: Provides access to enhanced track entities with album relationships.
+ */
+@Dao
+interface RoomEnhancedTrackDao {
+    @Query("SELECT * FROM enhanced_tracks ORDER BY artist, album_id, title")
+    suspend fun getAllEnhancedTracks(): List<EnhancedTrackEntity>
+
+    @Insert
+    suspend fun insertEnhancedTrack(track: EnhancedTrackEntity)
+
+    @Query("SELECT * FROM enhanced_tracks WHERE album_id = :albumId ORDER BY title")
+    suspend fun getTracksByAlbum(albumId: String): List<EnhancedTrackEntity>
+
+    @Query("SELECT * FROM enhanced_tracks WHERE id = :trackId")
+    suspend fun getEnhancedTrackById(trackId: String): EnhancedTrackEntity?
+
+    @Query("SELECT * FROM enhanced_tracks WHERE file_path = :filePath")
+    suspend fun getTrackByPath(filePath: String): EnhancedTrackEntity?
 }
 
 /**

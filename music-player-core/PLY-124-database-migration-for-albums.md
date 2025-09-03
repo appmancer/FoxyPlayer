@@ -1,7 +1,7 @@
-# Enhanced Album Data Models
+# Database Migration for Albums
 
 **Objective**
-Create AlbumEntity, AlbumTrackEntity junction table, and update TrackEntity with album relationships. Add Room entity relationships and validation. following test-driven development approach.
+Migrate database schema to support enhanced album models with proper relationships between songs, albums, artists. Add new album-specific fields and indexes for efficient album-first navigation. following test-driven development approach.
 
 **Context**
 Based on design specifications, implement the functionality with focus on correctness and integration with existing systems.
@@ -17,7 +17,7 @@ Based on design specifications, implement the functionality with focus on correc
 * **Context window optimization**: AI needs all domain code visible simultaneously
 
 **Task**
-Create AlbumEntity, AlbumTrackEntity junction table, and update TrackEntity with album relationships. Add Room entity relationships and validation. using TDD methodology:
+Migrate database schema to support enhanced album models with proper relationships between songs, albums, artists. Add new album-specific fields and indexes for efficient album-first navigation. using TDD methodology:
 
 * Write tests covering functional requirements
 * Implement core functionality following established patterns
