@@ -1,9 +1,10 @@
 package com.foxy.player.music
 
 import com.foxy.player.music.database.DatabaseProvider
-import com.foxy.player.music.database.DatabaseResult
 import com.foxy.player.music.database.MusicDatabaseInterface
 import com.foxy.player.music.database.RoomTrackDao
+import com.foxy.player.music.database.RoomTrackDaoWrapper
+import com.foxy.player.music.database.SimpleRoomTrackDao
 import com.foxy.player.music.entities.TrackEntity
 import com.foxy.player.music.repository.TrackRepository
 import com.foxy.player.music.repository.TrackRepositoryInterface
@@ -60,9 +61,9 @@ class PaginatedDataLayerTest {
     }
 
     @Test
-    fun `TestTrackDao should implement getTracksForRange method`() = runBlocking {
-        // Arrange - Create TestTrackDao directly
-        val testDao = TestTrackDao()
+    fun `SimpleRoomTrackDao should implement getTracksForRange method`() = runBlocking {
+        // Arrange - Create SimpleRoomTrackDao directly
+        val simpleDao = SimpleRoomTrackDao()
 
         // Insert test tracks
         val testTracks = listOf(
@@ -74,38 +75,34 @@ class PaginatedDataLayerTest {
         )
 
         testTracks.forEach { track ->
-            testDao.insertTrack(track)
+            simpleDao.insertTrack(track)
         }
 
         // Act - Test getTracksForRange method that should exist
-        val rangeResult = testDao.getTracksForRange(1, 3)
+        val rangeResult = simpleDao.getTracksForRange(1, 3)
 
         // Assert - Verify method works correctly
-        assertTrue("Should return success result", rangeResult.isSuccess())
-        val tracks = rangeResult.getOrNull()!!
-        assertEquals("Should return requested number of tracks", 3, tracks.size)
-        assertEquals("First track should be at start index", "Song 2", tracks[0].title)
-        assertEquals("Last track should be at start index + count", "Song 4", tracks[2].title)
+        assertEquals("Should return requested number of tracks", 3, rangeResult.size)
+        assertEquals("First track should be at start index", "Song 2", rangeResult[0].title)
+        assertEquals("Last track should be at start index + count", "Song 4", rangeResult[2].title)
     }
 
     @Test
-    fun `TrackRepository should correctly identify TestTrackDao from database`() = runBlocking {
+    fun `TrackRepository should correctly identify RoomTrackDaoWrapper from database`() = runBlocking {
         // Arrange - Create repository with a test database that maintains state
-        val testDao = TestTrackDao()
+        val testDao = SimpleRoomTrackDao()
         val databaseProvider = object : DatabaseProvider {
             override fun getDatabase(): MusicDatabaseInterface {
                 return object : MusicDatabaseInterface {
-                    override suspend fun getAllTracks(): DatabaseResult<List<TrackEntity>> = testDao.getAllTracks()
-                    override suspend fun insertTrack(track: TrackEntity): DatabaseResult<Unit> = testDao.insertTrack(
-                        track
-                    )
-                    override suspend fun getTracksPage(offset: Int, limit: Int): DatabaseResult<List<TrackEntity>> =
+                    override suspend fun getAllTracks(): List<TrackEntity> = testDao.getAllTracks()
+                    override suspend fun insertTrack(track: TrackEntity) = testDao.insertTrack(track)
+                    override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> =
                         testDao.getTracksPage(offset, limit)
-                    override suspend fun getTracksForRange(startIndex: Int, count: Int): DatabaseResult<List<TrackEntity>> =
+                    override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> =
                         testDao.getTracksForRange(startIndex, count)
                     override fun isReady(): Boolean = true
                     override fun isInitialized(): Boolean = true
-                    override fun trackDao(): RoomTrackDao? = null // Test implementation doesn't use Room
+                    override fun trackDao(): RoomTrackDao? = testDao
                 }
             }
         }
@@ -128,34 +125,17 @@ class PaginatedDataLayerTest {
     }
 
     @Test
-    fun `TrackRepository should work correctly with TestTrackDao`() = runBlocking {
-        // Arrange - Test repository functionality with TestTrackDao
-        val testDao = TestTrackDao()
-        val databaseProvider = object : DatabaseProvider {
-            override fun getDatabase(): MusicDatabaseInterface {
-                return object : MusicDatabaseInterface {
-                    override suspend fun getAllTracks(): DatabaseResult<List<TrackEntity>> = testDao.getAllTracks()
-                    override suspend fun insertTrack(track: TrackEntity): DatabaseResult<Unit> = testDao.insertTrack(
-                        track
-                    )
-                    override suspend fun getTracksPage(offset: Int, limit: Int): DatabaseResult<List<TrackEntity>> =
-                        testDao.getTracksPage(offset, limit)
-                    override suspend fun getTracksForRange(startIndex: Int, count: Int): DatabaseResult<List<TrackEntity>> =
-                        testDao.getTracksForRange(startIndex, count)
-                    override fun isReady(): Boolean = true
-                    override fun isInitialized(): Boolean = true
-                    override fun trackDao(): RoomTrackDao? = null // Test implementation doesn't use Room
-                }
-            }
-        }
-        val repository = TrackRepository(databaseProvider)
+    fun `SimpleRoomTrackDao should work correctly when wrapped`() = runBlocking {
+        // Arrange - Test the SimpleRoomTrackDao directly
+        val simpleDao = SimpleRoomTrackDao()
+        val wrapper = RoomTrackDaoWrapper(simpleDao)
 
-        // Act - Insert and retrieve a test track
+        // Act - Insert and retrieve through wrapper
         val testTrack = TrackEntity("test1", "Test Song", "Test Artist", "Test Album", "/test/path.mp3")
-        repository.insertTrack("test1", "Test Song", "Test Artist", "Test Album", "/test/path.mp3")
-        val tracks = repository.getAllTracks()
+        wrapper.insertTrack(testTrack)
+        val tracks = wrapper.getAllTracks()
 
-        // Assert - Verify repository functionality
+        // Assert - Verify wrapper functionality
         assertEquals("Should retrieve inserted track", 1, tracks.size)
         assertEquals("Track should have correct title", "Test Song", tracks[0].title)
     }

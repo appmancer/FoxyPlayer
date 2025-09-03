@@ -42,9 +42,7 @@ class MigrationFrameworkTest {
         assertTrue("Source storage should be empty after migration", inMemoryStorage.isEmpty())
 
         // Verify tracks are now in database
-        val databaseTracksResult = successResult.targetDao.getAllTracks()
-        assertTrue("Database query should succeed", databaseTracksResult.isSuccess())
-        val databaseTracks = databaseTracksResult.getOrNull()!!
+        val databaseTracks = successResult.targetDao.getAllTracks()
         assertEquals("Database should contain all migrated tracks", 3, databaseTracks.size)
         assertEquals("Track 1 should match", "Song 1", databaseTracks.find { it.id == "1" }?.title)
         assertEquals("Track 2 should match", "Song 2", databaseTracks.find { it.id == "2" }?.title)
