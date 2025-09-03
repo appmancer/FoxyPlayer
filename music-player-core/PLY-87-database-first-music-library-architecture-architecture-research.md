@@ -824,7 +824,7 @@ interface OptimizedTrackDao {
 - **Background Sync**: Database updates on IO dispatcher
 - **Query Result Pooling**: Reuse TrackEntity objects where possible
 
-**Migration Strategy v1 → v2**:
+**Migration Strategy v1 → v2** (Updated with feedback improvements):
 
 ```kotlin
 // Step-by-step data migration with rollback capability
@@ -858,10 +858,10 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
             database.execSQL("""
                 INSERT INTO artists_new (id, name, track_count, date_added)
                 SELECT 
-                    LOWER(REPLACE(artist, ' ', '_')) as id,
+                    'artist_' || LOWER(HEX(RANDOMBLOB(8))) as id,
                     artist,
                     COUNT(*),
-                    MIN(CASE WHEN date_added IS NULL THEN ${System.currentTimeMillis()} ELSE date_added END)
+                    MIN(CASE WHEN date_added IS NULL THEN (strftime('%s', 'now') * 1000) ELSE date_added END)
                 FROM tracks 
                 WHERE artist IS NOT NULL AND artist != ''
                 GROUP BY artist
@@ -870,13 +870,14 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
             database.execSQL("""
                 INSERT INTO albums_new (id, title, artist_id, track_count, year, date_added)
                 SELECT 
-                    LOWER(REPLACE(album || '_' || artist, ' ', '_')) as id,
+                    'album_' || LOWER(HEX(RANDOMBLOB(8))) as id,
                     album,
-                    LOWER(REPLACE(artist, ' ', '_')),
+                    a.id,
                     COUNT(*),
                     NULL,
-                    MIN(CASE WHEN date_added IS NULL THEN ${System.currentTimeMillis()} ELSE date_added END)
+                    MIN(CASE WHEN t.date_added IS NULL THEN (strftime('%s', 'now') * 1000) ELSE t.date_added END)
                 FROM tracks t
+                JOIN artists_new a ON t.artist = a.name
                 WHERE album IS NOT NULL AND album != '' AND artist IS NOT NULL
                 GROUP BY album, artist
             """)
@@ -887,7 +888,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
             database.execSQL("ALTER TABLE tracks ADD COLUMN duration_ms INTEGER DEFAULT 0")
             database.execSQL("ALTER TABLE tracks ADD COLUMN file_size_bytes INTEGER DEFAULT 0")
             database.execSQL("ALTER TABLE tracks ADD COLUMN bitrate INTEGER DEFAULT 0")
-            database.execSQL("ALTER TABLE tracks ADD COLUMN date_added INTEGER DEFAULT ${System.currentTimeMillis()}")
+            database.execSQL("ALTER TABLE tracks ADD COLUMN date_added INTEGER DEFAULT (strftime('%s', 'now') * 1000)")
             database.execSQL("ALTER TABLE tracks ADD COLUMN genre TEXT")
             
             // Phase 4: Update tracks with foreign key references
@@ -899,9 +900,10 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
             
             database.execSQL("""
                 UPDATE tracks SET album_id = (
-                    SELECT id FROM albums_new 
-                    WHERE title = tracks.album AND artist_id = tracks.artist_id
-                ) WHERE album IS NOT NULL AND artist_id IS NOT NULL
+                    SELECT a.id FROM albums_new a 
+                    JOIN artists_new ar ON a.artist_id = ar.id
+                    WHERE a.title = tracks.album AND ar.name = tracks.artist
+                ) WHERE album IS NOT NULL AND artist IS NOT NULL
             """)
             
             // Phase 5: Create performance indices
@@ -922,6 +924,12 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         }
     }
 }
+
+**Migration Improvements** (Based on code review feedback):
+- **Robust ID Generation**: Uses `RANDOMBLOB(8)` for collision-free UUIDs instead of string manipulation
+- **Consistent Timestamps**: Uses SQLite `strftime('%s', 'now') * 1000` for consistent millisecond timestamps
+- **Referential Integrity**: Improved album-artist relationship queries with proper JOINs
+- **Error Safety**: Maintains transaction safety with proper exception handling
 
 // Additional migration for future schema changes
 val MIGRATION_2_3 = object : Migration(2, 3) {
