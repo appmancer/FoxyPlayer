@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.foxy.player.music.database.DatabaseProvider
 import com.foxy.player.music.database.MusicDatabaseInterface
 import com.foxy.player.music.database.MusicDatabaseProvider
@@ -235,20 +237,30 @@ sealed class AlbumListState {
  * Manages album list state and business logic following PLY-127 architecture.
  */
 class AlbumListViewModel(
-    private val albumDomainService: AlbumDomainService = AlbumDomainService()
+    private val albumRepository: AlbumRepositoryInterface = AlbumRepository()
 ) : ViewModel() {
 
     private val _albumsState = MutableStateFlow<AlbumListState>(AlbumListState.Loading)
     val albumsState: StateFlow<AlbumListState> = _albumsState
 
     /**
-     * Loads albums and updates state accordingly.
-     * TODO: Add proper async implementation with viewModelScope when integrated with UI
+     * Loads albums from repository and updates state accordingly.
+     * Uses real repository to fetch album data.
      */
     fun loadAlbums() {
-        // Minimal implementation for TDD - sets loading state
-        // Real async implementation will be added when integrated with UI layer
-        _albumsState.value = AlbumListState.Loading
+        viewModelScope.launch {
+            _albumsState.value = AlbumListState.Loading
+            
+            when (val result = albumRepository.getAllAlbums()) {
+                is AlbumResult.Success -> {
+                    val uiModels = result.data.toUIModels()
+                    _albumsState.value = AlbumListState.Success(uiModels)
+                }
+                is AlbumResult.Error -> {
+                    _albumsState.value = AlbumListState.Error(result.message)
+                }
+            }
+        }
     }
 
     /**
