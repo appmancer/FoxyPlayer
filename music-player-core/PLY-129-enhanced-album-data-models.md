@@ -1,7 +1,7 @@
-# AlbumEntity Room Model
+# Enhanced Album Data Models
 
 **Objective**
-Create AlbumEntity with basic fields (id, title, artist, path, lastModified). Add Room annotations and primary key setup. following test-driven development approach.
+Create AlbumEntity, AlbumTrackEntity junction table, and update TrackEntity with album relationships. Add Room entity relationships and validation. following test-driven development approach.
 
 **Context**
 Based on design specifications, implement the functionality with focus on correctness and integration with existing systems.
@@ -17,7 +17,7 @@ Based on design specifications, implement the functionality with focus on correc
 * **Context window optimization**: AI needs all domain code visible simultaneously
 
 **Task**
-Create AlbumEntity with basic fields (id, title, artist, path, lastModified). Add Room annotations and primary key setup. using TDD methodology:
+Create AlbumEntity, AlbumTrackEntity junction table, and update TrackEntity with album relationships. Add Room entity relationships and validation. using TDD methodology:
 
 * Write tests covering functional requirements
 * Implement core functionality following established patterns

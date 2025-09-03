@@ -1,9 +1,12 @@
 package com.foxy.player.music.entities
 
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 
 /**
  * Room entity representing a music track in the database.
@@ -41,7 +44,7 @@ data class AlbumEntity(
 @Entity(
     tableName = "enhanced_albums",
     indices = [
-        Index(value = ["title", "artist"]), // Query performance for title+artist (non-unique to allow remastered versions)
+        Index(value = ["title", "artist"]), // Query performance for title+artist (non-unique)
         Index(value = ["path"], unique = true), // Unique file paths
         Index(value = ["lastModified"]), // Recent albums query
         Index(value = ["artist"]) // Artist-based filtering
@@ -138,4 +141,315 @@ data class AudioFile(
 data class FolderListing(
     val folders: List<String> = emptyList(),
     val files: List<String> = emptyList()
+)
+
+/**
+ * Junction table entity for album-track many-to-many relationships.
+ * This entity maps to the 'album_tracks' table and represents
+ * the relationship between albums and tracks with ordering information.
+ * * Uses composite primary key (albumId, trackId) to ensure uniqueness
+ * and includes foreign key constraints for data integrity.
+ */
+@Entity(
+    tableName = "album_tracks",
+    primaryKeys = ["albumId", "trackId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = AlbumEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["albumId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = TrackEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["trackId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["albumId"]),
+        Index(value = ["trackId"]),
+        Index(value = ["trackOrder"])
+    ]
+)
+data class AlbumTrackEntity(
+    /**
+     * Foreign key reference to AlbumEntity.id.
+     * Establishes the album side of the many-to-many relationship.
+     */
+    @ColumnInfo(name = "album_id")
+    val albumId: String,
+
+    /**
+     * Foreign key reference to TrackEntity.id.
+     * Establishes the track side of the many-to-many relationship.
+     */
+    @ColumnInfo(name = "track_id")
+    val trackId: String,
+
+    /**
+     * Order/position of the track within the album.
+     * Used for maintaining album track sequencing (1-based indexing).
+     */
+    @ColumnInfo(name = "track_order")
+    val trackOrder: Int
+) {
+    /**
+     * Validates that the junction entity contains valid relationship data.
+     * @return true if all required fields are properly set
+     */
+    fun isValid(): Boolean {
+        return albumId.isNotBlank() && trackId.isNotBlank() && trackOrder > 0
+    }
+}
+
+/**
+ * Enhanced Room entity for track with album relationship integration.
+ * Includes albumId foreign key for comprehensive music library organization.
+ * This entity extends the basic TrackEntity with album relationship fields
+ * for enhanced Room integration and data integrity.
+ */
+@Entity(
+    tableName = "enhanced_tracks",
+    foreignKeys = [
+        ForeignKey(
+            entity = AlbumEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["albumId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [
+        Index(value = ["title"]),
+        Index(value = ["artist"]),
+        Index(value = ["albumId"]),
+        Index(value = ["filePath"], unique = true),
+        Index(value = ["lastModified"]),
+        Index(value = ["artist", "albumId"]) // Query performance for artist+album filtering
+    ]
+)
+data class EnhancedTrackEntity(
+    /**
+     * Unique identifier for the track.
+     */
+    @PrimaryKey val id: String,
+
+    /**
+     * Track title for display and search functionality.
+     */
+    @ColumnInfo(name = "title")
+    val title: String,
+
+    /**
+     * Artist name associated with this track.
+     */
+    @ColumnInfo(name = "artist")
+    val artist: String,
+
+    /**
+     * Foreign key reference to AlbumEntity.id.
+     * Establishes the album relationship for this track.
+     */
+    @ColumnInfo(name = "album_id")
+    val albumId: String,
+
+    /**
+     * File system path where the track is stored.
+     * Must be unique to prevent duplicate track entries.
+     */
+    @ColumnInfo(name = "file_path")
+    val filePath: String,
+
+    /**
+     * Track duration in milliseconds.
+     */
+    @ColumnInfo(name = "duration_ms")
+    val durationMs: Long,
+
+    /**
+     * Last modification timestamp in milliseconds since epoch.
+     */
+    @ColumnInfo(name = "last_modified")
+    val lastModified: Long
+) {
+    /**
+     * Validates that the entity contains valid data.
+     * @return true if all required fields are properly set
+     */
+    fun isValid(): Boolean {
+        val isPathValid = filePath.isNotBlank() && filePath.startsWith("/")
+        val now = System.currentTimeMillis()
+        val maxFutureSkewMs = 5 * 60 * 1000 // 5 minutes
+        val isLastModifiedValid = lastModified > 0 && lastModified <= now + maxFutureSkewMs
+        return id.isNotBlank() &&
+            title.isNotBlank() &&
+            artist.isNotBlank() &&
+            albumId.isNotBlank() &&
+            isPathValid &&
+            durationMs > 0 &&
+            isLastModifiedValid
+    }
+
+    /**
+     * Checks if this track has a valid album relationship.
+     * @return true if albumId is not blank
+     */
+    fun hasAlbumRelationship(): Boolean {
+        return albumId.isNotBlank()
+    }
+
+    /**
+     * Creates a display-friendly string representation.
+     * @return formatted string for UI display
+     */
+    fun getDisplayName(): String = "$title by $artist"
+}
+
+/**
+ * Room relationship model for querying albums with their tracks.
+ * Uses @Relation annotation to establish one-to-many relationship.
+ */
+data class AlbumWithTracks(
+    @Embedded val album: AlbumEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "albumId"
+    )
+    val tracks: List<EnhancedTrackEntity>
+) {
+    /**
+     * Checks if this album has valid tracks.
+     * @return true if tracks list is not empty
+     */
+    fun hasValidTracks(): Boolean {
+        return tracks.isNotEmpty()
+    }
+
+    /**
+     * Validates relationship consistency between album and tracks.
+     * @return list of validation error messages
+     */
+    fun getValidationErrors(): List<String> {
+        val errors = mutableListOf<String>()
+        tracks.forEach { track ->
+            if (track.albumId != album.id) {
+                errors.add("Track ${track.id} has mismatched album ID")
+            }
+        }
+        return errors
+    }
+}
+
+/**
+ * Room relationship model for querying tracks with their album.
+ * Uses @Relation annotation to establish many-to-one relationship.
+ */
+data class TrackWithAlbum(
+    @Embedded val track: EnhancedTrackEntity,
+    @Relation(
+        parentColumn = "albumId",
+        entityColumn = "id"
+    )
+    val album: AlbumEntity
+)
+
+/**
+ * Enhanced junction table entity for album-track many-to-many relationships.
+ * This entity uses consistent foreign key references to enhanced entities
+ * and addresses PR review feedback regarding foreign key consistency.
+ */
+@Entity(
+    tableName = "enhanced_album_tracks",
+    primaryKeys = ["albumId", "enhancedTrackId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = AlbumEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["albumId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = EnhancedTrackEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["enhancedTrackId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["albumId"]),
+        Index(value = ["enhancedTrackId"]),
+        Index(value = ["trackOrder"])
+    ]
+)
+data class EnhancedAlbumTrackEntity(
+    /**
+     * Foreign key reference to AlbumEntity.id.
+     */
+    @ColumnInfo(name = "album_id")
+    val albumId: String,
+
+    /**
+     * Foreign key reference to EnhancedTrackEntity.id.
+     * Ensures consistent use of enhanced entities throughout.
+     */
+    @ColumnInfo(name = "enhanced_track_id")
+    val enhancedTrackId: String,
+
+    /**
+     * Order/position of the track within the album.
+     */
+    @ColumnInfo(name = "track_order")
+    val trackOrder: Int
+) {
+    /**
+     * Validates that the entity contains valid relationship data.
+     */
+    fun isValid(): Boolean {
+        return albumId.isNotBlank() && enhancedTrackId.isNotBlank() && trackOrder > 0
+    }
+}
+
+/**
+ * Enhanced Room relationship model that properly uses junction table for ordering.
+ * Addresses PR review feedback about bypassing track ordering information.
+ * This model includes the junction table entities to preserve track order.
+ */
+data class EnhancedAlbumWithTracksOrdered(
+    @Embedded val album: AlbumEntity,
+    @Relation(
+        entity = EnhancedAlbumTrackEntity::class,
+        parentColumn = "id",
+        entityColumn = "albumId"
+    )
+    val albumTracks: List<AlbumTrackWithEnhancedTrack>
+) {
+    /**
+     * Gets the tracks in their proper album order using junction table ordering.
+     */
+    fun getOrderedTracks(): List<EnhancedTrackEntity> {
+        return albumTracks
+            .sortedBy { it.albumTrack.trackOrder }
+            .map { it.track }
+    }
+
+    /**
+     * Validates that all tracks belong to this album and have valid ordering.
+     */
+    fun isValid(): Boolean {
+        return albumTracks.all { it.albumTrack.albumId == album.id && it.albumTrack.trackOrder > 0 }
+    }
+}
+
+/**
+ * Junction table relationship that includes both the junction entity and the actual track.
+ * Preserves ordering information while providing access to track details.
+ */
+data class AlbumTrackWithEnhancedTrack(
+    @Embedded val albumTrack: EnhancedAlbumTrackEntity,
+    @Relation(
+        parentColumn = "enhancedTrackId",
+        entityColumn = "id"
+    )
+    val track: EnhancedTrackEntity
 )
