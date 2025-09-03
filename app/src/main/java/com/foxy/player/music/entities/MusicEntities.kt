@@ -160,7 +160,8 @@ data class FolderListing(
         ),
         ForeignKey(
             entity = TrackEntity::class,
-            parentColumns = ["id"], childColumns = ["trackId"],
+            parentColumns = ["id"],
+            childColumns = ["trackId"],
             onDelete = ForeignKey.CASCADE
         )
     ],
@@ -199,4 +200,106 @@ data class AlbumTrackEntity(
     fun isValid(): Boolean {
         return albumId.isNotBlank() && trackId.isNotBlank() && trackOrder > 0
     }
+}
+
+/**
+ * Enhanced Room entity for track with album relationship integration.
+ * Includes albumId foreign key for comprehensive music library organization.
+ * This entity extends the basic TrackEntity with album relationship fields
+ * for enhanced Room integration and data integrity.
+ */
+@Entity(
+    tableName = "enhanced_tracks",
+    foreignKeys = [
+        ForeignKey(
+            entity = AlbumEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["albumId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [
+        Index(value = ["title"]),
+        Index(value = ["artist"]),
+        Index(value = ["albumId"]),
+        Index(value = ["filePath"], unique = true),
+        Index(value = ["lastModified"]),
+        Index(value = ["artist", "albumId"]) // Query performance for artist+album filtering
+    ]
+)
+data class EnhancedTrackEntity(
+    /**
+     * Unique identifier for the track.
+     */
+    @PrimaryKey val id: String,
+
+    /**
+     * Track title for display and search functionality.
+     */
+    @ColumnInfo(name = "title")
+    val title: String,
+
+    /**
+     * Artist name associated with this track.
+     */
+    @ColumnInfo(name = "artist")
+    val artist: String,
+
+    /**
+     * Foreign key reference to AlbumEntity.id.
+     * Establishes the album relationship for this track.
+     */
+    @ColumnInfo(name = "album_id")
+    val albumId: String,
+
+    /**
+     * File system path where the track is stored.
+     * Must be unique to prevent duplicate track entries.
+     */
+    @ColumnInfo(name = "file_path")
+    val filePath: String,
+
+    /**
+     * Track duration in milliseconds.
+     */
+    @ColumnInfo(name = "duration_ms")
+    val durationMs: Long,
+
+    /**
+     * Last modification timestamp in milliseconds since epoch.
+     */
+    @ColumnInfo(name = "last_modified")
+    val lastModified: Long
+) {
+    /**
+     * Validates that the entity contains valid data.
+     * @return true if all required fields are properly set
+     */
+    fun isValid(): Boolean {
+        val isPathValid = filePath.isNotBlank() && filePath.startsWith("/")
+        val now = System.currentTimeMillis()
+        val maxFutureSkewMs = 5 * 60 * 1000 // 5 minutes
+        val isLastModifiedValid = lastModified > 0 && lastModified <= now + maxFutureSkewMs
+        return id.isNotBlank() &&
+            title.isNotBlank() &&
+            artist.isNotBlank() &&
+            albumId.isNotBlank() &&
+            isPathValid &&
+            durationMs > 0 &&
+            isLastModifiedValid
+    }
+
+    /**
+     * Checks if this track has a valid album relationship.
+     * @return true if albumId is not blank
+     */
+    fun hasAlbumRelationship(): Boolean {
+        return albumId.isNotBlank()
+    }
+
+    /**
+     * Creates a display-friendly string representation.
+     * @return formatted string for UI display
+     */
+    fun getDisplayName(): String = "$title by $artist"
 }
