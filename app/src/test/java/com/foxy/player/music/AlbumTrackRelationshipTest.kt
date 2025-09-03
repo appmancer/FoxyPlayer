@@ -55,7 +55,8 @@ class AlbumTrackRelationshipTest {
         // This tests that our junction table design uses composite primary key
         assertTrue("First relationship should be valid", firstRelationship.albumId == albumId)
         assertTrue(
-            "Duplicate should have same album+track key", duplicateRelationship.albumId == albumId && duplicateRelationship.trackId == trackId
+            "Duplicate should have same album+track key",
+            duplicateRelationship.albumId == albumId && duplicateRelationship.trackId == trackId
         )
 
         // In database, this would prevent duplicates via composite primary key constraint

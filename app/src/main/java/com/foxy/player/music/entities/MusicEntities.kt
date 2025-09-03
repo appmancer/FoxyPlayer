@@ -1,10 +1,12 @@
 package com.foxy.player.music.entities
 
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 
 /**
  * Room entity representing a music track in the database.
@@ -303,3 +305,51 @@ data class EnhancedTrackEntity(
      */
     fun getDisplayName(): String = "$title by $artist"
 }
+
+/**
+ * Room relationship model for querying albums with their tracks.
+ * Uses @Relation annotation to establish one-to-many relationship.
+ */
+data class AlbumWithTracks(
+    @Embedded val album: AlbumEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "albumId"
+    )
+    val tracks: List<EnhancedTrackEntity>
+) {
+    /**
+     * Checks if this album has valid tracks.
+     * @return true if tracks list is not empty
+     */
+    fun hasValidTracks(): Boolean {
+        return tracks.isNotEmpty()
+    }
+
+    /**
+     * Validates relationship consistency between album and tracks.
+     * @return list of validation error messages
+     */
+    fun getValidationErrors(): List<String> {
+        val errors = mutableListOf<String>()
+        tracks.forEach { track ->
+            if (track.albumId != album.id) {
+                errors.add("Track ${track.id} has mismatched album ID")
+            }
+        }
+        return errors
+    }
+}
+
+/**
+ * Room relationship model for querying tracks with their album.
+ * Uses @Relation annotation to establish many-to-one relationship.
+ */
+data class TrackWithAlbum(
+    @Embedded val track: EnhancedTrackEntity,
+    @Relation(
+        parentColumn = "albumId",
+        entityColumn = "id"
+    )
+    val album: AlbumEntity
+)
