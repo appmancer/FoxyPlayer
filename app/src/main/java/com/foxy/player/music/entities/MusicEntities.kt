@@ -353,3 +353,103 @@ data class TrackWithAlbum(
     )
     val album: AlbumEntity
 )
+
+/**
+ * Enhanced junction table entity for album-track many-to-many relationships.
+ * This entity uses consistent foreign key references to enhanced entities
+ * and addresses PR review feedback regarding foreign key consistency.
+ */
+@Entity(
+    tableName = "enhanced_album_tracks",
+    primaryKeys = ["albumId", "enhancedTrackId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = AlbumEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["albumId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = EnhancedTrackEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["enhancedTrackId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["albumId"]),
+        Index(value = ["enhancedTrackId"]),
+        Index(value = ["trackOrder"])
+    ]
+)
+data class EnhancedAlbumTrackEntity(
+    /**
+     * Foreign key reference to AlbumEntity.id.
+     */
+    @ColumnInfo(name = "album_id")
+    val albumId: String,
+
+    /**
+     * Foreign key reference to EnhancedTrackEntity.id.
+     * Ensures consistent use of enhanced entities throughout.
+     */
+    @ColumnInfo(name = "enhanced_track_id")
+    val enhancedTrackId: String,
+
+    /**
+     * Order/position of the track within the album.
+     */
+    @ColumnInfo(name = "track_order")
+    val trackOrder: Int
+) {
+    /**
+     * Validates that the entity contains valid relationship data.
+     */
+    fun isValid(): Boolean {
+        return albumId.isNotBlank() && enhancedTrackId.isNotBlank() && trackOrder > 0
+    }
+}
+
+/**
+ * Enhanced Room relationship model that properly uses junction table for ordering.
+ * Addresses PR review feedback about bypassing track ordering information.
+ * This model includes the junction table entities to preserve track order.
+ */
+data class EnhancedAlbumWithTracksOrdered(
+    @Embedded val album: AlbumEntity,
+    @Relation(
+        entity = EnhancedAlbumTrackEntity::class,
+        parentColumn = "id",
+        entityColumn = "albumId"
+    )
+    val albumTracks: List<AlbumTrackWithEnhancedTrack>
+) {
+    /**
+     * Gets the tracks in their proper album order using junction table ordering.
+     */
+    fun getOrderedTracks(): List<EnhancedTrackEntity> {
+        return albumTracks
+            .sortedBy { it.albumTrack.trackOrder }
+            .map { it.track }
+    }
+
+    /**
+     * Validates that all tracks belong to this album and have valid ordering.
+     */
+    fun isValid(): Boolean {
+        return albumTracks.all { it.albumTrack.albumId == album.id && it.albumTrack.trackOrder > 0 }
+    }
+}
+
+/**
+ * Junction table relationship that includes both the junction entity and the actual track.
+ * Preserves ordering information while providing access to track details.
+ */
+data class AlbumTrackWithEnhancedTrack(
+    @Embedded val albumTrack: EnhancedAlbumTrackEntity,
+    @Relation(
+        parentColumn = "enhancedTrackId",
+        entityColumn = "id"
+    )
+    val track: EnhancedTrackEntity
+)
