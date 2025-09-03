@@ -63,7 +63,8 @@ class EnhancedTrackEntityTest {
         assertTrue("Enhanced track should be valid", validTrackEntity.isValid())
         assertTrue("Should have album relationship", validTrackEntity.hasAlbumRelationship())
         assertEquals(
-            "Display name should include artist and title", "We Will Rock You by Queen",
+            "Display name should include artist and title",
+            "We Will Rock You by Queen",
             validTrackEntity.getDisplayName()
         )
     }

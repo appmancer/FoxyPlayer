@@ -36,7 +36,8 @@ class AlbumTrackRelationshipQueryTest {
                 lastModified = System.currentTimeMillis()
             ),
             EnhancedTrackEntity(
-                id = "track_002", title = "You're My Best Friend",
+                id = "track_002",
+                title = "You're My Best Friend",
                 artist = "Queen",
                 albumId = "album_queen_001",
                 filePath = "/music/Queen/A Night at the Opera/02 - You're My Best Friend.mp3",
@@ -55,10 +56,12 @@ class AlbumTrackRelationshipQueryTest {
         assertEquals("Album should match", albumEntity, albumWithTracks.album)
         assertEquals("Track count should match", 2, albumWithTracks.tracks.size)
         assertTrue(
-            "All tracks should belong to album", albumWithTracks.tracks.all { it.albumId == albumEntity.id }
+            "All tracks should belong to album",
+            albumWithTracks.tracks.all { it.albumId == albumEntity.id }
         )
         assertEquals(
-            "First track should be Bohemian Rhapsody", "Bohemian Rhapsody",
+            "First track should be Bohemian Rhapsody",
+            "Bohemian Rhapsody",
             albumWithTracks.tracks[0].title
         )
     }
@@ -68,7 +71,8 @@ class AlbumTrackRelationshipQueryTest {
         // Arrange - prepare test data for track with album relationship
         val albumEntity = AlbumEntity(
             id = "album_queen_002",
-            title = "News of the World", artist = "Queen"
+            title = "News of the World",
+            artist = "Queen"
         )
 
         val trackEntity = EnhancedTrackEntity(
@@ -91,11 +95,13 @@ class AlbumTrackRelationshipQueryTest {
         assertEquals("Track should match", trackEntity, trackWithAlbum.track)
         assertEquals("Album should match", albumEntity, trackWithAlbum.album)
         assertEquals(
-            "Track album ID should match album ID", albumEntity.id,
+            "Track album ID should match album ID",
+            albumEntity.id,
             trackWithAlbum.track.albumId
         )
         assertEquals(
-            "Album and track artists should match", trackWithAlbum.album.artist,
+            "Album and track artists should match",
+            trackWithAlbum.album.artist,
             trackWithAlbum.track.artist
         )
     }
@@ -121,7 +127,8 @@ class AlbumTrackRelationshipQueryTest {
 
         val invalidTrack = EnhancedTrackEntity(
             id = "track_invalid",
-            title = "Invalid Track", artist = "Test Artist",
+            title = "Invalid Track",
+            artist = "Test Artist",
             albumId = "different_album_id", // Different album ID
             filePath = "/invalid/path.mp3",
             durationMs = 200000L,
@@ -136,7 +143,8 @@ class AlbumTrackRelationshipQueryTest {
         // Act & Assert - validate relationship consistency
         assertTrue("Album with tracks should have tracks", albumWithTracks.hasValidTracks())
         assertEquals(
-            "Should have validation errors for mismatched album IDs", 1,
+            "Should have validation errors for mismatched album IDs",
+            1,
             albumWithTracks.getValidationErrors().size
         )
         assertTrue(

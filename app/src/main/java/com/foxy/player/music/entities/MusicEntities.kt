@@ -44,7 +44,7 @@ data class AlbumEntity(
 @Entity(
     tableName = "enhanced_albums",
     indices = [
-        Index(value = ["title", "artist"]), // Query performance for title+artist (non-unique to allow remastered versions)
+        Index(value = ["title", "artist"]), // Query performance for title+artist (non-unique)
         Index(value = ["path"], unique = true), // Unique file paths
         Index(value = ["lastModified"]), // Recent albums query
         Index(value = ["artist"]) // Artist-based filtering
