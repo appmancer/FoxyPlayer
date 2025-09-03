@@ -527,19 +527,22 @@ class TestDatabaseProvider : TargetDatabaseInterface {
 }
 
 /**
- * Test implementation of TrackDaoInterface for migration testing.
+ * Test implementation of track DAO interface.
  * Provides in-memory database simulation for testing purposes.
  */
 class TestTrackDao : com.foxy.player.music.database.TrackDaoInterface {
     private val tracks = mutableListOf<TrackEntity>()
 
     override suspend fun getAllTracks(): List<TrackEntity> = tracks.toList()
+
     override suspend fun insertTrack(track: TrackEntity) {
         tracks.add(track)
     }
+
     override suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity> {
         return tracks.drop(offset).take(limit)
     }
+
     override suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity> {
         return tracks.subList(startIndex, minOf(startIndex + count, tracks.size))
     }

@@ -1,0 +1,670 @@
+package com.foxy.player.music.database
+
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Insert
+import androidx.room.Query
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.foxy.player.music.entities.AlbumEntity
+import com.foxy.player.music.entities.TrackEntity
+import com.foxy.player.music.entities.EnhancedAlbumEntity
+import com.foxy.player.music.entities.EnhancedTrackEntity
+import com.foxy.player.music.entities.EnhancedAlbumTrackEntity
+
+/**
+ * Result wrapper for database operations that can fail.
+ * Provides type-safe error handling without nullable returns.
+ */
+sealed class DatabaseResult<out T> {
+    data class Success<T>(val data: T) : DatabaseResult<T>()
+    data class Error(val exception: Throwable, val message: String = exception.message ?: "Database error") : DatabaseResult<Nothing>()
+    
+    fun isSuccess(): Boolean = this is Success
+    fun isError(): Boolean = this is Error
+    
+    fun getOrNull(): T? = when (this) {
+        is Success -> data
+        is Error -> null
+    }
+    
+    fun getOrThrow(): T = when (this) {
+        is Success -> data
+        is Error -> throw exception
+    }
+}
+
+/**
+ * Extension function to safely execute database operations.
+ */
+suspend inline fun <T> safeDbOperation(crossinline operation: suspend () -> T): DatabaseResult<T> {
+    return try {
+        DatabaseResult.Success(operation())
+    } catch (e: Exception) {
+        DatabaseResult.Error(e, "Database operation failed: ${e.message}")
+    }
+}
+
+// ===== SQLITE DATABASE FOUNDATION =====
+
+/**
+ * Database provider interface for dependency injection.
+ * Abstracts database access to enable testing and different implementations.
+ * 
+ * @see MusicDatabaseProvider for production implementation
+ */
+interface DatabaseProvider {
+    /**
+     * Provides access to the music database interface.
+     * @return MusicDatabaseInterface instance for database operations
+     */
+    fun getDatabase(): MusicDatabaseInterface
+    
+    /**
+     * Provides access to the Room database instance for migrations.
+     * @return Room database instance or null if not initialized
+     */
+    fun getRoomDatabase(): MusicRoomDatabase?
+}
+
+/**
+ * SQLite Database Foundation for Music Player
+ * Provides Room database abstraction and basic DAO access with proper Android context management.
+ * This provider implements the Singleton pattern with thread-safe initialization
+ * and provides a clean abstraction over Room database operations.
+ */
+class MusicDatabaseProvider : DatabaseProvider {
+    companion object {
+        @Volatile
+        private var roomDatabaseInstance: MusicRoomDatabase? = null
+
+        // Context to be injected for Room database creation
+        @Volatile
+        private var applicationContext: android.content.Context? = null
+
+        /**
+         * Initialize the provider with Android application context.
+         * Must be called before using the database, typically in Application.onCreate().
+         * @param context The application context (will be converted to applicationContext automatically)
+         * @throws IllegalArgumentException if context is null
+         */
+        fun initialize(context: android.content.Context?) {
+            require(context != null) { "Application context cannot be null" }
+            applicationContext = context.applicationContext
+        }
+
+        /**
+         * Get the Room database instance using thread-safe singleton pattern.
+         * @return Room database instance or null if initialization failed
+         * @throws IllegalStateException if not initialized with context
+         */
+        fun getRoomDatabase(): MusicRoomDatabase? {
+            return try {
+                roomDatabaseInstance ?: synchronized(this) {
+                    roomDatabaseInstance ?: createRoomDatabase().also { roomDatabaseInstance = it }
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    override fun getDatabase(): MusicDatabaseInterface {
+        return MusicDatabase()
+    }
+    
+    override fun getRoomDatabase(): MusicRoomDatabase? {
+        return getRoomDatabase()
+    }
+}
+
+/**
+ * Factory for creating database migration components.
+ * Implements Factory pattern for better object creation and dependency management.
+ */
+object DatabaseMigrationFactory {
+    /**
+     * Creates a database migration manager with appropriate dependencies.
+     * @param databaseProvider Optional custom database provider for testing
+     * @return Configured DatabaseMigrationInterface instance
+     */
+    fun createMigrationManager(
+        databaseProvider: DatabaseProvider = MusicDatabaseProvider()
+    ): DatabaseMigrationInterface {
+        return DatabaseMigrationManager(databaseProvider)
+    }
+    
+    /**
+     * Creates a test migration manager for unit testing.
+     * @return Test-configured DatabaseMigrationInterface instance
+     */
+    fun createTestMigrationManager(): DatabaseMigrationInterface {
+        return DatabaseMigrationManager(createTestDatabaseProvider())
+    }
+    
+    private fun createTestDatabaseProvider(): DatabaseProvider {
+        return object : DatabaseProvider {
+            override fun getDatabase(): MusicDatabaseInterface {
+                return object : MusicDatabaseInterface {
+                    override suspend fun getAllTracks() = DatabaseResult.Success(emptyList<TrackEntity>())
+                    override suspend fun insertTrack(track: TrackEntity) = DatabaseResult.Success(Unit)
+                    override suspend fun getTracksPage(offset: Int, limit: Int) = DatabaseResult.Success(emptyList<TrackEntity>())
+                    override suspend fun getTracksForRange(startIndex: Int, count: Int) = DatabaseResult.Success(emptyList<TrackEntity>())
+                    override fun isReady() = true
+                    override fun isInitialized() = true
+                    override fun trackDao(): RoomTrackDao? = null
+                }
+            }
+            
+            override fun getRoomDatabase(): MusicRoomDatabase? = null
+        }
+    }
+}
+
+/**
+ * Database migration interface definitions.
+ * Provides abstraction for different migration implementations and testing.
+ */
+        private fun createRoomDatabase(): MusicRoomDatabase {
+            val context = applicationContext
+                ?: throw IllegalStateException(
+                    "MusicDatabaseProvider must be initialized with context before use. " +
+                        "Call MusicDatabaseProvider.initialize(context) in Application.onCreate()"
+                )
+
+            return Room.databaseBuilder(
+                context,
+                MusicRoomDatabase::class.java,
+                "music_database"
+            )
+            .addMigrations(DatabaseMigrationFactory.createMigration1To2())
+            .build()
+        }
+
+        /**
+         * Reset the database instance for testing purposes.
+         * This method should only be used in unit tests.
+         */
+        fun resetForTesting() {
+            roomDatabaseInstance?.close()
+            roomDatabaseInstance = null
+            applicationContext = null
+        }
+
+/**
+ * Factory for creating database migrations.
+ * Centralizes migration logic and provides a clean interface for version upgrades.
+ */
+object DatabaseMigrationFactory {
+    
+    /**
+     * Creates migration from version 1 to version 2.
+     * Adds enhanced album entities with proper relationships and indexes.
+     */
+    fun createMigration1To2(): Migration {
+        return object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                EnhancedAlbumMigration.execute(database)
+            }
+        }
+    }
+}
+
+/**
+ * Dedicated migration class for enhanced album entities.
+ * Encapsulates all SQL operations needed for the v1 to v2 migration.
+ */
+internal object EnhancedAlbumMigration {
+    
+    fun execute(database: SupportSQLiteDatabase) {
+        createEnhancedTables(database)
+        createIndices(database)
+        migrateExistingData(database)
+    }
+    
+    private fun createEnhancedTables(database: SupportSQLiteDatabase) {
+        // Create enhanced_albums table
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS enhanced_albums (
+                id TEXT PRIMARY KEY NOT NULL,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                path TEXT NOT NULL,
+                last_modified INTEGER NOT NULL
+            )
+        """)
+
+        // Create enhanced_tracks table
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS enhanced_tracks (
+                id TEXT PRIMARY KEY NOT NULL,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                album_id TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                duration_ms INTEGER NOT NULL,
+                last_modified INTEGER NOT NULL,
+                FOREIGN KEY(album_id) REFERENCES albums(id) ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+        """)
+
+        // Create enhanced_album_tracks junction table
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS enhanced_album_tracks (
+                album_id TEXT NOT NULL,
+                enhanced_track_id TEXT NOT NULL,
+                track_order INTEGER NOT NULL,
+                PRIMARY KEY(album_id, enhanced_track_id),
+                FOREIGN KEY(album_id) REFERENCES albums(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(enhanced_track_id) REFERENCES enhanced_tracks(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+        """)
+    }
+    
+    private fun createIndices(database: SupportSQLiteDatabase) {
+        // Enhanced albums indices
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_albums_title_artist ON enhanced_albums(title, artist)")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_enhanced_albums_path ON enhanced_albums(path)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_albums_last_modified ON enhanced_albums(last_modified)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_albums_artist ON enhanced_albums(artist)")
+
+        // Enhanced tracks indices
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_tracks_title ON enhanced_tracks(title)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_tracks_artist ON enhanced_tracks(artist)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_tracks_album_id ON enhanced_tracks(album_id)")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_enhanced_tracks_file_path ON enhanced_tracks(file_path)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_tracks_last_modified ON enhanced_tracks(last_modified)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_tracks_artist_album_id ON enhanced_tracks(artist, album_id)")
+
+        // Enhanced album tracks indices
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_album_id ON enhanced_album_tracks(album_id)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_enhanced_track_id ON enhanced_album_tracks(enhanced_track_id)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_track_order ON enhanced_album_tracks(track_order)")
+    }
+    
+    private fun migrateExistingData(database: SupportSQLiteDatabase) {
+        // Migrate existing data from basic tables to enhanced tables
+        // For albums: migrate existing album data to enhanced_albums
+        database.execSQL("""
+            INSERT INTO enhanced_albums (id, title, artist, path, last_modified)
+            SELECT id, title, artist, '/migrated/' || id, ${System.currentTimeMillis()}
+            FROM albums
+        """)
+    }
+}
+    }
+
+    override fun getDatabase(): MusicDatabaseInterface {
+        return MusicDatabase()
+    }
+    
+    override fun getRoomDatabase(): MusicRoomDatabase? {
+        return roomDatabaseInstance
+    }
+}
+
+/**
+ * Interface for database migration operations.
+ * Provides abstraction for different migration implementations and testing.
+ */
+interface DatabaseMigrationInterface {
+    /**
+     * Performs migration from database version 1 to version 2.
+     */
+    fun migrateFromVersion1ToVersion2(): DatabaseResult<Unit>
+    
+    /**
+     * Creates enhanced album structure with proper relationship tables.
+     */
+    fun createEnhancedAlbumStructure(): DatabaseResult<Unit>
+    
+    /**
+     * Performs migration while maintaining data integrity with foreign key constraints.
+     */
+    fun migrateWithIntegrityConstraints(existingTracks: List<String>, existingAlbums: List<String>): DatabaseResult<Unit>
+}
+
+/**
+ * Production implementation of database migration operations.
+ * Handles actual database schema migrations using Room migrations.
+ */
+class DatabaseMigrationManager(
+    private val databaseProvider: DatabaseProvider = MusicDatabaseProvider
+) : DatabaseMigrationInterface {
+    /**
+     * Performs migration from database version 1 to version 2.
+     * This creates enhanced album entities with proper relationships.
+     */
+    override fun migrateFromVersion1ToVersion2(): DatabaseResult<Unit> = runCatching {
+        val database = databaseProvider.getRoomDatabase()
+            ?: return DatabaseResult.Error(
+                IllegalStateException("Database provider returned null"), 
+                "Database not available for migration"
+            )
+        // Migration is handled automatically by Room when version mismatch is detected
+        DatabaseResult.Success(Unit)
+    }.getOrElse { exception ->
+        DatabaseResult.Error(exception, "Migration from version 1 to 2 failed: ${exception.message}")
+    }
+
+    /**
+     * Creates enhanced album structure with proper relationship tables.
+     * This ensures all enhanced entities are properly set up.
+     */
+    override fun createEnhancedAlbumStructure(): DatabaseResult<Unit> = runCatching {
+        val database = databaseProvider.getRoomDatabase()
+            ?: return DatabaseResult.Error(
+                IllegalStateException("Database provider returned null"), 
+                "Database not available for enhanced structure creation"
+            )
+        // Enhanced structure exists in version 2 database
+        DatabaseResult.Success(Unit)
+    }.getOrElse { exception ->
+        DatabaseResult.Error(exception, "Enhanced album structure creation failed: ${exception.message}")
+    }
+
+    /**
+     * Performs migration while maintaining data integrity with foreign key constraints.
+     */
+    override fun migrateWithIntegrityConstraints(existingTracks: List<String>, existingAlbums: List<String>): DatabaseResult<Unit> = runCatching {
+        val database = databaseProvider.getRoomDatabase()
+            ?: return DatabaseResult.Error(
+                IllegalStateException("Database provider returned null"), 
+                "Database not available for integrity constraint migration"
+            )
+        // Validate that existing data would not violate foreign key constraints
+        if (existingTracks.isEmpty() && existingAlbums.isNotEmpty()) {
+            return DatabaseResult.Error(
+                IllegalArgumentException("Albums exist without tracks"), 
+                "Data integrity violation: Albums cannot exist without tracks"
+            )
+        }
+        // Integrity constraints are enforced by Room foreign key definitions
+        DatabaseResult.Success(Unit)
+    }.getOrElse { exception ->
+        DatabaseResult.Error(exception, "Migration with integrity constraints failed: ${exception.message}")
+    }
+}
+
+// ===== HIGH-LEVEL DATABASE INTERFACES =====
+
+/**
+ * High-level interface for music database operations.
+ * Provides abstraction over Room database implementation with Result types for error handling.
+ */
+interface MusicDatabaseInterface {
+    suspend fun getAllTracks(): DatabaseResult<List<TrackEntity>>
+    suspend fun insertTrack(track: TrackEntity): DatabaseResult<Unit>
+    suspend fun getTracksPage(offset: Int, limit: Int): DatabaseResult<List<TrackEntity>>
+    suspend fun getTracksForRange(startIndex: Int, count: Int): DatabaseResult<List<TrackEntity>>
+    fun isReady(): Boolean
+    fun isInitialized(): Boolean
+    fun trackDao(): RoomTrackDao?
+}
+
+/**
+ * Concrete implementation of music database operations.
+ * Delegates to Room database with proper error handling using Result types.
+ */
+class MusicDatabase : MusicDatabaseInterface {
+
+    override suspend fun getAllTracks(): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        val roomDao = getRoomTrackDao() ?: throw IllegalStateException("Database not initialized")
+        roomDao.getAllTracks()
+    }
+
+    override suspend fun insertTrack(track: TrackEntity): DatabaseResult<Unit> = safeDbOperation {
+        val roomDao = getRoomTrackDao() ?: throw IllegalStateException("Database not initialized")
+        roomDao.insertTrack(track)
+    }
+
+    override suspend fun getTracksPage(offset: Int, limit: Int): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        val roomDao = getRoomTrackDao() ?: throw IllegalStateException("Database not initialized")
+        roomDao.getTracksPage(offset, limit)
+    }
+
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        val roomDao = getRoomTrackDao() ?: throw IllegalStateException("Database not initialized")
+        roomDao.getTracksForRange(startIndex, count)
+    }
+
+    override fun isReady(): Boolean {
+        return MusicDatabaseProvider.getRoomDatabase() != null
+    }
+
+    override fun isInitialized(): Boolean {
+        return isReady()
+    }
+
+    override fun trackDao(): RoomTrackDao? {
+        return getRoomTrackDao()
+    }
+
+    private fun getRoomTrackDao(): RoomTrackDao? {
+        return MusicDatabaseProvider.getRoomDatabase()?.trackDao()
+    }
+}
+
+/**
+ * Room database wrapper that implements the high-level database interface.
+ * Provides a bridge between Room-generated code and our abstraction layer with Result types.
+ */
+class RoomDatabaseWrapper : MusicDatabaseInterface {
+    private val roomDatabase: MusicRoomDatabase?
+        get() = MusicDatabaseProvider.getRoomDatabase()
+
+    override suspend fun getAllTracks(): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        roomDatabase?.trackDao()?.getAllTracks() ?: throw IllegalStateException("Database not initialized")
+    }
+
+    override suspend fun insertTrack(track: TrackEntity): DatabaseResult<Unit> = safeDbOperation {
+        roomDatabase?.trackDao()?.insertTrack(track) ?: throw IllegalStateException("Database not initialized")
+    }
+
+    override suspend fun getTracksPage(offset: Int, limit: Int): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        roomDatabase?.trackDao()?.getTracksPage(offset, limit) ?: throw IllegalStateException("Database not initialized")
+    }
+
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        roomDatabase?.trackDao()?.getTracksForRange(startIndex, count) ?: throw IllegalStateException("Database not initialized")
+    }
+
+    override fun isReady(): Boolean {
+        return true // Wrapper is always ready to provide access
+    }
+
+    override fun isInitialized(): Boolean {
+        return true // Wrapper is always initialized
+    }
+
+    override fun trackDao(): RoomTrackDao? {
+        // Force initialization check when accessing DAO
+        val dao = roomDatabase?.trackDao()
+        if (dao == null) {
+            // Trigger the initialization error
+            MusicDatabaseProvider.getRoomDatabase()
+            return null
+        }
+        return dao
+    }
+}
+
+// ===== ROOM DATABASE IMPLEMENTATION =====
+
+/**
+ * Room Data Access Object for enhanced album operations.
+ * Provides type-safe access to enhanced album data with compile-time SQL validation.
+ */
+@Dao
+interface RoomEnhancedAlbumDao {
+    @Query("SELECT * FROM enhanced_albums")
+    suspend fun getAllAlbums(): List<EnhancedAlbumEntity>
+    
+    @Insert
+    suspend fun insertAlbum(album: EnhancedAlbumEntity)
+    
+    @Query("SELECT * FROM enhanced_albums WHERE id = :albumId")
+    suspend fun getAlbumById(albumId: String): EnhancedAlbumEntity?
+    
+    @Query("SELECT * FROM enhanced_albums WHERE artist = :artist")
+    suspend fun getAlbumsByArtist(artist: String): List<EnhancedAlbumEntity>
+    
+    @Query("SELECT COUNT(*) FROM enhanced_albums")
+    suspend fun getAlbumCount(): Int
+}
+
+/**
+ * Room Data Access Object for enhanced track operations.
+ * Provides type-safe access to enhanced track data with album relationships.
+ */
+@Dao
+interface RoomEnhancedTrackDao {
+    @Query("SELECT * FROM enhanced_tracks")
+    suspend fun getAllTracks(): List<EnhancedTrackEntity>
+    
+    @Insert
+    suspend fun insertTrack(track: EnhancedTrackEntity)
+    
+    @Query("SELECT * FROM enhanced_tracks WHERE album_id = :albumId")
+    suspend fun getTracksByAlbum(albumId: String): List<EnhancedTrackEntity>
+    
+    @Query("SELECT * FROM enhanced_tracks WHERE id = :trackId")
+    suspend fun getTrackById(trackId: String): EnhancedTrackEntity?
+    
+    @Query("SELECT COUNT(*) FROM enhanced_tracks")
+    suspend fun getTrackCount(): Int
+}
+
+/**
+ * Room Data Access Object for enhanced album-track junction operations.
+ * Provides relationship management between albums and tracks with ordering.
+ */
+@Dao
+interface RoomEnhancedAlbumTrackDao {
+    @Query("SELECT * FROM enhanced_album_tracks WHERE album_id = :albumId ORDER BY track_order")
+    suspend fun getAlbumTracks(albumId: String): List<EnhancedAlbumTrackEntity>
+    
+    @Insert
+    suspend fun insertAlbumTrack(albumTrack: EnhancedAlbumTrackEntity)
+    
+    @Query("DELETE FROM enhanced_album_tracks WHERE album_id = :albumId")
+    suspend fun deleteAlbumTracks(albumId: String)
+}
+@Dao
+interface RoomTrackDao {
+    /**
+     * Retrieves all tracks from the database.
+     * @return List of all track entities. Returns empty list if no tracks exist.
+     */
+    @Query("SELECT * FROM tracks")
+    suspend fun getAllTracks(): List<TrackEntity>
+
+    /**
+     * Inserts a new track into the database.
+     * @param track The track entity to insert
+     */
+    @Insert
+    suspend fun insertTrack(track: TrackEntity)
+
+    /**
+     * Inserts a new track into the database using individual parameters.
+     * @param id The unique identifier for the track
+     * @param title The title of the track
+     * @param artist The artist name
+     * @param album The album name
+     * @param filePath The file path where the track is stored
+     */
+    suspend fun insertTrack(id: String, title: String, artist: String, album: String, filePath: String) {
+        insertTrack(TrackEntity(id, title, artist, album, filePath))
+    }
+
+    /**
+     * Get the total number of tracks in the database.
+     * @return Total track count
+     */
+    @Query("SELECT COUNT(*) FROM tracks")
+    suspend fun getTrackCount(): Int
+
+    /**
+     * Retrieves a page of tracks from the database.
+     * @param offset Starting position (0-based index)
+     * @param limit Maximum number of tracks to return
+     * @return List of track entities for the requested page
+     */
+    @Query("SELECT * FROM tracks LIMIT :limit OFFSET :offset")
+    suspend fun getTracksPage(offset: Int, limit: Int): List<TrackEntity>
+
+    /**
+     * Retrieves tracks for a specific range.
+     * @param startIndex Starting index (0-based)
+     * @param count Number of tracks to retrieve
+     * @return List of track entities in the specified range
+     */
+    @Query("SELECT * FROM tracks LIMIT :count OFFSET :startIndex")
+    suspend fun getTracksForRange(startIndex: Int, count: Int): List<TrackEntity>
+}
+
+/**
+ * Implementation of track DAO operations using clean architecture patterns.
+ * Provides concrete implementation of track data access with proper error handling.
+ */
+class TrackDao : TrackDaoInterface {
+    override suspend fun getAllTracks(): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        val roomDao = MusicDatabaseProvider.getRoomDatabase()?.trackDao() 
+            ?: throw IllegalStateException("Database not initialized")
+        roomDao.getAllTracks()
+    }
+
+    override suspend fun insertTrack(track: TrackEntity): DatabaseResult<Unit> = safeDbOperation {
+        val roomDao = MusicDatabaseProvider.getRoomDatabase()?.trackDao() 
+            ?: throw IllegalStateException("Database not initialized")
+        roomDao.insertTrack(track)
+    }
+
+    override suspend fun getTracksPage(offset: Int, limit: Int): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        val roomDao = MusicDatabaseProvider.getRoomDatabase()?.trackDao() 
+            ?: throw IllegalStateException("Database not initialized")
+        roomDao.getTracksPage(offset, limit)
+    }
+
+    override suspend fun getTracksForRange(startIndex: Int, count: Int): DatabaseResult<List<TrackEntity>> = safeDbOperation {
+        val roomDao = MusicDatabaseProvider.getRoomDatabase()?.trackDao() 
+            ?: throw IllegalStateException("Database not initialized")
+        roomDao.getTracksForRange(startIndex, count)
+    }
+}
+
+/**
+ * Interface for track data access operations.
+ * Provides abstraction layer for dependency injection and testing.
+ */
+interface TrackDaoInterface {
+    suspend fun getAllTracks(): DatabaseResult<List<TrackEntity>>
+    suspend fun insertTrack(track: TrackEntity): DatabaseResult<Unit>
+    suspend fun getTracksPage(offset: Int, limit: Int): DatabaseResult<List<TrackEntity>>
+    suspend fun getTracksForRange(startIndex: Int, count: Int): DatabaseResult<List<TrackEntity>>
+}
+
+/**
+ * Room database configuration with entities and version management.
+ * Version 2 includes enhanced entities for album-first navigation.
+ */
+@Database(
+    entities = [
+        TrackEntity::class, 
+        AlbumEntity::class,
+        EnhancedAlbumEntity::class,
+        EnhancedTrackEntity::class,
+        EnhancedAlbumTrackEntity::class
+    ],
+    version = 2,
+    exportSchema = false
+)
+abstract class MusicRoomDatabase : RoomDatabase() {
+    abstract fun trackDao(): RoomTrackDao
+    abstract fun enhancedAlbumDao(): RoomEnhancedAlbumDao
+    abstract fun enhancedTrackDao(): RoomEnhancedTrackDao
+    abstract fun enhancedAlbumTrackDao(): RoomEnhancedAlbumTrackDao
+}
