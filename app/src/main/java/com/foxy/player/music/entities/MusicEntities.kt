@@ -41,7 +41,7 @@ data class AlbumEntity(
 @Entity(
     tableName = "enhanced_albums",
     indices = [
-        Index(value = ["title", "artist"], unique = true), // Prevent duplicate albums
+        Index(value = ["title", "artist"]), // Query performance for title+artist (non-unique to allow remastered versions)
         Index(value = ["path"], unique = true), // Unique file paths
         Index(value = ["lastModified"]), // Recent albums query
         Index(value = ["artist"]) // Artist-based filtering
@@ -85,7 +85,17 @@ data class EnhancedAlbumEntity(
      * @return true if all required fields are properly set
      */
     fun isValid(): Boolean {
-        return id.isNotBlank() && title.isNotBlank() && artist.isNotBlank() && path.isNotBlank() && lastModified > 0
+        // Path must be non-blank and start with '/'
+        val isPathValid = path.isNotBlank() && path.startsWith("/")
+        // lastModified must be > 0 and not in the future (allow 5 min clock skew)
+        val now = System.currentTimeMillis()
+        val maxFutureSkewMs = 5 * 60 * 1000 // 5 minutes
+        val isLastModifiedValid = lastModified > 0 && lastModified <= now + maxFutureSkewMs
+        return id.isNotBlank() &&
+            title.isNotBlank() &&
+            artist.isNotBlank() &&
+            isPathValid &&
+            isLastModifiedValid
     }
 
     /**

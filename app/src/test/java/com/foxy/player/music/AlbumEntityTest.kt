@@ -91,4 +91,82 @@ class AlbumEntityTest {
             displayName
         )
     }
+
+    @Test
+    fun `should allow duplicate albums with same title and artist but different paths`() {
+        // Arrange - create two albums with same title/artist but different paths (remastered versions)
+        val originalAlbum = EnhancedAlbumEntity(
+            id = "abbey_road_original",
+            title = "Abbey Road",
+            artist = "The Beatles",
+            path = "/music/beatles/abbey_road_1969",
+            lastModified = System.currentTimeMillis()
+        )
+
+        val remasteredAlbum = EnhancedAlbumEntity(
+            id = "abbey_road_remastered",
+            title = "Abbey Road", // Same title
+            artist = "The Beatles", // Same artist
+            path = "/music/beatles/abbey_road_2019_remastered", // Different path
+            lastModified = System.currentTimeMillis() + 1000
+        )
+
+        // Act & Assert - both albums should be valid and allowed
+        assertTrue("Original album should be valid", originalAlbum.isValid())
+        assertTrue("Remastered album should be valid", remasteredAlbum.isValid())
+
+        // Assert - albums should be distinct entities despite same title/artist
+        assertFalse("Albums should have different IDs", originalAlbum.id == remasteredAlbum.id)
+        assertFalse("Albums should have different paths", originalAlbum.path == remasteredAlbum.path)
+
+        // This test verifies that our database design should allow both albums to coexist
+        // because they have unique paths and IDs, even with same title/artist
+    }
+
+    @Test
+    fun `should validate path format and timestamp ranges properly`() {
+        val currentTime = System.currentTimeMillis()
+
+        // Test invalid path format (doesn't start with /)
+        val invalidPathEntity = EnhancedAlbumEntity(
+            id = "test_id",
+            title = "Test Album",
+            artist = "Test Artist",
+            path = "invalid_path_without_slash", // Should start with /
+            lastModified = currentTime
+        )
+
+        // Test future timestamp (5+ minutes in future)
+        val futureTimestampEntity = EnhancedAlbumEntity(
+            id = "future_id",
+            title = "Future Album",
+            artist = "Future Artist",
+            path = "/valid/path",
+            lastModified = currentTime + (10 * 60 * 1000) // 10 minutes in future
+        )
+
+        // Test negative timestamp
+        val negativeTimestampEntity = EnhancedAlbumEntity(
+            id = "negative_id",
+            title = "Negative Album",
+            artist = "Negative Artist",
+            path = "/valid/path2",
+            lastModified = -1000 // Negative timestamp
+        )
+
+        // Test valid entity within acceptable clock skew
+        val validEntity = EnhancedAlbumEntity(
+            id = "valid_id",
+            title = "Valid Album",
+            artist = "Valid Artist",
+            path = "/valid/path3",
+            lastModified = currentTime + (2 * 60 * 1000) // 2 minutes in future (within 5 min skew)
+        )
+
+        // Act & Assert - enhanced validation should catch these issues
+        assertFalse("Invalid path format should fail validation", invalidPathEntity.isValid())
+        assertFalse("Future timestamp should fail validation", futureTimestampEntity.isValid())
+        assertFalse("Negative timestamp should fail validation", negativeTimestampEntity.isValid())
+        assertTrue("Valid entity within clock skew should pass", validEntity.isValid())
+    }
 }
