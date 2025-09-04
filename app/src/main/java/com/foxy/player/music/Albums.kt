@@ -571,8 +571,8 @@ class AlbumDiscoveryService(
                 groupingResult.getOrNull()?.let { groupedAlbums ->
                     // Merge with existing data, avoiding duplicates
                     groupedAlbums.forEach { newAlbum ->
-                        val isDuplicate = albumData.none { it.albumName == newAlbum.albumName && it.artistName == newAlbum.artistName }
-                        if (isDuplicate) {
+                        val isNotDuplicate = albumData.none { it.albumName == newAlbum.albumName && it.artistName == newAlbum.artistName }
+                        if (isNotDuplicate) {
                             albumData.add(newAlbum)
                         }
                     }
