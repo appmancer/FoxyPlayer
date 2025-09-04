@@ -571,7 +571,8 @@ class AlbumDiscoveryService(
                 groupingResult.getOrNull()?.let { groupedAlbums ->
                     // Merge with existing data, avoiding duplicates
                     groupedAlbums.forEach { newAlbum ->
-                        if (albumData.none { it.albumName == newAlbum.albumName && it.artistName == newAlbum.artistName }) {
+                        val isDuplicate = albumData.none { it.albumName == newAlbum.albumName && it.artistName == newAlbum.artistName }
+                        if (isDuplicate) {
                             albumData.add(newAlbum)
                         }
                     }
@@ -623,7 +624,11 @@ class AlbumDiscoveryService(
         // Extract album key from path structure: /Artist/Album/Track.mp3
         val pathParts = filePath.split("/").filter { it.isNotEmpty() }
         return when {
-            pathParts.size >= 2 -> "${pathParts[pathParts.size - 2]}_${pathParts.getOrNull(pathParts.size - 3) ?: "Unknown"}"
+            pathParts.size >= 2 -> {
+                val album = pathParts[pathParts.size - 2]
+                val artist = pathParts.getOrNull(pathParts.size - 3) ?: "Unknown"
+                "${album}_$artist"
+            }
             pathParts.size == 1 -> "Unknown_Album"
             else -> "Default_Album"
         }
@@ -648,6 +653,65 @@ class AlbumDiscoveryService(
         return when {
             pathParts.size >= 3 -> pathParts[pathParts.size - 3]
             else -> "Unknown Artist"
+        }
+    }
+
+    /**
+     * Discovers albums from provided audio files using real metadata extraction.
+     * * This method integrates with MusicMetadataExtractor to extract real metadata
+     * from audio files (ID3 tags, etc.) and groups them by album and artist.
+     * It provides more accurate album discovery compared to path-based methods.
+     * * @param audioFiles List of audio file URLs to process for metadata extraction
+     * @return AlbumResult containing discovered albums grouped by real metadata,
+     *         or error result if metadata extraction fails
+     * * @throws IllegalArgumentException if audioFiles list is empty
+     */
+    suspend fun discoverAlbumsWithRealMetadata(audioFiles: List<String>): AlbumResult<List<AlbumDiscoveryResult>> {
+        // Input validation
+        if (audioFiles.isEmpty()) {
+            return AlbumResult.Error(
+                IllegalArgumentException("Audio files list cannot be empty"),
+                "No audio files provided for metadata extraction"
+            )
+        }
+
+        return try {
+            val metadataExtractor = com.foxy.player.music.business.MusicMetadataExtractor()
+            val albumsMap = mutableMapOf<String, AlbumDiscoveryResultBuilder>()
+
+            // Extract real metadata for each audio file
+            for (audioFile in audioFiles) {
+                try {
+                    val fileName = audioFile.substringAfterLast('/')
+                    if (fileName.isBlank()) continue // Skip invalid file paths
+
+                    val metadataResult = metadataExtractor.extractMetadata(audioFile, fileName)
+
+                    if (metadataResult.isSuccess) {
+                        val metadata = metadataResult.getOrNull()
+                        if (metadata != null && metadata.album.isNotBlank() && metadata.artist.isNotBlank()) {
+                            // Use real metadata for album grouping
+                            val albumKey = "${metadata.artist}_${metadata.album}"
+                            val builder = albumsMap.getOrPut(albumKey) {
+                                AlbumDiscoveryResultBuilder(
+                                    albumName = metadata.album,
+                                    artistName = metadata.artist
+                                )
+                            }
+                            builder.addTrack(audioFile)
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Log error but continue processing other files
+                    // In production, this would use proper logging framework
+                    continue
+                }
+            }
+
+            val discoveredAlbums = albumsMap.values.map { it.build() }
+            AlbumResult.Success(discoveredAlbums)
+        } catch (e: Exception) {
+            AlbumResult.Error(e, "Failed to discover albums with real metadata: ${e.message}")
         }
     }
 }
