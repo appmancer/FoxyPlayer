@@ -103,6 +103,7 @@ class PaginatedDataLayerTest {
                     override fun isReady(): Boolean = true
                     override fun isInitialized(): Boolean = true
                     override fun trackDao(): RoomTrackDao? = testDao
+                    override fun enhancedAlbumDao(): com.foxy.player.music.database.RoomEnhancedAlbumDao? = null
                 }
             }
         }
