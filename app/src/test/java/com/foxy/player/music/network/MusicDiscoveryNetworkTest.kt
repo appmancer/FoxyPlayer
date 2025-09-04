@@ -31,6 +31,30 @@ class MusicDiscoveryNetworkTest {
     }
 
     @Test
+    fun `should discover albums by grouping audio files by album metadata`() {
+        // Arrange - setup authenticated service for real album discovery
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+
+        // Act - discover albums from a real path with audio files
+        val result = musicDiscoveryService.discoverAlbums("/Music")
+
+        // Assert - verify real album discovery functionality
+        assertTrue("Should return successful result with discovered albums", result.isSuccess)
+        val albumsResponse = result.getOrNull()
+        assertNotNull("Albums response should not be null", albumsResponse)
+        assertTrue("Should discover at least one album", albumsResponse!!.albums.isNotEmpty())
+
+        // Verify album grouping by metadata
+        val firstAlbum = albumsResponse.albums.first()
+        assertNotNull("Album should have title from metadata", firstAlbum.title)
+        assertNotNull("Album should have artist from metadata", firstAlbum.artist)
+        assertTrue("Album should contain audio files", firstAlbum.audioFiles.isNotEmpty())
+    }
+
+    @Test
     fun `should call pCloud listfolder API with authenticated request`() {
         // Arrange - setup test data with authenticated state
         val authRepository = AuthRepository("https://eapi.pcloud.com")

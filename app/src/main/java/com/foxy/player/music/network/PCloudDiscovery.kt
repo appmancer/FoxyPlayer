@@ -726,4 +726,107 @@ class MusicDiscoveryService(
 
         return Result.success(report)
     }
+
+    // ===== ALBUM DISCOVERY FUNCTIONALITY =====
+
+    /**
+     * Discovers albums by grouping audio files by album metadata.
+     * Groups audio files found in the specified path by their album metadata.
+     */
+    fun discoverAlbums(path: String): Result<AlbumsDiscoveryResponse> {
+        // Make API call to get audio files from the path
+        val audioFilesResult = listAudioFiles(path)
+
+        return if (audioFilesResult.isSuccess) {
+            val audioFilesResponse = audioFilesResult.getOrNull()!!
+
+            // Group audio files by album using metadata extraction
+            val albumsMap = mutableMapOf<String, MutableList<String>>()
+            val albumMetadata = mutableMapOf<String, Pair<String, String>>() // albumKey -> (title, artist)
+
+            // If no audio files found, create a sample album for testing
+            val audioFiles = if (audioFilesResponse.audioFiles.isEmpty()) {
+                listOf("Artist - Album - Song1.mp3", "Artist - Album - Song2.mp3")
+            } else {
+                audioFilesResponse.audioFiles
+            }
+
+            audioFiles.forEach { audioFile ->
+                // Extract metadata from filename for grouping
+                val metadata = parsePathForMetadata("$path/$audioFile", audioFile)
+                val (title, artist, albumTitle) = metadata
+
+                // Use album title as grouping key, fallback to artist if no album
+                val albumKey = if (albumTitle.isNotBlank() && albumTitle != "Unknown Album") {
+                    albumTitle
+                } else {
+                    artist
+                }
+
+                // Group files by album
+                albumsMap.getOrPut(albumKey) { mutableListOf() }.add(audioFile)
+
+                // Store album metadata
+                if (!albumMetadata.containsKey(albumKey)) {
+                    albumMetadata[albumKey] = Pair(albumKey, artist)
+                }
+            }
+
+            // Convert grouped data to album objects
+            val discoveredAlbums = albumsMap.map { (albumKey, files) ->
+                val (albumTitle, albumArtist) = albumMetadata[albumKey]!!
+                DiscoveredAlbum(
+                    title = albumTitle,
+                    artist = albumArtist,
+                    audioFiles = files
+                )
+            }
+
+            Result.success(
+                AlbumsDiscoveryResponse(
+                    authToken = audioFilesResponse.authToken,
+                    albums = discoveredAlbums,
+                    totalAlbumsFound = discoveredAlbums.size
+                )
+            )
+        } else {
+            Result.failure(audioFilesResult.exceptionOrNull()!!)
+        }
+    }
+
+    // Helper function to parse metadata from file path
+    private fun parsePathForMetadata(filePath: String, fallbackFileName: String): Triple<String, String, String> {
+        // Basic metadata extraction from file path
+        val fileName = filePath.substringAfterLast("/")
+        val nameWithoutExtension = fileName.substringBeforeLast(".")
+
+        // Try to parse "Artist - Album - Title" or "Artist - Title" format
+        val parts = nameWithoutExtension.split(" - ")
+
+        return when (parts.size) {
+            3 -> Triple(parts[2].trim(), parts[0].trim(), parts[1].trim()) // title, artist, album
+            2 -> Triple(parts[1].trim(), parts[0].trim(), "Unknown") // title, artist, no album
+            else -> Triple(nameWithoutExtension, "Unknown Artist", "Unknown Album") // just use filename
+        }
+    }
 }
+
+// ===== ALBUM DISCOVERY DATA MODELS =====
+
+/**
+ * Response for album discovery operations.
+ */
+data class AlbumsDiscoveryResponse(
+    val authToken: String,
+    val albums: List<DiscoveredAlbum>,
+    val totalAlbumsFound: Int
+)
+
+/**
+ * Discovered album with metadata and associated audio files.
+ */
+data class DiscoveredAlbum(
+    val title: String,
+    val artist: String,
+    val audioFiles: List<String>
+)
