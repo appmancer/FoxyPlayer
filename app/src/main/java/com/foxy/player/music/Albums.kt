@@ -408,9 +408,9 @@ fun AlbumGridItem(
 
 /**
  * Album list screen component using Material3 LazyVerticalGrid.
- * * Displays albums from ViewModel state following PLY-127 Albums-First Navigation architecture.
+ * Displays albums from ViewModel state following PLY-127 Albums-First Navigation architecture.
  * Handles three states: Loading (progress indicator), Success (grid display), and Error (message).
- * * @param viewModel The ViewModel managing album list state
+ * @param viewModel The ViewModel managing album list state
  * @param modifier Optional modifier for the screen layout
  */
 @Composable
