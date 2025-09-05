@@ -677,3 +677,26 @@ class DefaultNetworkConnectivity : NetworkConnectivityInterface {
         listeners.forEach { it(available) }
     }
 }
+
+// =====================================================================
+// PLY-139: HomeScreenContent Data Models
+// =====================================================================
+
+/**
+ * Represents a recently played music item displayed on the home screen.
+ * * This data class encapsulates essential metadata for music content that was
+ * recently accessed by the user, providing the foundation for home screen
+ * "Recently Played" sections and music discovery features.
+ * * @property id Unique identifier for the music item
+ * @property title Display title of the music track or album
+ * @property artist Artist or performer name
+ * @property lastPlayed Timestamp (milliseconds since epoch) when item was last accessed
+ * @property artwork URL or path to the cover art image
+ */
+data class RecentItem(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val lastPlayed: Long,
+    val artwork: String
+)
