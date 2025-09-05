@@ -683,6 +683,17 @@ class DefaultNetworkConnectivity : NetworkConnectivityInterface {
 // =====================================================================
 
 /**
+ * Base interface for content items that can be displayed on the home screen.
+ * * This interface provides a common contract for different types of content
+ * that can be organized within content sections, enabling type-safe and
+ * extensible home screen architecture.
+ */
+interface ContentItem {
+    val id: String
+    val title: String
+}
+
+/**
  * Represents a recently played music item displayed on the home screen.
  * * This data class encapsulates essential metadata for music content that was
  * recently accessed by the user, providing the foundation for home screen
@@ -694,9 +705,22 @@ class DefaultNetworkConnectivity : NetworkConnectivityInterface {
  * @property artwork URL or path to the cover art image
  */
 data class RecentItem(
-    val id: String,
-    val title: String,
+    override val id: String,
+    override val title: String,
     val artist: String,
     val lastPlayed: Long,
     val artwork: String
+) : ContentItem
+
+/**
+ * Represents a content section on the home screen that organizes related items.
+ * * This data class provides a flexible container for grouping different types of
+ * content items under descriptive section headers, enabling organized presentation
+ * of music content on the home screen.
+ * * @property title Display title for the content section
+ * @property items List of content items to display in this section
+ */
+data class ContentSection<T>(
+    val title: String,
+    val items: List<T>
 )

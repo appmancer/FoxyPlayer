@@ -34,4 +34,37 @@ class HomeScreenContentTest {
         assertEquals(lastPlayed, recentItem.lastPlayed)
         assertEquals(artwork, recentItem.artwork)
     }
+
+    @Test
+    fun `should create ContentSection with title and items list`() {
+        // Arrange
+        val sectionTitle = "Recently Played"
+        val recentItem1 = RecentItem(
+            id = "recent_001",
+            title = "Bohemian Rhapsody",
+            artist = "Queen",
+            lastPlayed = System.currentTimeMillis(),
+            artwork = "https://example.com/queen.jpg"
+        )
+        val recentItem2 = RecentItem(
+            id = "recent_002", title = "Hotel California",
+            artist = "Eagles",
+            lastPlayed = System.currentTimeMillis() - 1000,
+            artwork = "https://example.com/eagles.jpg"
+        )
+        val items = listOf(recentItem1, recentItem2)
+
+        // Act
+        val contentSection = ContentSection(
+            title = sectionTitle,
+            items = items
+        )
+
+        // Assert
+        assertEquals(sectionTitle, contentSection.title)
+        assertEquals(items, contentSection.items)
+        assertEquals(2, contentSection.items.size)
+        assertTrue(contentSection.items.contains(recentItem1))
+        assertTrue(contentSection.items.contains(recentItem2))
+    }
 }
