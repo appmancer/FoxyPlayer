@@ -1,8 +1,12 @@
 package com.foxy.player.music
 
+import com.foxy.player.authentication.network.AuthRepository
+import com.foxy.player.authentication.network.AuthenticatedApiClient
+import com.foxy.player.music.network.MusicDiscoveryService
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
@@ -50,7 +54,38 @@ class EnhancedHomeViewModelTest {
         // Verify the hubState property is actually a StateFlow (real reactive property)
         val hubStateType = viewModel.hubState::class.java
         assertTrue(
-            "hubState should be a StateFlow", hubStateType.name.contains("StateFlow") || hubStateType.interfaces.any { it.name.contains("StateFlow") }
+            "hubState should be a StateFlow",
+            hubStateType.name.contains("StateFlow") || hubStateType.interfaces.any { it.name.contains("StateFlow") }
+        )
+    }
+
+    @Test
+    fun `EnhancedHomeViewModel should load real content from HeuristicMusicDiscovery`() = runTest(testDispatcher) {
+        // Arrange - create real HeuristicMusicDiscovery with real MusicDiscoveryService
+        // This test expects REAL content loading functionality, not mocks
+        val authRepository = AuthRepository()
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicService = MusicDiscoveryService(authenticatedApiClient)
+        val heuristicDiscovery = HeuristicMusicDiscovery(musicService)
+        val viewModel = EnhancedHomeViewModel(heuristicDiscovery)
+
+        // Act - call loadContent() method to load real content
+        viewModel.loadContent()
+        advanceUntilIdle() // Allow coroutines to complete
+
+        // Assert - verify real content was loaded
+        val finalState = viewModel.enhancedState.first()
+        assertFalse("Loading should be complete after loadContent()", finalState.isLoading)
+        assertNotNull("Content should be loaded from real discovery service", finalState.content)
+        assertTrue("Content should contain real sections with actual data", finalState.content.isNotEmpty())
+        assertNull("Error should be null when loading succeeds", finalState.error)
+
+        // Verify we got real content sections (not empty placeholders)
+        assertTrue(
+            "Should have loaded actual content sections",
+            finalState.content.any { section ->
+                section.title.contains("Recently Added") || section.toString().contains("ContentSection")
+            }
         )
     }
 }
