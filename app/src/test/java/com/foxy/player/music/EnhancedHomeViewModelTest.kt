@@ -8,7 +8,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -39,25 +43,26 @@ class EnhancedHomeViewModelTest {
     }
 
     @Test
-    fun `EnhancedHomeViewModel should provide backward compatibility with hubState property`() = runTest(testDispatcher) {
-        // Arrange - create EnhancedHomeViewModel
-        // This test expects REAL backward compatibility with legacy MusicHubViewModel
+    fun `EnhancedHomeViewModel should provide backward compatibility with hubState property`() =
+        runTest(testDispatcher) {
+            // Arrange - create EnhancedHomeViewModel
+            // This test expects REAL backward compatibility with legacy MusicHubViewModel
 
-        // Act - create the ViewModel and access the hubState property
-        val viewModel = EnhancedHomeViewModel()
+            // Act - create the ViewModel and access the hubState property
+            val viewModel = EnhancedHomeViewModel()
 
-        // Assert - verify hubState property exists and works for legacy compatibility
-        val hubState = viewModel.hubState.first()
-        assertNotNull("hubState should exist for backward compatibility", hubState)
-        assertTrue("hubState should reflect loading state from enhancedState", hubState.isLoading)
+            // Assert - verify hubState property exists and works for legacy compatibility
+            val hubState = viewModel.hubState.first()
+            assertNotNull("hubState should exist for backward compatibility", hubState)
+            assertTrue("hubState should reflect loading state from enhancedState", hubState.isLoading)
 
-        // Verify the hubState property is actually a StateFlow (real reactive property)
-        val hubStateType = viewModel.hubState::class.java
-        assertTrue(
-            "hubState should be a StateFlow",
-            hubStateType.name.contains("StateFlow") || hubStateType.interfaces.any { it.name.contains("StateFlow") }
-        )
-    }
+            // Verify the hubState property is actually a StateFlow (real reactive property)
+            val hubStateType = viewModel.hubState::class.java
+            assertTrue(
+                "hubState should be a StateFlow",
+                hubStateType.name.contains("StateFlow") || hubStateType.interfaces.any { it.name.contains("StateFlow") }
+            )
+        }
 
     @Test
     fun `EnhancedHomeViewModel should load real content from HeuristicMusicDiscovery`() = runTest(testDispatcher) {
