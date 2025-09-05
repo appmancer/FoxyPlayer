@@ -47,7 +47,8 @@ class HomeScreenContentTest {
             artwork = "https://example.com/queen.jpg"
         )
         val recentItem2 = RecentItem(
-            id = "recent_002", title = "Hotel California",
+            id = "recent_002",
+            title = "Hotel California",
             artist = "Eagles",
             lastPlayed = System.currentTimeMillis() - 1000,
             artwork = "https://example.com/eagles.jpg"
@@ -66,5 +67,36 @@ class HomeScreenContentTest {
         assertEquals(2, contentSection.items.size)
         assertTrue(contentSection.items.contains(recentItem1))
         assertTrue(contentSection.items.contains(recentItem2))
+    }
+
+    @Test
+    fun `should create RecommendationItem with confidence score`() {
+        // Arrange
+        val id = "rec_001"
+        val title = "Stairway to Heaven"
+        val artist = "Led Zeppelin"
+        val reason = "Based on your recent rock music listening"
+        val confidence = 0.85
+        val artwork = "https://example.com/led-zeppelin.jpg"
+
+        // Act
+        val recommendationItem = RecommendationItem(
+            id = id,
+            title = title,
+            artist = artist,
+            reason = reason,
+            confidence = confidence,
+            artwork = artwork
+        )
+
+        // Assert
+        assertEquals(id, recommendationItem.id)
+        assertEquals(title, recommendationItem.title)
+        assertEquals(artist, recommendationItem.artist)
+        assertEquals(reason, recommendationItem.reason)
+        assertEquals(confidence, recommendationItem.confidence, 0.001)
+        assertEquals(artwork, recommendationItem.artwork)
+        assertTrue(recommendationItem.confidence >= 0.0)
+        assertTrue(recommendationItem.confidence <= 1.0)
     }
 }
