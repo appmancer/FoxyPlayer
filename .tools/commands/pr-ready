@@ -188,7 +188,7 @@ gh auth switch --hostname github.com --user appmancer
 original_remote=$(git remote get-url origin)
 
 # Check if remote URL needs correction for appmancer SSH access
-correct_remote="git@github.com:appmancer/FoxyPlayer.git"
+correct_remote="git@github.com-personal:appmancer/FoxyPlayer.git"
 if [[ "$original_remote" != "$correct_remote" ]]; then
     echo -e "${INFO} Correcting remote URL for appmancer SSH access..."
     echo -e "${INFO} From: $original_remote"
