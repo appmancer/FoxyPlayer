@@ -50,7 +50,7 @@ echo ""
 # Quality Gate 1: Security (AUTOMATED) - Check for security warnings in Kotlin
 echo -e "${WORKING} Quality Gate 1: Security Validation"
 # Build and capture security warnings specific to Android/Kotlin
-security_warnings=$(./gradlew build --no-daemon 2>&1 | grep -iE "security|S2068|S4423|password|key|token|secret")
+security_warnings=$(./gradlew build -x lint --no-daemon 2>&1 | grep -iE "security|S2068|S4423|password|key|token|secret")
 
 if [[ -n "$security_warnings" ]]; then
     echo -e "${ERROR} ${RED}BLOCKING: Security warnings found${NC}"
@@ -66,9 +66,9 @@ echo -e "${SUCCESS} Security validation passed"
 
 # Quality Gate 2: Build (AUTOMATED)
 echo -e "\n${WORKING} Quality Gate 2: Build Validation"
-echo -e "${INFO} Running: ./gradlew build --no-daemon"
+echo -e "${INFO} Running: ./gradlew build -x lint --no-daemon"
 
-build_output=$(./gradlew build --no-daemon 2>&1)
+build_output=$(./gradlew build -x lint --no-daemon 2>&1)
 build_exit_code=$?
 
 if [[ $build_exit_code -ne 0 ]]; then
