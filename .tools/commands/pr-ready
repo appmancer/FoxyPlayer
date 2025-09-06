@@ -219,6 +219,11 @@ deletions=$(git diff dev..HEAD --shortstat | grep -o '[0-9]* deletion' | grep -o
 # Create PR
 echo -e "\n${PR} Creating Pull Request..."
 
+# Temporarily switch to standard GitHub remote for gh CLI compatibility
+temp_remote="git@github.com:appmancer/FoxyPlayer.git"
+echo -e "${INFO} Temporarily switching to standard GitHub remote for PR creation..."
+git remote set-url origin "$temp_remote"
+
 # Generate comprehensive PR description
 pr_description="## Summary
 Implements $ticket_id: $ticket_title
@@ -307,13 +312,14 @@ jq '.phase = "pr-created" | .pr_created_at = now | .pr_created_at |= todate | .p
    .spectrum/current-ticket.json > .spectrum/current-ticket.json.tmp
 mv .spectrum/current-ticket.json.tmp .spectrum/current-ticket.json
 
+# Restore original remote URL (the working SSH format)
+echo -e "${INFO} Restoring original SSH remote URL..."
+git remote set-url origin "$correct_remote"
+
 # Restore original remote URL only if we changed it
-if [[ "$original_remote" != "$correct_remote" ]]; then
-    echo -e "${INFO} Restoring original remote URL: $original_remote"
-    git remote set-url origin "$original_remote"
-else
-    echo -e "${INFO} Remote URL already correct, no restoration needed"
-fi
+# Note: We always restore to the working SSH format for ongoing development
+echo -e "${INFO} Restoring SSH remote URL for development: $correct_remote"
+git remote set-url origin "$correct_remote"
 
 # Keep GitHub CLI as appmancer for pr-monitor phase
 echo -e "${INFO} SSH Key Management: Keeping GitHub CLI as appmancer for PR workflow"
