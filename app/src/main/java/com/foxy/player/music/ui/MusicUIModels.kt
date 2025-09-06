@@ -298,3 +298,41 @@ data class CachedMetadataResponse(
     val processingTimeMs: Long,
     val totalApiCalls: Int
 )
+
+// ===== PLY-141: MODULAR UI COMPONENT STRUCTURE MODELS =====
+
+// Layout types for ContentSectionComponent
+enum class LayoutType {
+    LIST,
+    GRID,
+    CAROUSEL
+}
+
+// ContentSectionComponent for modular UI structure
+data class ContentSectionComponent<T>(
+    val section: com.foxy.player.music.ContentSection<T>,
+    val layoutType: LayoutType
+) {
+    fun canRenderContent(): Boolean {
+        return section.items.isNotEmpty()
+    }
+}
+
+// RecentlyPlayedSection - specialized component for recent items with horizontal layout
+class RecentlyPlayedSection(private val recentItems: List<com.foxy.player.music.RecentItem>) {
+    fun getTitle(): String = "Recently Played"
+
+    fun getLayoutType(): LayoutType = LayoutType.CAROUSEL // Horizontal layout for recent items
+
+    fun getRecentItems(): List<com.foxy.player.music.RecentItem> = recentItems
+
+    fun hasContent(): Boolean = recentItems.isNotEmpty()
+
+    fun asContentSectionComponent(): ContentSectionComponent<com.foxy.player.music.RecentItem> {
+        val section = com.foxy.player.music.ContentSection(
+            title = getTitle(),
+            items = recentItems
+        )
+        return ContentSectionComponent(section, getLayoutType())
+    }
+}
