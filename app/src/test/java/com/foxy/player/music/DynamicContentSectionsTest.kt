@@ -28,17 +28,17 @@ class DynamicContentSectionsTest {
         val baseTime = System.currentTimeMillis()
         userHistoryService.recordPlayEvent(testTracks[0], baseTime - 3600000) // 1 hour ago
         userHistoryService.recordPlayEvent(testTracks[1], baseTime - 1800000) // 30 minutes ago
-        userHistoryService.recordPlayEvent(testTracks[2], baseTime - 900000)  // 15 minutes ago
+        userHistoryService.recordPlayEvent(testTracks[2], baseTime - 900000) // 15 minutes ago
 
         // Assert
         val recentItems = userHistoryService.getRecentlyPlayed(limit = 5)
         assertEquals(3, recentItems.size)
-        
+
         // Should be ordered by most recent first
         assertEquals("Stairway to Heaven", recentItems[0].title)
-        assertEquals("Hotel California", recentItems[1].title) 
+        assertEquals("Hotel California", recentItems[1].title)
         assertEquals("Bohemian Rhapsody", recentItems[2].title)
-        
+
         // Verify timestamps
         assertTrue(recentItems[0].lastPlayed > recentItems[1].lastPlayed)
         assertTrue(recentItems[1].lastPlayed > recentItems[2].lastPlayed)
@@ -49,7 +49,7 @@ class DynamicContentSectionsTest {
         // Arrange
         val userHistoryService = UserHistoryService()
         val recentlyPlayedGenerator = RecentlyPlayedGenerator(userHistoryService)
-        
+
         // Add some test history
         val baseTime = System.currentTimeMillis()
         userHistoryService.recordPlayEvent(
@@ -83,7 +83,7 @@ class DynamicContentSectionsTest {
         val section = recommendationSection.getOrNull()!!
         assertEquals("Recommended for You", section.title)
         assertTrue(section.items.isNotEmpty())
-        
+
         // Verify recommendation items have confidence scores
         section.items.forEach { recommendation ->
             assertTrue(recommendation.confidence >= 0.0)
@@ -112,10 +112,10 @@ class DynamicContentSectionsTest {
         assertTrue(organizedSections.isSuccess)
         val sections = organizedSections.getOrNull()!!
         assertTrue(sections.isNotEmpty())
-        
+
         // Recently played should come first when user has history
         assertEquals("Recently Played", sections[0].title)
-        
+
         // Should have multiple section types
         val sectionTitles = sections.map { it.title }
         assertTrue(sectionTitles.contains("Recently Played"))
@@ -137,7 +137,7 @@ class DynamicContentSectionsTest {
         // Act - Generate dynamic sections and convert to UI components
         val sectionsResult = organizer.generateOrderedSections()
         assertTrue(sectionsResult.isSuccess)
-        
+
         val sections = sectionsResult.getOrNull()!!
         val uiComponents = sections.map { section ->
             when {
@@ -157,13 +157,13 @@ class DynamicContentSectionsTest {
 
         // Assert - Verify integration with PLY-141 UI components
         assertEquals(2, uiComponents.size)
-        
+
         // Verify Recently Played section uses carousel layout
         val recentComponent = uiComponents.find { it.section.title == "Recently Played" }!!
         assertEquals(LayoutType.CAROUSEL, recentComponent.layoutType)
         assertTrue(recentComponent.canRenderContent())
         assertEquals("Bohemian Rhapsody", (recentComponent.section.items[0] as RecentItem).title)
-        
+
         // Verify Recommendations section uses grid layout
         val recommendationComponent = uiComponents.find { it.section.title == "Recommended for You" }!!
         assertEquals(LayoutType.GRID, recommendationComponent.layoutType)
@@ -175,7 +175,7 @@ class DynamicContentSectionsTest {
         // Arrange
         val userHistoryService = UserHistoryService()
         val recentlyPlayedGenerator = RecentlyPlayedGenerator(userHistoryService)
-        
+
         // Add test history
         val baseTime = System.currentTimeMillis()
         userHistoryService.recordPlayEvent(
@@ -190,7 +190,7 @@ class DynamicContentSectionsTest {
         // Act - Generate section and create PLY-141 RecentlyPlayedSection component
         val sectionResult = recentlyPlayedGenerator.generateSection(limit = 5)
         assertTrue(sectionResult.isSuccess)
-        
+
         val dynamicRecentItems = sectionResult.getOrNull()!!.items
         val recentlyPlayedSection = RecentlyPlayedSection(dynamicRecentItems)
 
@@ -199,12 +199,12 @@ class DynamicContentSectionsTest {
         assertEquals(LayoutType.CAROUSEL, recentlyPlayedSection.getLayoutType())
         assertEquals(2, recentlyPlayedSection.getRecentItems().size)
         assertTrue(recentlyPlayedSection.hasContent())
-        
+
         // Verify ordering (most recent first)
         val items = recentlyPlayedSection.getRecentItems()
         assertEquals("Hotel California", items[0].title)
         assertEquals("Bohemian Rhapsody", items[1].title)
-        
+
         // Verify it converts properly to ContentSectionComponent
         val component = recentlyPlayedSection.asContentSectionComponent()
         assertEquals(LayoutType.CAROUSEL, component.layoutType)

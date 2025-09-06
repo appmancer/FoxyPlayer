@@ -36,20 +36,20 @@ class UserHistoryService {
             path = song.path,
             playedAt = timestamp
         )
-        
+
         val currentHistory = _playHistory.value.toMutableList()
-        
+
         // Remove existing entry if present to avoid duplicates
         currentHistory.removeAll { it.id == historyItem.id }
-        
+
         // Add to beginning (most recent first)
         currentHistory.add(0, historyItem)
-        
+
         // Limit history size to 100 items
         if (currentHistory.size > 100) {
             currentHistory.removeLast()
         }
-        
+
         _playHistory.value = currentHistory
     }
 
@@ -111,7 +111,7 @@ class RecommendationGenerator(
     suspend fun generateSection(limit: Int = 10): Result<ContentSection<RecommendationItem>> {
         return try {
             val albumsResult = albumDiscoveryService.getAlbumCentricData()
-            
+
             if (albumsResult.isSuccess()) {
                 val albums = albumsResult.getOrNull() ?: emptyList()
                 val recommendations = albums.take(limit).mapIndexed { index, album ->
@@ -124,7 +124,7 @@ class RecommendationGenerator(
                         artwork = generateArtworkUrl(album.artistName, album.albumName)
                     )
                 }
-                
+
                 val section = ContentSection(
                     title = "Recommended for You",
                     items = recommendations
@@ -186,7 +186,7 @@ class ContentSectionOrganizer(
     suspend fun generateOrderedSections(): Result<List<ContentSection<*>>> {
         return try {
             val sections = mutableListOf<ContentSection<*>>()
-            
+
             // Check if user has recent history
             val recentItems = userHistoryService.getRecentlyPlayed(1)
             if (recentItems.isNotEmpty()) {
@@ -197,14 +197,14 @@ class ContentSectionOrganizer(
                     sections.add(recentSection.getOrThrow())
                 }
             }
-            
+
             // Generate recommendations section
             val recommendationGenerator = RecommendationGenerator(albumDiscoveryService)
             val recommendationSection = recommendationGenerator.generateSection(8)
             if (recommendationSection.isSuccess) {
                 sections.add(recommendationSection.getOrThrow())
             }
-            
+
             Result.success(sections)
         } catch (e: Exception) {
             Result.failure(e)
