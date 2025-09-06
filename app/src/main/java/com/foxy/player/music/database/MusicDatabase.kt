@@ -184,13 +184,16 @@ class MusicDatabaseProvider : DatabaseProvider {
 
                         // Create performance indexes for enhanced_albums
                         database.execSQL(
-                            "CREATE INDEX IF NOT EXISTS index_enhanced_albums_title_artist ON enhanced_albums(title, artist)"
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_albums_title_artist " +
+                                "ON enhanced_albums(title, artist)"
                         )
                         database.execSQL(
-                            "CREATE UNIQUE INDEX IF NOT EXISTS index_enhanced_albums_path ON enhanced_albums(path)"
+                            "CREATE UNIQUE INDEX IF NOT EXISTS index_enhanced_albums_path " +
+                                "ON enhanced_albums(path)"
                         )
                         database.execSQL(
-                            "CREATE INDEX IF NOT EXISTS index_enhanced_albums_last_modified ON enhanced_albums(last_modified)"
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_albums_last_modified " +
+                                "ON enhanced_albums(last_modified)"
                         )
                         database.execSQL(
                             "CREATE INDEX IF NOT EXISTS index_enhanced_albums_artist ON enhanced_albums(artist)"
@@ -207,24 +210,30 @@ class MusicDatabaseProvider : DatabaseProvider {
                             "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_album_id ON enhanced_tracks(album_id)"
                         )
                         database.execSQL(
-                            "CREATE UNIQUE INDEX IF NOT EXISTS index_enhanced_tracks_file_path ON enhanced_tracks(file_path)"
+                            "CREATE UNIQUE INDEX IF NOT EXISTS index_enhanced_tracks_file_path " +
+                                "ON enhanced_tracks(file_path)"
                         )
                         database.execSQL(
-                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_last_modified ON enhanced_tracks(last_modified)"
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_last_modified " +
+                                "ON enhanced_tracks(last_modified)"
                         )
                         database.execSQL(
-                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_artist_album_id ON enhanced_tracks(artist, album_id)"
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_tracks_artist_album_id " +
+                                "ON enhanced_tracks(artist, album_id)"
                         )
 
                         // Create performance indexes for junction tables
                         database.execSQL(
-                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_album_id ON enhanced_album_tracks(album_id)"
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_album_id " +
+                                "ON enhanced_album_tracks(album_id)"
                         )
                         database.execSQL(
-                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_enhanced_track_id ON enhanced_album_tracks(enhanced_track_id)"
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_enhanced_track_id " +
+                                "ON enhanced_album_tracks(enhanced_track_id)"
                         )
                         database.execSQL(
-                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_track_order ON enhanced_album_tracks(track_order)"
+                            "CREATE INDEX IF NOT EXISTS index_enhanced_album_tracks_track_order " +
+                                "ON enhanced_album_tracks(track_order)"
                         )
 
                         database.execSQL(
@@ -299,7 +308,10 @@ class DatabaseMigrationManager {
     /**
      * Performs migration while maintaining data integrity with foreign key constraints.
      */
-    fun migrateWithIntegrityConstraints(existingTracks: List<String>, existingAlbums: List<String>): DatabaseResult<Unit> = runCatching {
+    fun migrateWithIntegrityConstraints(
+        existingTracks: List<String>,
+        existingAlbums: List<String>
+    ): DatabaseResult<Unit> = runCatching {
         val database = MusicDatabaseProvider.getRoomDatabase()
             ?: return DatabaseResult.Error(
                 IllegalStateException("Database provider returned null"),

@@ -4,8 +4,6 @@ import android.media.MediaMetadataRetriever
 import android.util.Log
 import com.foxy.player.music.entities.AudioMetadata
 import com.foxy.player.music.network.MusicDiscoveryService
-import com.foxy.player.music.sync.*
-import com.foxy.player.music.ui.*
 import java.io.IOException
 
 // ===== METADATA EXTRACTION STRATEGIES =====
