@@ -3,6 +3,29 @@ package com.foxy.player.music
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
+/**
+ * Shared utility for generating artwork URLs from artist and album.
+ * Handles proper URL encoding for security and reliability.
+ */
+internal fun generateArtworkUrl(artist: String, album: String): String {
+    val encodedArtist = URLEncoder.encode(artist.replace(" ", "-"), StandardCharsets.UTF_8.toString())
+    val encodedAlbum = URLEncoder.encode(album.replace(" ", "-"), StandardCharsets.UTF_8.toString())
+    return "https://example.com/artwork/$encodedArtist-$encodedAlbum.jpg".lowercase()
+}
+
+/**
+ * Slugifies a string: replaces all non-alphanumeric characters with hyphens,
+ * collapses multiple hyphens, trims leading/trailing hyphens, and lowercases the result.
+ */
+internal fun slugify(input: String): String {
+    return input
+        .lowercase()
+        .replace(Regex("[^a-z0-9]+"), "-")
+        .trim('-')
+}
 
 /**
  * Internal data class for tracking play history
@@ -71,12 +94,7 @@ class UserHistoryService {
     }
 
     private fun generateId(song: Song): String {
-        return "${song.artist}-${song.title}".replace(" ", "-").lowercase()
-    }
-
-    private fun generateArtworkUrl(artist: String, album: String): String {
-        // Placeholder artwork URL generation
-        return "https://example.com/artwork/${artist.replace(" ", "-")}-${album.replace(" ", "-")}.jpg".lowercase()
+        return "${slugify(song.artist)}-${slugify(song.title)}"
     }
 }
 
@@ -170,9 +188,6 @@ class RecommendationGenerator(
         return (baseConfidence + trackCountBonus - positionPenalty).coerceIn(0.0, 1.0)
     }
 
-    private fun generateArtworkUrl(artist: String, album: String): String {
-        return "https://example.com/artwork/${artist.replace(" ", "-")}-${album.replace(" ", "-")}.jpg".lowercase()
-    }
 }
 
 /**
