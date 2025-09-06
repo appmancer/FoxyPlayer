@@ -4,11 +4,11 @@ import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.ui.ArtistGroup
 import com.foxy.player.music.ui.MusicBrowseResponse
 import com.foxy.player.music.ui.MusicSearchResponse
+import com.foxy.player.music.ui.MusicSearchUIState
 import com.foxy.player.music.ui.MusicSortResponse
 import com.foxy.player.music.ui.MusicTrack
 import com.foxy.player.music.ui.MusicTrackWithMetadata
 import com.foxy.player.music.ui.SearchCriteria
-import com.foxy.player.music.ui.MusicSearchUIState
 import com.foxy.player.music.ui.SortCriteria
 
 // ===== MUSIC SEARCH AND BROWSE SERVICE =====
