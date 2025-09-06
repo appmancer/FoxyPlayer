@@ -112,116 +112,117 @@ fun FoldersViewScreen(service: MusicDiscoveryService) {
         result == null -> Text("Loading folders...", style = MaterialTheme.typography.bodyLarge)
         result.isSuccess -> {
             val folders = result.getOrNull()?.folders.orEmpty()
-            LazyColumn(modifier = Modifier.fillMaxSize()) { items(folders) { f -> Text(f)     }
-}
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(folders) { f -> Text(f) }
+            }
 
 // ===== PLY-141: MODULAR UI COMPONENT STRUCTURE - COMPOSE LAYOUTS =====
 
-@Composable
-fun <T> ContentSectionRenderer(
-    component: ContentSectionComponent<T>,
-    itemRenderer: @Composable (T) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-    ) {
-        // Section title
-        Text(
-            text = component.section.title,
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-
-        // Adaptive layout based on layout type
-        when (component.layoutType) {
-            LayoutType.LIST -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            @Composable
+            fun <T> ContentSectionRenderer(
+                component: ContentSectionComponent<T>,
+                itemRenderer: @Composable (T) -> Unit
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
                 ) {
-                    items(component.section.items) { item ->
-                        itemRenderer(item)
+                    // Section title
+                    Text(
+                        text = component.section.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+
+                    // Adaptive layout based on layout type
+                    when (component.layoutType) {
+                        LayoutType.LIST -> {
+                            LazyColumn(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(component.section.items) { item ->
+                                    itemRenderer(item)
+                                }
+                            }
+                        }
+                        LayoutType.GRID -> {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                contentPadding = PaddingValues(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(component.section.items) { item ->
+                                    itemRenderer(item)
+                                }
+                            }
+                        }
+                        LayoutType.CAROUSEL -> {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(component.section.items) { item ->
+                                    itemRenderer(item)
+                                }
+                            }
+                        }
                     }
                 }
             }
-            LayoutType.GRID -> {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+
+            @Composable
+            fun RecentItemCard(recentItem: RecentItem) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(4.dp)
                 ) {
-                    items(component.section.items) { item ->
-                        itemRenderer(item)
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = recentItem.title,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = recentItem.artist,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
-            LayoutType.CAROUSEL -> {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+
+            @Composable
+            fun RecommendationItemCard(recommendationItem: RecommendationItem) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(4.dp)
                 ) {
-                    items(component.section.items) { item ->
-                        itemRenderer(item)
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = recommendationItem.title,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = recommendationItem.artist,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Confidence: ${(recommendationItem.confidence * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun RecentItemCard(recentItem: RecentItem) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
-            Text(
-                text = recentItem.title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = recentItem.artist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun RecommendationItemCard(recommendationItem: RecommendationItem) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
-            Text(
-                text = recommendationItem.title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = recommendationItem.artist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Confidence: ${(recommendationItem.confidence * 100).toInt()}%",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-}
         }
         else -> Text("Failed to load folders", style = MaterialTheme.typography.bodyLarge)
     }

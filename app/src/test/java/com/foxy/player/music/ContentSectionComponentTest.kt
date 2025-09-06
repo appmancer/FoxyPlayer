@@ -25,7 +25,7 @@ class ContentSectionComponentTest {
                 artwork = "https://example.com/queen.jpg"
             ),
             RecentItem(
-                id = "recent_002", 
+                id = "recent_002",
                 title = "Hotel California",
                 artist = "Eagles",
                 lastPlayed = System.currentTimeMillis() - 1000,
@@ -52,7 +52,7 @@ class ContentSectionComponentTest {
         val recommendationItems = listOf(
             RecommendationItem(
                 id = "rec_001",
-                title = "Stairway to Heaven", 
+                title = "Stairway to Heaven",
                 artist = "Led Zeppelin",
                 reason = "Based on your rock preferences",
                 confidence = 0.85,
@@ -61,7 +61,7 @@ class ContentSectionComponentTest {
         )
         val section = ContentSection(title = "Recommended for You", items = recommendationItems)
 
-        // Act  
+        // Act
         val component = ContentSectionComponent(
             section = section,
             layoutType = LayoutType.GRID
@@ -80,7 +80,7 @@ class ContentSectionComponentTest {
             RecentItem(
                 id = "recent_001",
                 title = "Bohemian Rhapsody",
-                artist = "Queen", 
+                artist = "Queen",
                 lastPlayed = System.currentTimeMillis(),
                 artwork = "https://example.com/queen.jpg"
             )
@@ -102,7 +102,10 @@ class ContentSectionComponentTest {
     @Test
     fun `ContentSectionComponent should handle empty content gracefully`() {
         // Arrange
-        val emptySection = ContentSection<RecentItem>(title = "Empty Section", items = emptyList())
+        val emptySection = ContentSection<RecentItem>(
+            title = "Empty Section",
+            items = emptyList()
+        )
 
         // Act
         val component = ContentSectionComponent(
@@ -129,7 +132,7 @@ class ContentSectionComponentTest {
             ),
             RecentItem(
                 id = "recent_002",
-                title = "Hotel California", 
+                title = "Hotel California",
                 artist = "Eagles",
                 lastPlayed = System.currentTimeMillis() - 1000,
                 artwork = "https://example.com/eagles.jpg"
@@ -190,7 +193,7 @@ class ContentSectionComponentTest {
         assertEquals(LayoutType.CAROUSEL, component.layoutType)
         assertEquals(recentItems, component.section.items)
         assertTrue(component.canRenderContent())
-        
+
         // Verify that the component maintains consistency with the section
         assertEquals(recentlyPlayedSection.getTitle(), component.section.title)
         assertEquals(recentlyPlayedSection.getLayoutType(), component.layoutType)
@@ -210,7 +213,7 @@ class ContentSectionComponentTest {
                 artwork = "https://example.com/queen.jpg"
             )
         )
-        
+
         val recommendationItems = listOf(
             RecommendationItem(
                 id = "rec_001",
@@ -224,20 +227,29 @@ class ContentSectionComponentTest {
 
         // Act - Create different components with different layout types
         val recentSection = ContentSection(title = "Recently Played", items = recentItems)
-        val recentComponent = ContentSectionComponent(section = recentSection, layoutType = LayoutType.CAROUSEL)
-        
-        val recommendationSection = ContentSection(title = "Recommended for You", items = recommendationItems) 
-        val recommendationComponent = ContentSectionComponent(section = recommendationSection, layoutType = LayoutType.GRID)
+        val recentComponent = ContentSectionComponent(
+            section = recentSection,
+            layoutType = LayoutType.CAROUSEL
+        )
+
+        val recommendationSection = ContentSection(
+            title = "Recommended for You",
+            items = recommendationItems
+        )
+        val recommendationComponent = ContentSectionComponent(
+            section = recommendationSection,
+            layoutType = LayoutType.GRID
+        )
 
         // Assert - All components should be functional
         assertTrue(recentComponent.canRenderContent())
         assertEquals(LayoutType.CAROUSEL, recentComponent.layoutType)
         assertEquals("Recently Played", recentComponent.section.title)
-        
+
         assertTrue(recommendationComponent.canRenderContent())
         assertEquals(LayoutType.GRID, recommendationComponent.layoutType)
         assertEquals("Recommended for You", recommendationComponent.section.title)
-        
+
         // Verify items are preserved
         assertEquals(recentItems, recentComponent.section.items)
         assertEquals(recommendationItems, recommendationComponent.section.items)
