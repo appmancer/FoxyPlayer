@@ -188,7 +188,7 @@ gh auth switch --hostname github.com --user appmancer
 original_remote=$(git remote get-url origin)
 
 # Check if remote URL needs correction for appmancer SSH access
-correct_remote="git@github.com-personal:appmancer/FoxyPlayer.git"
+correct_remote="git@github.com:appmancer/FoxyPlayer.git"
 if [[ "$original_remote" != "$correct_remote" ]]; then
     echo -e "${INFO} Correcting remote URL for appmancer SSH access..."
     echo -e "${INFO} From: $original_remote"
@@ -317,7 +317,7 @@ fi
 
 # Keep GitHub CLI as appmancer for pr-monitor phase
 echo -e "${INFO} SSH Key Management: Keeping GitHub CLI as appmancer for PR workflow"
-echo -e "${INFO} GitHub CLI will be restored to original user in pr-cleanup after PR merge"
+echo -e "${INFO} GitHub CLI will be restored to Sam-3Degrees in pr-cleanup after PR merge"
 
 echo -e "\n${SUCCESS} ${GREEN}PULL REQUEST CREATED SUCCESSFULLY${NC}"
 echo -e "${INFO} Summary:"
