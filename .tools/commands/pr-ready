@@ -1,6 +1,6 @@
 #!/bin/bash
 # pr-ready command for Spectrum Development Framework
-# Implements: Automated quality gates validation and PR creation
+# Implements: Automated quality gates validation and PR creation (Kotlin/Android version)
 
 # Colors and emoji
 RED='\033[0;31m'
@@ -43,13 +43,14 @@ fi
 
 echo -e "${INFO} TDD Cycles completed: $tdd_cycles"
 
-# Automated Quality Gates from AI-DEVELOPMENT-GUIDE
+# Automated Quality Gates for Kotlin/Android
 echo -e "\n${QUALITY} ${YELLOW}Running Automated Quality Gates:${NC}"
 echo ""
 
-# Quality Gate 1: Security (AUTOMATED)
+# Quality Gate 1: Security (AUTOMATED) - Check for security warnings in Kotlin
 echo -e "${WORKING} Quality Gate 1: Security Validation"
-security_warnings=$(dotnet build --no-restore 2>&1 | grep -E "CA3[0-9]{3}|S2068|S4423")
+# Build and capture security warnings specific to Android/Kotlin
+security_warnings=$(./gradlew build -x lint --no-daemon 2>&1 | grep -iE "security|S2068|S4423|password|key|token|secret")
 
 if [[ -n "$security_warnings" ]]; then
     echo -e "${ERROR} ${RED}BLOCKING: Security warnings found${NC}"
@@ -65,16 +66,16 @@ echo -e "${SUCCESS} Security validation passed"
 
 # Quality Gate 2: Build (AUTOMATED)
 echo -e "\n${WORKING} Quality Gate 2: Build Validation"
-echo -e "${INFO} Running: dotnet build --verbosity normal"
+echo -e "${INFO} Running: ./gradlew build -x lint --no-daemon"
 
-build_output=$(dotnet build --verbosity normal 2>&1)
+build_output=$(./gradlew build -x lint --no-daemon 2>&1)
 build_exit_code=$?
 
 if [[ $build_exit_code -ne 0 ]]; then
     echo -e "${ERROR} ${RED}BLOCKING: Build failed${NC}"
     echo ""
     echo -e "${YELLOW}Build errors:${NC}"
-    echo "$build_output"
+    echo "$build_output" | tail -20
     echo ""
     echo -e "${INFO} Fix build errors and rerun pr-ready"
     exit 1
@@ -83,37 +84,44 @@ echo -e "${SUCCESS} Build validation passed"
 
 # Quality Gate 3: Tests (AUTOMATED)
 echo -e "\n${WORKING} Quality Gate 3: Test Validation"
-echo -e "${INFO} Running: dotnet test --no-build"
+echo -e "${INFO} Running: ./gradlew test --no-daemon"
 
-test_output=$(dotnet test --no-build --verbosity normal 2>&1)
+test_output=$(./gradlew test --no-daemon 2>&1)
 test_exit_code=$?
 
 if [[ $test_exit_code -ne 0 ]]; then
     echo -e "${ERROR} ${RED}BLOCKING: Tests failed${NC}"
     echo ""
     echo -e "${YELLOW}Test failures:${NC}"
-    echo "$test_output" | grep -A 10 -B 5 "Failed"
+    echo "$test_output" | grep -A 10 -B 5 -i "FAILED"
     echo ""
     echo -e "${INFO} All tests must pass before PR creation"
     echo -e "${INFO} Fix failing tests and rerun pr-ready"
     exit 1
 fi
 
-# Extract test summary
-test_passed=$(echo "$test_output" | grep -o "Passed: [0-9]*" | grep -o "[0-9]*" || echo "0")
-test_total=$(echo "$test_output" | grep -o "Total: [0-9]*" | grep -o "[0-9]*" || echo "0")
+# Extract test summary from Gradle output
+test_passed=$(echo "$test_output" | grep -o "BUILD SUCCESSFUL" | wc -l)
+test_total_line=$(echo "$test_output" | grep -E "tests? completed" | tail -1)
+if [[ -n "$test_total_line" ]]; then
+    test_total=$(echo "$test_total_line" | grep -o "[0-9]* test" | grep -o "[0-9]*" || echo "0")
+    test_passed=$(echo "$test_total_line" | grep -o "[0-9]* test" | grep -o "[0-9]*" || echo "0")
+else
+    test_total="0"
+    test_passed="0"
+fi
 echo -e "${SUCCESS} Test validation passed ($test_passed/$test_total tests)"
 
-# Quality Gate 4: Style (AUTOMATED with auto-fix)
+# Quality Gate 4: Style (AUTOMATED with auto-fix) - Use ktlint for Kotlin
 echo -e "\n${WORKING} Quality Gate 4: Style Validation"
-echo -e "${INFO} Running: dotnet format whitespace --verify-no-changes"
+echo -e "${INFO} Running: ./gradlew ktlintCheck --no-daemon"
 
-format_output=$(dotnet format whitespace --verify-no-changes 2>&1)
+format_output=$(./gradlew ktlintCheck --no-daemon 2>&1)
 format_exit_code=$?
 
 if [[ $format_exit_code -ne 0 ]]; then
     echo -e "${YELLOW} Style issues found - auto-fixing..."
-    dotnet format whitespace
+    ./gradlew ktlintFormat --no-daemon
     
     # Check if there are changes to commit
     if [[ -n "$(git status --porcelain)" ]]; then
@@ -211,6 +219,11 @@ deletions=$(git diff dev..HEAD --shortstat | grep -o '[0-9]* deletion' | grep -o
 # Create PR
 echo -e "\n${PR} Creating Pull Request..."
 
+# Temporarily switch to standard GitHub remote for gh CLI compatibility
+temp_remote="git@github.com:appmancer/FoxyPlayer.git"
+echo -e "${INFO} Temporarily switching to standard GitHub remote for PR creation..."
+git remote set-url origin "$temp_remote"
+
 # Generate comprehensive PR description
 pr_description="## Summary
 Implements $ticket_id: $ticket_title
@@ -228,10 +241,10 @@ Implements $ticket_id: $ticket_title
 ## Quality Validation ✅
 All quality gates automated and verified:
 
-🔒 **Security**: No security warnings (CA3xxx, S2068, S4423)  
-🔨 **Build**: Successful compilation with no errors  
+🔒 **Security**: No security warnings or exposed secrets  
+🔨 **Build**: Successful Gradle compilation with no errors  
 🧪 **Tests**: All $test_passed tests passing  
-💅 **Style**: Code properly formatted according to Centro standards  
+💅 **Style**: Code properly formatted according to ktlint standards  
 
 ## Test Coverage
 Implementation includes comprehensive test coverage developed through $tdd_cycles TDD cycles:
@@ -299,17 +312,18 @@ jq '.phase = "pr-created" | .pr_created_at = now | .pr_created_at |= todate | .p
    .spectrum/current-ticket.json > .spectrum/current-ticket.json.tmp
 mv .spectrum/current-ticket.json.tmp .spectrum/current-ticket.json
 
+# Restore original remote URL (the working SSH format)
+echo -e "${INFO} Restoring original SSH remote URL..."
+git remote set-url origin "$correct_remote"
+
 # Restore original remote URL only if we changed it
-if [[ "$original_remote" != "$correct_remote" ]]; then
-    echo -e "${INFO} Restoring original remote URL: $original_remote"
-    git remote set-url origin "$original_remote"
-else
-    echo -e "${INFO} Remote URL already correct, no restoration needed"
-fi
+# Note: We always restore to the working SSH format for ongoing development
+echo -e "${INFO} Restoring SSH remote URL for development: $correct_remote"
+git remote set-url origin "$correct_remote"
 
 # Keep GitHub CLI as appmancer for pr-monitor phase
 echo -e "${INFO} SSH Key Management: Keeping GitHub CLI as appmancer for PR workflow"
-echo -e "${INFO} GitHub CLI will be restored to original user in pr-cleanup after PR merge"
+echo -e "${INFO} GitHub CLI will be restored to Sam-3Degrees in pr-cleanup after PR merge"
 
 echo -e "\n${SUCCESS} ${GREEN}PULL REQUEST CREATED SUCCESSFULLY${NC}"
 echo -e "${INFO} Summary:"

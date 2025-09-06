@@ -1,11 +1,16 @@
 package com.foxy.player.music
 
-import com.foxy.player.music.database.*
+import com.foxy.player.music.database.TrackDaoInterface
 import com.foxy.player.music.entities.TrackEntity
-import com.foxy.player.music.pcloud.*
+import com.foxy.player.music.pcloud.PCloudApiInterface
+import com.foxy.player.music.pcloud.PCloudUtils
 import com.foxy.player.music.repository.TrackRepositoryInterface
-import com.foxy.player.music.sync.*
-import com.foxy.player.music.ui.*
+import com.foxy.player.music.sync.BackgroundSyncResponse
+import com.foxy.player.music.sync.SyncResult
+import com.foxy.player.music.sync.SyncStatus
+import com.foxy.player.music.ui.MusicTrackWithMetadata
+import com.foxy.player.music.ui.OfflineResult
+import com.foxy.player.music.ui.PagedTracksResult
 
 /**
  * Configuration for background sync operations.
