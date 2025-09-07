@@ -454,6 +454,20 @@ fun AlbumGridItem(
 }
 
 /**
+ * Helper functions for AlbumGridItem component
+ * PLY-143: Album Artwork System integration
+ */
+object AlbumGridItem {
+    suspend fun loadArtworkForAlbum(album: AlbumUIModel, artworkLoader: AlbumArtworkLoader): Result<ImageBitmap?> {
+        return if (album.artworkUrl != null) {
+            artworkLoader.loadArtwork(album.artworkUrl)
+        } else {
+            artworkLoader.loadArtworkWithFallback("placeholder")
+        }
+    }
+}
+
+/**
  * Album list screen component using Material3 LazyVerticalGrid.
  * Displays albums from ViewModel state following PLY-127 Albums-First Navigation architecture.
  * Handles three states: Loading (progress indicator), Success (grid display), and Error (message).

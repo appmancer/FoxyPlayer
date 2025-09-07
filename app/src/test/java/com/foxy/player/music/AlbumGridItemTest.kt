@@ -1,6 +1,9 @@
 package com.foxy.player.music
 
+import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -30,5 +33,26 @@ class AlbumGridItemTest {
 
         // Assert - Verify UI model is valid for display
         assertTrue("Album UI model should be valid", testAlbum.isValid())
+    }
+
+    @Test
+    fun `AlbumGridItem displays artwork using AlbumArtworkLoader`() = runTest {
+        // Arrange
+        val testAlbum = AlbumUIModel(
+            id = "test-album-2",
+            title = "Artwork Test Album",
+            artist = "Test Artist",
+            artworkUrl = "https://example.com/artwork.jpg",
+            trackCount = 10
+        )
+        val artworkLoader = AlbumArtworkLoader()
+        
+        // Act
+        val artworkImageBitmap = AlbumGridItem.loadArtworkForAlbum(testAlbum, artworkLoader)
+        
+        // Assert
+        assertNotNull("Artwork should be loaded for album", artworkImageBitmap)
+        assertTrue("Should successfully load artwork", artworkImageBitmap.isSuccess)
+        assertTrue("Should use artwork loader for album", artworkLoader.isCached(testAlbum.artworkUrl!!))
     }
 }
