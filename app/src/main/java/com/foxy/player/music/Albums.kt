@@ -40,12 +40,17 @@ import kotlinx.coroutines.launch
 /**
  * Loads album artwork from URLs
  * PLY-143: Album Artwork System - minimal implementation to pass tests
+ * 
+ * Note: Currently returns null ImageBitmaps as placeholder implementation.
+ * Future enhancement will integrate Coil library for actual image loading.
  */
 class AlbumArtworkLoader {
     private val cache = mutableMapOf<String, ImageBitmap?>()
     private var cacheHitCount = 0
     private var lastResultType = "normal"
 
+    // The suspend modifier is present for future enhancement: this function will perform 
+    // async operations (e.g., image loading with Coil) in a later refactor.
     suspend fun loadArtwork(url: String): Result<ImageBitmap?> {
         // Check cache first
         if (cache.containsKey(url)) {
@@ -53,19 +58,21 @@ class AlbumArtworkLoader {
             return Result.success(cache[url])
         }
 
-        // Minimal implementation - just return a successful result
-        // This will be enhanced in refactor phase to actually load images
-        val result = null
+        // Minimal implementation - returns null as placeholder for actual image loading
+        // TODO: Replace with Coil integration for real image loading from URLs
+        val result = null // Placeholder: will load actual ImageBitmap in future iteration
         cache[url] = result
         lastResultType = "normal"
         return Result.success(result)
     }
 
+    // The suspend modifier is present for future enhancement: this function will perform 
+    // async operations (e.g., image loading with Coil) in a later refactor.
     suspend fun loadArtworkWithFallback(url: String): Result<ImageBitmap?> {
-        // Minimal implementation - always return placeholder for error handling
+        // Minimal implementation - returns null placeholder for error handling
+        // TODO: Replace with actual fallback placeholder ImageBitmap creation
         lastResultType = "placeholder"
-        // Create a minimal placeholder (null for now, will be enhanced later)
-        return Result.success(null)
+        return Result.success(null) // Placeholder: will create fallback ImageBitmap in future iteration
     }
 
     fun isCached(url: String): Boolean {
