@@ -832,6 +832,17 @@ data class ContentCardItem(
 )
 
 /**
+ * PLY-144: Enhanced Content Cards - Animation states for card visual feedback
+ * Represents different animation states for enhanced content cards
+ */
+enum class CardAnimationState {
+    IDLE,
+    LOADING,
+    PLAYING,
+    PAUSED
+}
+
+/**
  * PLY-144: Enhanced Content Cards - Enhanced content card component
  * Minimal implementation for displaying content cards with artwork integration and progress indicators
  */
@@ -841,6 +852,7 @@ class EnhancedContentCard private constructor(
     val artworkUrl: String
 ) {
     private var playbackProgress: Float = 0f
+    private var animationState: CardAnimationState = CardAnimationState.IDLE
     
     companion object {
         fun create(item: ContentCardItem): EnhancedContentCard {
@@ -866,5 +878,17 @@ class EnhancedContentCard private constructor(
     
     fun hasProgressIndicator(): Boolean {
         return playbackProgress > 0f
+    }
+    
+    fun setAnimationState(state: CardAnimationState) {
+        animationState = state
+    }
+    
+    fun getAnimationState(): CardAnimationState {
+        return animationState
+    }
+    
+    fun isAnimated(): Boolean {
+        return animationState != CardAnimationState.IDLE
     }
 }

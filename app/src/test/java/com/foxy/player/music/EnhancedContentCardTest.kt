@@ -57,4 +57,37 @@ class EnhancedContentCardTest {
         assertEquals("Progress should be set correctly", 0.35f, progressValue, 0.001f)
         assertTrue("Card should have progress indicator when progress is set", hasProgressIndicator)
     }
+
+    @Test
+    fun `Enhanced content card should support state animations for loading, playing, and paused`() = runTest {
+        // Arrange
+        val testItem = ContentCardItem(
+            id = "test-card-3",
+            title = "Animated Song",
+            subtitle = "Animation Artist",
+            artworkUrl = "https://example.com/animated-art.jpg"
+        )
+        
+        // Act
+        val cardComponent = EnhancedContentCard.create(testItem)
+        
+        // Test loading state
+        cardComponent.setAnimationState(CardAnimationState.LOADING)
+        assertEquals("Loading state should be set", CardAnimationState.LOADING, cardComponent.getAnimationState())
+        assertTrue("Card should be animated when in loading state", cardComponent.isAnimated())
+        
+        // Test playing state
+        cardComponent.setAnimationState(CardAnimationState.PLAYING)
+        assertEquals("Playing state should be set", CardAnimationState.PLAYING, cardComponent.getAnimationState())
+        assertTrue("Card should be animated when playing", cardComponent.isAnimated())
+        
+        // Test paused state
+        cardComponent.setAnimationState(CardAnimationState.PAUSED)
+        assertEquals("Paused state should be set", CardAnimationState.PAUSED, cardComponent.getAnimationState())
+        assertTrue("Card should be animated when paused", cardComponent.isAnimated())
+        
+        // Test idle state (no animation)
+        cardComponent.setAnimationState(CardAnimationState.IDLE)
+        assertEquals("Idle state should be set", CardAnimationState.IDLE, cardComponent.getAnimationState())
+    }
 }
