@@ -28,4 +28,21 @@ class AlbumArtworkLoaderTest {
         // For minimal implementation, we just check that method completes successfully
         // In refactor phase, we'll verify actual ImageBitmap content
     }
+
+    @Test
+    fun albumArtworkLoader_caches_loaded_artwork_efficiently() = runTest {
+        // Arrange
+        val artworkUrl = "https://example.com/cached-artwork.jpg"
+        val loader = AlbumArtworkLoader()
+        
+        // Act - Load artwork twice
+        val firstResult = loader.loadArtwork(artworkUrl)
+        val secondResult = loader.loadArtwork(artworkUrl)
+        
+        // Assert - Second call should be from cache (faster/no network call)
+        assertTrue("First load should be successful", firstResult.isSuccess)
+        assertTrue("Second load should be successful", secondResult.isSuccess)
+        assertTrue("Should have cache statistics", loader.isCached(artworkUrl))
+        assertEquals("Cache hit count should be 1", 1, loader.getCacheHitCount())
+    }
 }

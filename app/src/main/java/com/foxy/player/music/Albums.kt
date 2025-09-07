@@ -42,10 +42,29 @@ import kotlinx.coroutines.launch
  * PLY-143: Album Artwork System - minimal implementation to pass tests
  */
 class AlbumArtworkLoader {
+    private val cache = mutableMapOf<String, ImageBitmap?>()
+    private var cacheHitCount = 0
+    
     suspend fun loadArtwork(url: String): Result<ImageBitmap?> {
+        // Check cache first
+        if (cache.containsKey(url)) {
+            cacheHitCount++
+            return Result.success(cache[url])
+        }
+        
         // Minimal implementation - just return a successful result
         // This will be enhanced in refactor phase to actually load images
-        return Result.success(null)
+        val result = null
+        cache[url] = result
+        return Result.success(result)
+    }
+    
+    fun isCached(url: String): Boolean {
+        return cache.containsKey(url)
+    }
+    
+    fun getCacheHitCount(): Int {
+        return cacheHitCount
     }
 }
 
