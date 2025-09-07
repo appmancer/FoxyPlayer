@@ -45,14 +45,14 @@ class AlbumArtworkLoader {
     private val cache = mutableMapOf<String, ImageBitmap?>()
     private var cacheHitCount = 0
     private var lastResultType = "normal"
-    
+
     suspend fun loadArtwork(url: String): Result<ImageBitmap?> {
         // Check cache first
         if (cache.containsKey(url)) {
             cacheHitCount++
             return Result.success(cache[url])
         }
-        
+
         // Minimal implementation - just return a successful result
         // This will be enhanced in refactor phase to actually load images
         val result = null
@@ -60,22 +60,22 @@ class AlbumArtworkLoader {
         lastResultType = "normal"
         return Result.success(result)
     }
-    
+
     suspend fun loadArtworkWithFallback(url: String): Result<ImageBitmap?> {
         // Minimal implementation - always return placeholder for error handling
         lastResultType = "placeholder"
         // Create a minimal placeholder (null for now, will be enhanced later)
         return Result.success(null)
     }
-    
+
     fun isCached(url: String): Boolean {
         return cache.containsKey(url)
     }
-    
+
     fun getCacheHitCount(): Int {
         return cacheHitCount
     }
-    
+
     fun getLastResultType(): String {
         return lastResultType
     }

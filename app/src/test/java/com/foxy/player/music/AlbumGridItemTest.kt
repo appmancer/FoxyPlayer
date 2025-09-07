@@ -1,6 +1,5 @@
 package com.foxy.player.music
 
-import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -46,10 +45,10 @@ class AlbumGridItemTest {
             trackCount = 10
         )
         val artworkLoader = AlbumArtworkLoader()
-        
+
         // Act
         val artworkImageBitmap = AlbumGridItem.loadArtworkForAlbum(testAlbum, artworkLoader)
-        
+
         // Assert
         assertNotNull("Artwork should be loaded for album", artworkImageBitmap)
         assertTrue("Should successfully load artwork", artworkImageBitmap.isSuccess)
