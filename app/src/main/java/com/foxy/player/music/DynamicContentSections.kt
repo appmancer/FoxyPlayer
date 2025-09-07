@@ -1,10 +1,10 @@
 package com.foxy.player.music
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 /**
  * Shared utility for generating artwork URLs from artist and album.
@@ -187,7 +187,6 @@ class RecommendationGenerator(
         val positionPenalty = (index / 10.0) * 0.1
         return (baseConfidence + trackCountBonus - positionPenalty).coerceIn(0.0, 1.0)
     }
-
 }
 
 /**
