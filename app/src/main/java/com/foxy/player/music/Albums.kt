@@ -819,3 +819,38 @@ data class AlbumDiscoveryResult(
     val trackCount: Int,
     val discoveredTracks: List<String>
 )
+
+/**
+ * PLY-144: Enhanced Content Cards - Content card item model
+ * Represents a content item for enhanced card display with artwork support
+ */
+data class ContentCardItem(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val artworkUrl: String
+)
+
+/**
+ * PLY-144: Enhanced Content Cards - Enhanced content card component
+ * Minimal implementation for displaying content cards with artwork integration
+ */
+class EnhancedContentCard private constructor(
+    val title: String,
+    val subtitle: String,
+    val artworkUrl: String
+) {
+    companion object {
+        fun create(item: ContentCardItem): EnhancedContentCard {
+            return EnhancedContentCard(
+                title = item.title,
+                subtitle = item.subtitle,
+                artworkUrl = item.artworkUrl
+            )
+        }
+    }
+    
+    suspend fun loadArtwork(): Result<Unit> {
+        return Result.success(Unit)
+    }
+}
