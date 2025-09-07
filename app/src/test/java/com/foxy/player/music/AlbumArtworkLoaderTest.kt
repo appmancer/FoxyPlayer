@@ -45,4 +45,20 @@ class AlbumArtworkLoaderTest {
         assertTrue("Should have cache statistics", loader.isCached(artworkUrl))
         assertEquals("Cache hit count should be 1", 1, loader.getCacheHitCount())
     }
+
+    @Test
+    fun albumArtworkLoader_handles_errors_with_fallback_placeholder() = runTest {
+        // Arrange
+        val invalidUrl = "invalid://malformed-url"
+        val loader = AlbumArtworkLoader()
+        
+        // Act
+        val result = loader.loadArtworkWithFallback(invalidUrl)
+        
+        // Assert
+        assertNotNull("Result should not be null", result)
+        assertTrue("Result should be successful even with invalid URL", result.isSuccess)
+        // For minimal implementation, we just check that fallback method exists and returns successfully
+        assertEquals("Should return placeholder type", "placeholder", loader.getLastResultType())
+    }
 }
