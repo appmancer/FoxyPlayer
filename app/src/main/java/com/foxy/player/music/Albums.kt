@@ -833,13 +833,15 @@ data class ContentCardItem(
 
 /**
  * PLY-144: Enhanced Content Cards - Enhanced content card component
- * Minimal implementation for displaying content cards with artwork integration
+ * Minimal implementation for displaying content cards with artwork integration and progress indicators
  */
 class EnhancedContentCard private constructor(
     val title: String,
     val subtitle: String,
     val artworkUrl: String
 ) {
+    private var playbackProgress: Float = 0f
+    
     companion object {
         fun create(item: ContentCardItem): EnhancedContentCard {
             return EnhancedContentCard(
@@ -852,5 +854,17 @@ class EnhancedContentCard private constructor(
     
     suspend fun loadArtwork(): Result<Unit> {
         return Result.success(Unit)
+    }
+    
+    fun setPlaybackProgress(progress: Float) {
+        playbackProgress = progress
+    }
+    
+    fun getPlaybackProgress(): Float {
+        return playbackProgress
+    }
+    
+    fun hasProgressIndicator(): Boolean {
+        return playbackProgress > 0f
     }
 }
