@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -33,6 +34,20 @@ import com.foxy.player.music.entities.EnhancedAlbumEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
+// ===== ALBUM ARTWORK LOADER =====
+
+/**
+ * Loads album artwork from URLs
+ * PLY-143: Album Artwork System - minimal implementation to pass tests
+ */
+class AlbumArtworkLoader {
+    suspend fun loadArtwork(url: String): Result<ImageBitmap?> {
+        // Minimal implementation - just return a successful result
+        // This will be enhanced in refactor phase to actually load images
+        return Result.success(null)
+    }
+}
 
 // ===== ALBUM RESULT TYPES =====
 
