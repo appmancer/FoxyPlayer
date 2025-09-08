@@ -190,18 +190,55 @@ echo -e "${SUCCESS} Current ticket state cleaned up"
 echo -e "\n${WORKING} Restoring authentication to Sam-3Degrees..."
 
 # Restore SSH configuration for normal development workflow
-echo -e "${WORKING} Restoring SSH configuration for development workflow..."
-ssh_config="$HOME/.ssh/config"
+echo -e "${WORKING} Checking SSH configuration for development workflow..."
 
-# Restore from backup if it exists
-if [[ -f "$ssh_config.spectrum-backup" ]]; then
-    echo -e "${INFO} Restoring SSH config from backup..."
-    cp "$ssh_config.spectrum-backup" "$ssh_config"
-    echo -e "${SUCCESS} SSH configuration restored from backup"
-else
-    echo -e "${INFO} Setting up standard SSH config (github.com=Sam-3Degrees, github.com-appmancer=appmancer)..."
-    # Set up the standard development configuration
-    cat > "$ssh_config" << 'EOF'
+# Function to check if SSH is already in development mode
+check_dev_ssh_config() {
+    local ssh_config="$HOME/.ssh/config"
+    
+    if [[ ! -f "$ssh_config" ]]; then
+        echo "missing"
+        return 1
+    fi
+    
+    # Check if github.com points to Sam-3Degrees key (development configuration)
+    local github_key=$(grep -A 3 "^Host github.com$" "$ssh_config" | grep "IdentityFile" | awk '{print $2}' || echo "")
+    local expected_key="~/.ssh/id_ed25519_sam_3degrees"
+    
+    if [[ "$github_key" == "$expected_key" ]]; then
+        echo "dev-ready"
+        return 0
+    else
+        echo "needs-restore"
+        return 1
+    fi
+}
+
+# Check current SSH state
+ssh_state=$(check_dev_ssh_config)
+
+case "$ssh_state" in
+    "dev-ready")
+        echo -e "${SUCCESS} SSH already configured for development (github.com → Sam-3Degrees)"
+        ;;
+    "needs-restore"|"missing")
+        if [[ "$ssh_state" == "missing" ]]; then
+            echo -e "${INFO} No SSH config found - creating development configuration"
+        else
+            echo -e "${INFO} SSH in PR workflow mode - restoring to development"
+        fi
+        
+        ssh_config="$HOME/.ssh/config"
+        
+        # Restore from backup if it exists
+        if [[ -f "$ssh_config.spectrum-backup" ]]; then
+            echo -e "${INFO} Restoring SSH config from backup..."
+            cp "$ssh_config.spectrum-backup" "$ssh_config"
+            echo -e "${SUCCESS} SSH configuration restored from backup"
+        else
+            echo -e "${INFO} Setting up standard SSH config (github.com=Sam-3Degrees, github.com-appmancer=appmancer)..."
+            # Set up the standard development configuration
+            cat > "$ssh_config" << 'EOF'
 Host github.com-appmancer
    HostName github.com
    User git
@@ -212,8 +249,13 @@ Host github.com
    User git
    IdentityFile ~/.ssh/id_ed25519_sam_3degrees
 EOF
-    echo -e "${SUCCESS} SSH configuration restored to development settings"
-fi
+            echo -e "${SUCCESS} SSH configuration restored to development settings"
+        fi
+        ;;
+    *)
+        echo -e "${ERROR} Unexpected SSH state: $ssh_state"
+        ;;
+esac
 
 # Restore GitHub CLI authentication
 if gh auth switch --hostname github.com --user Sam-3Degrees 2>/dev/null; then

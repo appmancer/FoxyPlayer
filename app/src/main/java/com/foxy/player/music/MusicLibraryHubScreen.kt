@@ -57,6 +57,24 @@ data class HubContent(
 
 // Legacy imperative screen removed; logic now handled by ViewModel
 
+/**
+ * PLY-145: Simplified MusicLibraryHubScreen that uses EnhancedContentCard directly
+ * No compatibility layers - just direct usage of new card components
+ */
+object MusicLibraryHubScreen {
+    fun createEnhancedCards(cards: Map<String, CardInfo>): Map<String, EnhancedContentCard> {
+        return cards.mapValues { (title, cardInfo) ->
+            val contentItem = ContentCardItem(
+                id = cardInfo.id,
+                title = title,
+                subtitle = "${cardInfo.count} items",
+                artworkUrl = "" // Intentionally empty - artwork URLs will be added in future enhancement
+            )
+            EnhancedContentCard.create(contentItem)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicLibraryHubRender(viewModel: MusicHubViewModel, navigator: Navigator? = null) {
