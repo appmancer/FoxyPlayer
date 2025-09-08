@@ -175,7 +175,29 @@ Co-Authored-By: opencode <noreply@opencode.ai>"
 fi
 
 # Manage SSH Configuration for GitHub operations
-echo -e "\n${WORKING} Managing SSH configuration for GitHub authentication..."
+echo -e "\n${WORKING} Checking SSH configuration for GitHub authentication..."
+
+# Function to check current SSH configuration state
+check_ssh_config() {
+    local ssh_config="$HOME/.ssh/config"
+    
+    if [[ ! -f "$ssh_config" ]]; then
+        echo "missing"
+        return 1
+    fi
+    
+    # Check if github.com points to appmancer key (PR workflow configuration)
+    local github_key=$(grep -A 3 "^Host github.com$" "$ssh_config" | grep "IdentityFile" | awk '{print $2}' || echo "")
+    local expected_key="~/.ssh/id_ed25519"
+    
+    if [[ "$github_key" == "$expected_key" ]]; then
+        echo "pr-ready"
+        return 0
+    else
+        echo "needs-switch"
+        return 1
+    fi
+}
 
 # Function to set up correct SSH configuration
 setup_ssh_config() {
@@ -187,7 +209,7 @@ setup_ssh_config() {
         cp "$ssh_config" "$ssh_config.spectrum-backup"
     fi
     
-    echo -e "${INFO} Setting up SSH config for PR workflow..."
+    echo -e "${INFO} Switching SSH config to PR workflow mode..."
     echo -e "${INFO} - github.com → appmancer key (for GitHub CLI)"
     echo -e "${INFO} - github.com-3Degrees → Sam-3Degrees key"
     
@@ -204,7 +226,7 @@ Host github.com
    IdentityFile ~/.ssh/id_ed25519
 EOF
     
-    echo -e "${SUCCESS} SSH configuration updated for PR workflow"
+    echo -e "${SUCCESS} SSH configuration switched to PR workflow mode"
     
     # Test SSH connections
     echo -e "${INFO} Testing SSH connections..."
@@ -229,14 +251,34 @@ EOF
     return 0
 }
 
-# Set up SSH configuration
-if ! setup_ssh_config; then
-    echo -e "${ERROR} Failed to set up SSH configuration"
-    echo -e "${INFO} Check that SSH keys exist:"
-    echo "  - ~/.ssh/id_ed25519 (appmancer)"
-    echo "  - ~/.ssh/id_ed25519_sam_3degrees (Sam-3Degrees)"
-    exit 1
-fi
+# Check current SSH configuration state and only switch if needed
+ssh_state=$(check_ssh_config)
+
+case "$ssh_state" in
+    "pr-ready")
+        echo -e "${SUCCESS} SSH already configured for PR workflow (github.com → appmancer)"
+        ;;
+    "needs-switch"|"missing")
+        if [[ "$ssh_state" == "missing" ]]; then
+            echo -e "${INFO} No SSH config found - creating initial configuration"
+        else
+            echo -e "${INFO} SSH currently in development mode - switching to PR workflow"
+        fi
+        
+        # Set up SSH configuration
+        if ! setup_ssh_config; then
+            echo -e "${ERROR} Failed to set up SSH configuration"
+            echo -e "${INFO} Check that SSH keys exist:"
+            echo "  - ~/.ssh/id_ed25519 (appmancer)"
+            echo "  - ~/.ssh/id_ed25519_sam_3degrees (Sam-3Degrees)"
+            exit 1
+        fi
+        ;;
+    *)
+        echo -e "${ERROR} Unexpected SSH state: $ssh_state"
+        exit 1
+        ;;
+esac
 
 # Switch to appmancer account for GitHub operations BEFORE pushing
 echo -e "\n${WORKING} Setting up GitHub authentication for appmancer..."
