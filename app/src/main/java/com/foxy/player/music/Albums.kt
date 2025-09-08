@@ -869,7 +869,7 @@ class EnhancedContentCard private constructor(
             if (artworkUrl.isNullOrEmpty()) {
                 return Result.failure(IllegalStateException("No artwork URL provided"))
             }
-            
+
             // Simulate artwork loading process
             // In real implementation, this would load from network/cache
             if (artworkUrl == "invalid://url") {

@@ -103,24 +103,33 @@ class EnhancedContentCardTest {
 
         // Act & Assert
         val cardComponent = EnhancedContentCard.create(testItem)
-        
+
         // Initially no progress indicator should be shown
         assertFalse("Progress indicator should be hidden by default", cardComponent.hasProgressIndicator())
-        
+
         // Setting progress without enabling indicator should not show it
         cardComponent.setPlaybackProgress(0.5f)
-        assertFalse("Progress indicator should remain hidden even with progress set", cardComponent.hasProgressIndicator())
-        
+        assertFalse(
+            "Progress indicator should remain hidden even with progress set",
+            cardComponent.hasProgressIndicator()
+        )
+
         // Explicitly showing indicator should work regardless of progress
         cardComponent.setProgressIndicatorVisibility(true)
         assertTrue("Progress indicator should be visible when explicitly enabled", cardComponent.hasProgressIndicator())
-        
+
         // Progress can be reset but indicator can still be visible
         cardComponent.setPlaybackProgress(0.0f)
-        assertTrue("Progress indicator should remain visible even with zero progress", cardComponent.hasProgressIndicator())
-        
+        assertTrue(
+            "Progress indicator should remain visible even with zero progress",
+            cardComponent.hasProgressIndicator()
+        )
+
         // Hiding indicator should work
         cardComponent.setProgressIndicatorVisibility(false)
-        assertFalse("Progress indicator should be hidden when explicitly disabled", cardComponent.hasProgressIndicator())
+        assertFalse(
+            "Progress indicator should be hidden when explicitly disabled",
+            cardComponent.hasProgressIndicator()
+        )
     }
 }
