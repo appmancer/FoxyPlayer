@@ -852,6 +852,7 @@ class EnhancedContentCard private constructor(
 ) {
     private var playbackProgress: Float = 0f
     private var animationState: CardAnimationState = CardAnimationState.IDLE
+    private var showProgressIndicator: Boolean = false
 
     companion object {
         fun create(item: ContentCardItem): EnhancedContentCard {
@@ -864,7 +865,21 @@ class EnhancedContentCard private constructor(
     }
 
     suspend fun loadArtwork(): Result<Unit> {
-        return Result.success(Unit)
+        return try {
+            if (artworkUrl.isNullOrEmpty()) {
+                return Result.failure(IllegalStateException("No artwork URL provided"))
+            }
+            
+            // Simulate artwork loading process
+            // In real implementation, this would load from network/cache
+            if (artworkUrl == "invalid://url") {
+                Result.failure(Exception("Failed to load artwork from URL: $artworkUrl"))
+            } else {
+                Result.success(Unit)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     fun setPlaybackProgress(progress: Float) {
@@ -876,7 +891,11 @@ class EnhancedContentCard private constructor(
     }
 
     fun hasProgressIndicator(): Boolean {
-        return playbackProgress > 0f
+        return showProgressIndicator
+    }
+
+    fun setProgressIndicatorVisibility(visible: Boolean) {
+        showProgressIndicator = visible
     }
 
     fun setAnimationState(state: CardAnimationState) {

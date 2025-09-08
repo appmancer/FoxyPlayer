@@ -50,7 +50,7 @@ echo ""
 # Quality Gate 1: Security (AUTOMATED) - Check for security warnings in Kotlin
 echo -e "${WORKING} Quality Gate 1: Security Validation"
 # Build and capture security warnings specific to Android/Kotlin (with timeout to prevent hanging)
-security_warnings=$(timeout 60 ./gradlew app:compileDebugKotlin app:compileReleaseKotlin --no-daemon 2>&1 | grep -iE "security|S2068|S4423|password|key|token|secret")
+security_warnings=$(timeout 120 ./gradlew app:compileDebugKotlin app:compileReleaseKotlin --no-daemon 2>&1 | grep -iE "security|S2068|S4423|password|key|token|secret")
 
 if [[ -n "$security_warnings" ]]; then
     echo -e "${ERROR} ${RED}BLOCKING: Security warnings found${NC}"
