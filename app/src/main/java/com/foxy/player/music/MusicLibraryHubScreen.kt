@@ -68,7 +68,7 @@ object MusicLibraryHubScreen {
                 id = cardInfo.id,
                 title = title,
                 subtitle = "${cardInfo.count} items",
-                artworkUrl = ""
+                artworkUrl = "" // Intentionally empty - artwork URLs will be added in future enhancement
             )
             EnhancedContentCard.create(contentItem)
         }
