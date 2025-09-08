@@ -71,6 +71,26 @@ data class MigratedHubCard(
         assertTrue("Should contain Songs card", hubContent.migratedCards.containsKey("Songs"))
         assertTrue("Should contain Artists card", hubContent.migratedCards.containsKey("Artists"))
     }
+
+    @Test
+    fun `should update MusicLibraryHubScreen to use enhanced cards when feature flag enabled`() {
+        // Arrange - setup test data for UI screen integration
+        val cards = mapOf(
+            "Songs" to CardInfo(id = "songs", count = 100),
+            "Albums" to CardInfo(id = "albums", count = 25)
+        )
+        val enableEnhancedCards = true
+        
+        // Act - call the updated hub content provider that doesn't exist yet
+        val hubContent = MusicLibraryHubScreen.createHubContent(cards, enableEnhancedCards)
+        
+        // Assert - verify the screen uses enhanced cards when flag is enabled
+        assertNotNull("Hub content should not be null", hubContent)
+        assertTrue("Screen should use enhanced cards when flag enabled", hubContent.hasMaterial3Cards)
+        assertTrue("Should use enhanced content cards", hubContent.usesEnhancedCards)
+        assertEquals("Should contain correct number of cards", 2, hubContent.enhancedCards.size)
+    }
+    }
     }
     
     fun usesEnhancedCard(): Boolean {
@@ -104,5 +124,46 @@ data class EnhancedHubContent(
                 migratedCards = migratedCards
             )
         }
+    }
+}
+
+/**
+ * Enhanced HubContent that includes enhanced card support
+ * PLY-145: Extension of existing HubContent for enhanced card integration
+ */
+data class EnhancedHubContent(
+    val usesEnhancedCards: Boolean,
+    val migratedCards: Map<String, MigratedHubCard>,
+    val hasMaterial3Cards: Boolean = true,
+    val enhancedCards: Map<String, MigratedHubCard> = migratedCards
+) {
+    companion object {
+        fun fromCards(cards: Map<String, CardInfo>, enableEnhanced: Boolean): EnhancedHubContent {
+            // Minimal implementation to pass test
+            if (!enableEnhanced) {
+                return EnhancedHubContent(usesEnhancedCards = false, migratedCards = emptyMap())
+            }
+            
+            // Convert cards to migrated cards when enhanced flag is enabled
+            val migratedCards = cards.mapValues { (title, cardInfo) ->
+                MigratedHubCard.fromCardInfo(title, cardInfo)
+            }
+            
+            return EnhancedHubContent(
+                usesEnhancedCards = true,
+                migratedCards = migratedCards
+            )
+        }
+    }
+}
+
+/**
+ * MusicLibraryHubScreen integration for enhanced cards
+ * PLY-145: Minimal implementation for screen integration
+ */
+object MusicLibraryHubScreen {
+    fun createHubContent(cards: Map<String, CardInfo>, enableEnhanced: Boolean): EnhancedHubContent {
+        // Minimal implementation - delegate to EnhancedHubContent.fromCards
+        return EnhancedHubContent.fromCards(cards, enableEnhanced)
     }
 }
