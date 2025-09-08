@@ -40,8 +40,7 @@ import kotlinx.coroutines.launch
 /**
  * Loads album artwork from URLs
  * PLY-143: Album Artwork System - minimal implementation to pass tests
- * 
- * Note: Currently returns null ImageBitmaps as placeholder implementation.
+ * * Note: Currently returns null ImageBitmaps as placeholder implementation.
  * Future enhancement will integrate Coil library for actual image loading.
  */
 class AlbumArtworkLoader {
@@ -49,7 +48,7 @@ class AlbumArtworkLoader {
     private var cacheHitCount = 0
     private var lastResultType = "normal"
 
-    // The suspend modifier is present for future enhancement: this function will perform 
+    // The suspend modifier is present for future enhancement: this function will perform
     // async operations (e.g., image loading with Coil) in a later refactor.
     suspend fun loadArtwork(url: String): Result<ImageBitmap?> {
         // Check cache first
@@ -66,7 +65,7 @@ class AlbumArtworkLoader {
         return Result.success(result)
     }
 
-    // The suspend modifier is present for future enhancement: this function will perform 
+    // The suspend modifier is present for future enhancement: this function will perform
     // async operations (e.g., image loading with Coil) in a later refactor.
     suspend fun loadArtworkWithFallback(url: String): Result<ImageBitmap?> {
         // Minimal implementation - returns null placeholder for error handling
@@ -853,7 +852,7 @@ class EnhancedContentCard private constructor(
 ) {
     private var playbackProgress: Float = 0f
     private var animationState: CardAnimationState = CardAnimationState.IDLE
-    
+
     companion object {
         fun create(item: ContentCardItem): EnhancedContentCard {
             return EnhancedContentCard(
@@ -863,31 +862,31 @@ class EnhancedContentCard private constructor(
             )
         }
     }
-    
+
     suspend fun loadArtwork(): Result<Unit> {
         return Result.success(Unit)
     }
-    
+
     fun setPlaybackProgress(progress: Float) {
         playbackProgress = progress
     }
-    
+
     fun getPlaybackProgress(): Float {
         return playbackProgress
     }
-    
+
     fun hasProgressIndicator(): Boolean {
         return playbackProgress > 0f
     }
-    
+
     fun setAnimationState(state: CardAnimationState) {
         animationState = state
     }
-    
+
     fun getAnimationState(): CardAnimationState {
         return animationState
     }
-    
+
     fun isAnimated(): Boolean {
         return animationState != CardAnimationState.IDLE
     }

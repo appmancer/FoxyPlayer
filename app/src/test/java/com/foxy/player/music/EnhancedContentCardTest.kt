@@ -8,8 +8,7 @@ import org.junit.Test
 
 /**
  * Tests for EnhancedContentCard components
- * 
- * PLY-144: Enhanced Content Cards
+ * * PLY-144: Enhanced Content Cards
  * Tests enhanced card components with artwork integration, progress indicators, and animations
  */
 class EnhancedContentCardTest {
@@ -23,11 +22,11 @@ class EnhancedContentCardTest {
             subtitle = "Test Artist",
             artworkUrl = "https://example.com/artwork.jpg"
         )
-        
+
         // Act
         val cardComponent = EnhancedContentCard.create(testItem)
         val artworkResult = cardComponent.loadArtwork()
-        
+
         // Assert
         assertNotNull("Enhanced card should be created successfully", cardComponent)
         assertEquals("Test Album", cardComponent.title)
@@ -46,13 +45,13 @@ class EnhancedContentCardTest {
             artworkUrl = "https://example.com/song-art.jpg"
         )
         val playbackProgress = 0.35f // 35% progress
-        
+
         // Act
         val cardComponent = EnhancedContentCard.create(testItem)
         cardComponent.setPlaybackProgress(playbackProgress)
         val progressValue = cardComponent.getPlaybackProgress()
         val hasProgressIndicator = cardComponent.hasProgressIndicator()
-        
+
         // Assert
         assertEquals("Progress should be set correctly", 0.35f, progressValue, 0.001f)
         assertTrue("Card should have progress indicator when progress is set", hasProgressIndicator)
@@ -67,25 +66,25 @@ class EnhancedContentCardTest {
             subtitle = "Animation Artist",
             artworkUrl = "https://example.com/animated-art.jpg"
         )
-        
+
         // Act
         val cardComponent = EnhancedContentCard.create(testItem)
-        
+
         // Test loading state
         cardComponent.setAnimationState(CardAnimationState.LOADING)
         assertEquals("Loading state should be set", CardAnimationState.LOADING, cardComponent.getAnimationState())
         assertTrue("Card should be animated when in loading state", cardComponent.isAnimated())
-        
+
         // Test playing state
         cardComponent.setAnimationState(CardAnimationState.PLAYING)
         assertEquals("Playing state should be set", CardAnimationState.PLAYING, cardComponent.getAnimationState())
         assertTrue("Card should be animated when playing", cardComponent.isAnimated())
-        
+
         // Test paused state
         cardComponent.setAnimationState(CardAnimationState.PAUSED)
         assertEquals("Paused state should be set", CardAnimationState.PAUSED, cardComponent.getAnimationState())
         assertTrue("Card should be animated when paused", cardComponent.isAnimated())
-        
+
         // Test idle state (no animation)
         cardComponent.setAnimationState(CardAnimationState.IDLE)
         assertEquals("Idle state should be set", CardAnimationState.IDLE, cardComponent.getAnimationState())
