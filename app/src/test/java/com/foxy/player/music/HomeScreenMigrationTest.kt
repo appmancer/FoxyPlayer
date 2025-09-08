@@ -28,5 +28,22 @@ class HomeScreenMigrationTest {
         assertEquals("Card should have correct title", expectedTitle, songsCard!!.title)
         assertEquals("Card should have correct subtitle", "42 items", songsCard.subtitle)
     }
+
+    @Test
+    fun `MusicLibraryHubScreen should not have any legacy migration classes`() {
+        // Arrange - test that we only have simple direct implementation
+        
+        // Act - verify that legacy classes don't exist in the class hierarchy
+        val screenClassMethods = MusicLibraryHubScreen::class.java.methods.map { it.name }
+        
+        // Assert - no legacy migration methods should exist
+        assertFalse("Should not have createHubContent method", screenClassMethods.contains("createHubContent"))
+        assertTrue("Should have createEnhancedCards method", screenClassMethods.contains("createEnhancedCards"))
+        
+        // Verify no legacy migration classes are referenced (they shouldn't compile if removed)
+        val cards = mapOf("Test" to CardInfo("test", 1))
+        val result = MusicLibraryHubScreen.createEnhancedCards(cards)
+        assertNotNull("Direct implementation should work", result)
+    }
 }
 
