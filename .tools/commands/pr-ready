@@ -186,23 +186,30 @@ ssh_config_check() {
         return 1
     fi
     
-    # Check for required hosts
-    local has_personal=$(grep -c "^Host github.com-personal$" "$ssh_config")
+    # Check for required hosts: github.com (appmancer) and github.com-3Degrees (Sam-3Degrees)
+    local has_3degrees=$(grep -c "^Host github.com-3Degrees$" "$ssh_config")
     local has_standard=$(grep -c "^Host github.com$" "$ssh_config") 
     
-    if [[ $has_personal -eq 0 ]]; then
-        echo -e "${ERROR} Missing 'github.com-personal' host in SSH config"
-        echo -e "${INFO} Required for appmancer account authentication"
+    if [[ $has_3degrees -eq 0 ]]; then
+        echo -e "${ERROR} Missing 'github.com-3Degrees' host in SSH config"
+        echo -e "${INFO} Required for Sam-3Degrees account authentication"
         return 1
     fi
     
     if [[ $has_standard -eq 0 ]]; then
         echo -e "${ERROR} Missing 'github.com' host in SSH config"
-        echo -e "${INFO} Required for Sam-3Degrees account authentication"
+        echo -e "${INFO} Required for appmancer account authentication"
         return 1
     fi
     
-    echo -e "${SUCCESS} SSH configuration validated (github.com + github.com-personal hosts found)"
+    # Verify github.com uses appmancer key
+    local appmancer_key=$(grep -A3 "^Host github.com$" "$ssh_config" | grep "IdentityFile" | grep -c "id_ed25519$")
+    if [[ $appmancer_key -eq 0 ]]; then
+        echo -e "${ERROR} github.com host not configured for appmancer key (id_ed25519)"
+        return 1
+    fi
+    
+    echo -e "${SUCCESS} SSH configuration validated (github.com=appmancer, github.com-3Degrees=Sam-3Degrees)"
     return 0
 }
 
@@ -210,15 +217,15 @@ ssh_config_check() {
 if ! ssh_config_check; then
     echo -e "${ERROR} SSH configuration invalid for multi-account setup"
     echo -e "${INFO} Expected SSH config format:"
-    echo "    Host github.com-personal"
+    echo "    Host github.com-3Degrees"
     echo "      HostName github.com"
     echo "      User git"
-    echo "      IdentityFile ~/.ssh/id_ed25519_appmancer"
+    echo "      IdentityFile ~/.ssh/id_ed25519_sam_3degrees"
     echo ""
     echo "    Host github.com"
     echo "      HostName github.com" 
     echo "      User git"
-    echo "      IdentityFile ~/.ssh/id_ed25519_sam"
+    echo "      IdentityFile ~/.ssh/id_ed25519"
     echo ""
     echo -e "${INFO} Fix SSH configuration and rerun pr-ready"
     exit 1
@@ -232,15 +239,14 @@ original_gh_user=$(gh auth status --hostname github.com 2>&1 | awk '/Active acco
 echo -e "${INFO} SSH Key Management: Detected original user: '$original_gh_user'"
 
 # Switch to appmancer account for GitHub CLI and ensure correct SSH remote
-# CRITICAL: Use github.com-personal for appmancer, github.com for Sam-3Degrees
-# The URL MUST use the correct SSH host for proper key authentication
+# With updated SSH config: github.com uses appmancer key, github.com-3Degrees uses Sam-3Degrees key
 gh auth switch --hostname github.com --user appmancer
 original_remote=$(git remote get-url origin)
 
-# Determine correct remote based on SSH config and user
-correct_remote="git@github.com-personal:appmancer/FoxyPlayer.git"
+# Ensure remote uses standard github.com format (should work with appmancer key)
+correct_remote="git@github.com:appmancer/FoxyPlayer.git"
 if [[ "$original_remote" != "$correct_remote" ]]; then
-    echo -e "${INFO} Setting remote URL for appmancer SSH access..."
+    echo -e "${INFO} Setting remote URL for standard GitHub SSH access..."
     echo -e "${INFO} From: $original_remote"
     echo -e "${INFO} To: $correct_remote"
     git remote set-url origin "$correct_remote"
@@ -265,8 +271,7 @@ deletions=$(git diff dev..HEAD --shortstat | grep -o '[0-9]* deletion' | grep -o
 # Create PR
 echo -e "\n${PR} Creating Pull Request..."
 
-# Note: gh CLI should work with github.com-personal remote when authenticated as appmancer
-# No need to change remote URL for PR creation if SSH config is correct
+# GitHub CLI should now work with standard github.com remote and appmancer authentication
 
 # Generate comprehensive PR description
 pr_description="## Summary
@@ -361,10 +366,10 @@ echo -e "${INFO} Configuring remote URL for ongoing development..."
 
 # Determine correct remote for development based on original user
 if [[ "$original_gh_user" == "appmancer" ]]; then
-    dev_remote="git@github.com-personal:appmancer/FoxyPlayer.git"
+    dev_remote="git@github.com:appmancer/FoxyPlayer.git"
     echo -e "${INFO} Keeping appmancer remote: $dev_remote"
 else
-    dev_remote="git@github.com:Sam-3Degrees/FoxyPlayer.git"
+    dev_remote="git@github.com-3Degrees:Sam-3Degrees/FoxyPlayer.git"
     echo -e "${INFO} Setting Sam-3Degrees remote: $dev_remote"
 fi
 
