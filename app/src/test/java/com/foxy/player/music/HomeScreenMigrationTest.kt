@@ -90,6 +90,31 @@ data class MigratedHubCard(
         assertTrue("Should use enhanced content cards", hubContent.usesEnhancedCards)
         assertEquals("Should contain correct number of cards", 2, hubContent.enhancedCards.size)
     }
+
+    @Test
+    fun `should maintain backward compatibility when enhanced cards feature flag disabled`() {
+        // Arrange - setup test data with feature flag disabled
+        val cards = mapOf(
+            "Songs" to CardInfo(id = "songs", count = 50),
+            "Playlists" to CardInfo(id = "playlists", count = 10)
+        )
+        val enableEnhancedCards = false // Feature flag disabled
+        
+        // Act - call the migration function with flag disabled
+        val hubContent = MusicLibraryHubScreenMigration.createHubContent(cards, enableEnhancedCards)
+        
+        // Assert - verify backward compatibility is maintained
+        assertNotNull("Hub content should not be null", hubContent)
+        assertFalse("Should NOT use enhanced cards when flag disabled", hubContent.usesEnhancedCards)
+        assertTrue("Should still have Material 3 cards", hubContent.hasMaterial3Cards)
+        assertEquals("Should have empty migrated cards when disabled", 0, hubContent.migratedCards.size)
+        
+        // Test that migration gracefully handles flag being disabled
+        val legacyContent = CompatibilityBridge.toLegacyHubContent(hubContent, cards)
+        assertNotNull("Legacy content should not be null", legacyContent)
+        assertEquals("Legacy content should preserve card count", 2, legacyContent.cards.size)
+    }
+    }
     }
     }
     
@@ -165,5 +190,23 @@ object MusicLibraryHubScreen {
     fun createHubContent(cards: Map<String, CardInfo>, enableEnhanced: Boolean): EnhancedHubContent {
         // Minimal implementation - delegate to EnhancedHubContent.fromCards
         return EnhancedHubContent.fromCards(cards, enableEnhanced)
+    }
+}
+
+/**
+ * PLY-145: Compatibility bridge for legacy HubContent integration
+ * Minimal implementation for backward compatibility
+ */
+object CompatibilityBridge {
+    fun toLegacyHubContent(enhancedContent: EnhancedHubContent, originalCards: Map<String, CardInfo>): HubContent {
+        // Minimal implementation - create legacy HubContent structure
+        return HubContent(
+            hasMaterial3Cards = enhancedContent.hasMaterial3Cards,
+            hasBottomNavigation = true, // Default values for minimal implementation
+            hasTopAppBar = true,
+            hasFAB = true,
+            navigationTabs = listOf("Home", "Songs", "Artists", "Folders", "Settings"),
+            cards = originalCards // Use original cards for legacy compatibility
+        )
     }
 }
