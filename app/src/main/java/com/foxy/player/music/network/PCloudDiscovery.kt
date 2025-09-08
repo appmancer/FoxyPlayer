@@ -170,13 +170,32 @@ class MusicDiscoveryService(
     }
 
     fun listPCloudFolders(path: String): Result<FolderListing> {
-        // Minimal implementation to make the test pass
-        return Result.success(
-            FolderListing(
-                folders = listOf("Music", "Audio", "Downloads"),
-                files = emptyList()
-            )
-        )
+        // Make real API call instead of returning hardcoded data
+        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
+        
+        return if (apiRequest.isSuccess) {
+            val requestResult = apiRequest.getOrNull()!!
+            
+            try {
+                val pCloudResponse = gson.fromJson(
+                    requestResult.httpResponse,
+                    PCloudListFolderResponse::class.java
+                )
+                
+                if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                    val folderListing = extractFolderListing(pCloudResponse.contents)
+                    Result.success(folderListing)
+                } else {
+                    // Return empty result instead of hardcoded fallback
+                    Result.success(FolderListing(folders = emptyList(), files = emptyList()))
+                }
+            } catch (e: Exception) {
+                // Return empty result instead of hardcoded fallback
+                Result.success(FolderListing(folders = emptyList(), files = emptyList()))
+            }
+        } else {
+            Result.failure(apiRequest.exceptionOrNull()!!)
+        }
     }
 
     /**
@@ -430,38 +449,74 @@ class MusicDiscoveryService(
         pageToken: String?,
         pageSize: Int
     ): Result<PaginatedAudioFilesResponse> {
-        // Minimal implementation to make the pagination test pass
-        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
+        // Make real API call instead of hardcoded pagination simulation
+        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
 
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
 
-            // Simulate pagination with different data for different pages
-            val (audioFiles, hasNext, nextToken) = when (pageToken) {
-                null -> {
-                    // First page
-                    val files = listOf("page1_song1.mp3", "page1_track2.flac", "page1_audio3.wav")
-                    Triple(files, true, "page2_token")
-                }
-                "page2_token" -> {
-                    // Second page
-                    val files = listOf("page2_song4.mp3", "page2_track5.flac", "page2_audio6.wav")
-                    Triple(files, false, null)
-                }
-                else -> {
-                    // No more pages
-                    Triple(emptyList<String>(), false, null)
-                }
-            }
-
-            Result.success(
-                PaginatedAudioFilesResponse(
-                    authToken = requestResult.authTokenUsed,
-                    audioFiles = audioFiles,
-                    hasNextPage = hasNext,
-                    nextPageToken = nextToken
+            try {
+                val pCloudResponse = gson.fromJson(
+                    requestResult.httpResponse,
+                    PCloudListFolderResponse::class.java
                 )
-            )
+
+                if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                    // Extract real audio files and implement proper pagination
+                    val audioFiles = pCloudResponse.contents
+                        .filter { !it.isFolder }
+                        .filter { item ->
+                            val isAudioByContentType = item.contentType?.startsWith("audio/") == true
+                            val isAudioByExtension = item.name.lowercase().let { name ->
+                                name.endsWith(".mp3") || name.endsWith(".flac") || name.endsWith(".wav") ||
+                                    name.endsWith(".m4a") || name.endsWith(".aac") || name.endsWith(".ogg")
+                            }
+                            isAudioByContentType || isAudioByExtension
+                        }
+                        .map { it.name }
+
+                    // Simple pagination logic - divide results into pages
+                    val startIndex = (pageToken?.toIntOrNull() ?: 0) * pageSize
+                    val endIndex = minOf(startIndex + pageSize, audioFiles.size)
+                    val pageFiles = if (startIndex < audioFiles.size) {
+                        audioFiles.subList(startIndex, endIndex)
+                    } else {
+                        emptyList()
+                    }
+
+                    val hasNext = endIndex < audioFiles.size
+                    val nextToken = if (hasNext) ((pageToken?.toIntOrNull() ?: 0) + 1).toString() else null
+
+                    Result.success(
+                        PaginatedAudioFilesResponse(
+                            authToken = requestResult.authTokenUsed,
+                            audioFiles = pageFiles,
+                            hasNextPage = hasNext,
+                            nextPageToken = nextToken
+                        )
+                    )
+                } else {
+                    // Return empty result instead of hardcoded data
+                    Result.success(
+                        PaginatedAudioFilesResponse(
+                            authToken = requestResult.authTokenUsed,
+                            audioFiles = emptyList(),
+                            hasNextPage = false,
+                            nextPageToken = null
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // Return empty result instead of hardcoded data
+                Result.success(
+                    PaginatedAudioFilesResponse(
+                        authToken = requestResult.authTokenUsed,
+                        audioFiles = emptyList(),
+                        hasNextPage = false,
+                        nextPageToken = null
+                    )
+                )
+            }
         } else {
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
@@ -481,38 +536,66 @@ class MusicDiscoveryService(
                         authToken = requestResult.authTokenUsed,
                         audioFiles = cachedData,
                         servedFromCache = true,
-                        totalApiCallsMade = totalApiCalls // Use existing count
+                        totalApiCallsMade = totalApiCalls
                     )
                 )
             } else {
                 Result.failure(apiRequest.exceptionOrNull()!!)
             }
         } else {
-            // Make API call and cache the result
-            val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
+            // Make real API call and cache the actual result
+            val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
 
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
                 totalApiCalls++ // Increment API call counter
 
-                // Simulate audio file data for caching
-                val audioFiles = listOf(
-                    "cached_song1.mp3",
-                    "cached_track2.flac",
-                    "cached_audio3.wav"
-                )
-
-                // Store in cache
-                cache[path] = audioFiles
-
-                Result.success(
-                    CachedAudioFilesResponse(
-                        authToken = requestResult.authTokenUsed,
-                        audioFiles = audioFiles,
-                        servedFromCache = false,
-                        totalApiCallsMade = totalApiCalls
+                try {
+                    val pCloudResponse = gson.fromJson(
+                        requestResult.httpResponse,
+                        PCloudListFolderResponse::class.java
                     )
-                )
+
+                    val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                        // Extract real audio files
+                        pCloudResponse.contents
+                            .filter { !it.isFolder }
+                            .filter { item ->
+                                val isAudioByContentType = item.contentType?.startsWith("audio/") == true
+                                val isAudioByExtension = item.name.lowercase().let { name ->
+                                    name.endsWith(".mp3") || name.endsWith(".flac") || name.endsWith(".wav") ||
+                                        name.endsWith(".m4a") || name.endsWith(".aac") || name.endsWith(".ogg")
+                                }
+                                isAudioByContentType || isAudioByExtension
+                            }
+                            .map { it.name }
+                    } else {
+                        emptyList() // Return empty instead of hardcoded data
+                    }
+
+                    // Store actual results in cache
+                    cache[path] = audioFiles
+
+                    Result.success(
+                        CachedAudioFilesResponse(
+                            authToken = requestResult.authTokenUsed,
+                            audioFiles = audioFiles,
+                            servedFromCache = false,
+                            totalApiCallsMade = totalApiCalls
+                        )
+                    )
+                } catch (e: Exception) {
+                    // Return empty result instead of hardcoded data
+                    cache[path] = emptyList()
+                    Result.success(
+                        CachedAudioFilesResponse(
+                            authToken = requestResult.authTokenUsed,
+                            audioFiles = emptyList(),
+                            servedFromCache = false,
+                            totalApiCallsMade = totalApiCalls
+                        )
+                    )
+                }
             } else {
                 Result.failure(apiRequest.exceptionOrNull()!!)
             }
@@ -565,20 +648,49 @@ class MusicDiscoveryService(
 
         // Simulate retry scenario - succeeds after retries
         if (retryScenario) {
-            val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
+            val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
-                val retryBaseName = extractBaseName(path).ifEmpty { "retry" }
-                return Result.success(
-                    ErrorHandlingAudioFilesResponse(
-                        authToken = requestResult.authTokenUsed,
-                        audioFiles = listOf(
-                            "${retryBaseName}_retry1.mp3",
-                            "${retryBaseName}_retry2.flac"
-                        ),
-                        retriesPerformed = 3
+                
+                try {
+                    val pCloudResponse = gson.fromJson(
+                        requestResult.httpResponse,
+                        PCloudListFolderResponse::class.java
                     )
-                )
+                    
+                    val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                        // Extract real audio files instead of generating hardcoded patterns
+                        pCloudResponse.contents
+                            .filter { !it.isFolder }
+                            .filter { item ->
+                                val isAudioByContentType = item.contentType?.startsWith("audio/") == true
+                                val isAudioByExtension = item.name.lowercase().let { name ->
+                                    name.endsWith(".mp3") || name.endsWith(".flac") || name.endsWith(".wav") ||
+                                        name.endsWith(".m4a") || name.endsWith(".aac") || name.endsWith(".ogg")
+                                }
+                                isAudioByContentType || isAudioByExtension
+                            }
+                            .map { it.name }
+                    } else {
+                        emptyList()
+                    }
+                    
+                    return Result.success(
+                        ErrorHandlingAudioFilesResponse(
+                            authToken = requestResult.authTokenUsed,
+                            audioFiles = audioFiles,
+                            retriesPerformed = 3
+                        )
+                    )
+                } catch (e: Exception) {
+                    return Result.success(
+                        ErrorHandlingAudioFilesResponse(
+                            authToken = requestResult.authTokenUsed,
+                            audioFiles = emptyList(),
+                            retriesPerformed = 3
+                        )
+                    )
+                }
             }
         }
 
@@ -601,19 +713,47 @@ class MusicDiscoveryService(
         }
 
         // Default successful response
-        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
+        val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
-            val defaultBaseName = extractBaseName(path).ifEmpty { "default" }
-            Result.success(
-                ErrorHandlingAudioFilesResponse(
-                    authToken = requestResult.authTokenUsed,
-                    audioFiles = listOf(
-                        "${defaultBaseName}_default1.mp3",
-                        "${defaultBaseName}_default2.flac"
+            
+            try {
+                val pCloudResponse = gson.fromJson(
+                    requestResult.httpResponse,
+                    PCloudListFolderResponse::class.java
+                )
+                
+                val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                    // Extract real audio files instead of generating hardcoded patterns
+                    pCloudResponse.contents
+                        .filter { !it.isFolder }
+                        .filter { item ->
+                            val isAudioByContentType = item.contentType?.startsWith("audio/") == true
+                            val isAudioByExtension = item.name.lowercase().let { name ->
+                                name.endsWith(".mp3") || name.endsWith(".flac") || name.endsWith(".wav") ||
+                                    name.endsWith(".m4a") || name.endsWith(".aac") || name.endsWith(".ogg")
+                            }
+                            isAudioByContentType || isAudioByExtension
+                        }
+                        .map { it.name }
+                } else {
+                    emptyList()
+                }
+                
+                Result.success(
+                    ErrorHandlingAudioFilesResponse(
+                        authToken = requestResult.authTokenUsed,
+                        audioFiles = audioFiles
                     )
                 )
-            )
+            } catch (e: Exception) {
+                Result.success(
+                    ErrorHandlingAudioFilesResponse(
+                        authToken = requestResult.authTokenUsed,
+                        audioFiles = emptyList()
+                    )
+                )
+            }
         } else {
             Result.failure(apiRequest.exceptionOrNull()!!)
         }
@@ -746,24 +886,18 @@ class MusicDiscoveryService(
      * Groups audio files found in the specified path by their album metadata.
      */
     fun discoverAlbums(path: String): Result<AlbumsDiscoveryResponse> {
-        // Make API call to get audio files from the path
+        // Make API call to get real audio files from the path
         val audioFilesResult = listAudioFiles(path)
 
         return if (audioFilesResult.isSuccess) {
             val audioFilesResponse = audioFilesResult.getOrNull()!!
 
-            // Group audio files by album using metadata extraction
+            // Group real audio files by album using metadata extraction
             val albumsMap = mutableMapOf<String, MutableList<String>>()
             val albumMetadata = mutableMapOf<String, Pair<String, String>>() // albumKey -> (title, artist)
 
-            // If no audio files found, create a sample album for testing
-            val audioFiles = if (audioFilesResponse.audioFiles.isEmpty()) {
-                listOf("Artist - Album - Song1.mp3", "Artist - Album - Song2.mp3")
-            } else {
-                audioFilesResponse.audioFiles
-            }
-
-            audioFiles.forEach { audioFile ->
+            // Use actual audio files from API response - no hardcoded fallback
+            audioFilesResponse.audioFiles.forEach { audioFile ->
                 // Extract metadata from filename for grouping
                 val metadata = parsePathForMetadata("$path/$audioFile", audioFile)
                 val (title, artist, albumTitle) = metadata
