@@ -186,110 +186,71 @@ echo -e "${SUCCESS} Final ticket state archived to: $ticket_state_archive"
 rm -f .spectrum/current-ticket.json
 echo -e "${SUCCESS} Current ticket state cleaned up"
 
-# Restore authentication to Sam-3Degrees (GitHub CLI, SSH, and git user config)
-echo -e "\n${WORKING} Restoring authentication to Sam-3Degrees..."
+# Restore authentication configuration
+echo -e "\n${WORKING} Restoring authentication configuration..."
 
-# Restore SSH configuration for normal development workflow
-echo -e "${WORKING} Checking SSH configuration for development workflow..."
+# Load original SSH state from ticket info
+original_ssh_state=$(echo "$ticket_info" | jq -r '.original_ssh_state // "sam"')
+original_gh_user=$(echo "$ticket_info" | jq -r '.original_gh_user // ""')
 
-# Function to check if SSH is already in development mode
-check_dev_ssh_config() {
-    local ssh_config="$HOME/.ssh/config"
-    
-    if [[ ! -f "$ssh_config" ]]; then
-        echo "missing"
-        return 1
-    fi
-    
-    # Check if github.com points to Sam-3Degrees key (development configuration)
-    local github_key=$(grep -A 3 "^Host github.com$" "$ssh_config" | grep "IdentityFile" | awk '{print $2}' || echo "")
-    local expected_key="~/.ssh/id_ed25519_sam_3degrees"
-    
-    if [[ "$github_key" == "$expected_key" ]]; then
-        echo "dev-ready"
-        return 0
-    else
-        echo "needs-restore"
-        return 1
-    fi
-}
+echo -e "${INFO} Restoring SSH configuration to '$original_ssh_state' mode..."
 
-# Check current SSH state
-ssh_state=$(check_dev_ssh_config)
-
-case "$ssh_state" in
-    "dev-ready")
-        echo -e "${SUCCESS} SSH already configured for development (github.com → Sam-3Degrees)"
-        ;;
-    "needs-restore"|"missing")
-        if [[ "$ssh_state" == "missing" ]]; then
-            echo -e "${INFO} No SSH config found - creating development configuration"
-        else
-            echo -e "${INFO} SSH in PR workflow mode - restoring to development"
-        fi
-        
-        ssh_config="$HOME/.ssh/config"
-        
-        # Restore from backup if it exists
-        if [[ -f "$ssh_config.spectrum-backup" ]]; then
-            echo -e "${INFO} Restoring SSH config from backup..."
-            cp "$ssh_config.spectrum-backup" "$ssh_config"
-            echo -e "${SUCCESS} SSH configuration restored from backup"
-        else
-            echo -e "${INFO} Setting up standard SSH config (github.com=Sam-3Degrees, github.com-appmancer=appmancer)..."
-            # Set up the standard development configuration
-            cat > "$ssh_config" << 'EOF'
-Host github.com-appmancer
-   HostName github.com
-   User git
-   IdentityFile ~/.ssh/id_ed25519
-
-Host github.com
-   HostName github.com
-   User git
-   IdentityFile ~/.ssh/id_ed25519_sam_3degrees
-EOF
-            echo -e "${SUCCESS} SSH configuration restored to development settings"
-        fi
-        ;;
-    *)
-        echo -e "${ERROR} Unexpected SSH state: $ssh_state"
-        ;;
-esac
-
-# Restore GitHub CLI authentication
-if gh auth switch --hostname github.com --user Sam-3Degrees 2>/dev/null; then
-    echo -e "${SUCCESS} GitHub CLI authentication restored to Sam-3Degrees"
-else
-    echo -e "${YELLOW} Warning: Could not switch GitHub CLI back to Sam-3Degrees"
-    echo -e "${INFO} Current active account will remain as appmancer"
-    echo -e "${INFO} To manually switch: gh auth switch --hostname github.com --user Sam-3Degrees"
+# Use ssh-switch to restore original SSH configuration
+if ! ./.tools/commands/ssh-switch "$original_ssh_state"; then
+    echo -e "${YELLOW} Warning: Could not restore SSH configuration to '$original_ssh_state' mode"
+    echo -e "${INFO} Falling back to Sam development mode..."
+    ./.tools/commands/ssh-switch sam
 fi
 
-# Restore SSH configuration for git operations
-echo -e "${WORKING} Restoring git remote to Sam-3Degrees SSH configuration..."
+# Restore GitHub CLI authentication if we have the original user
+if [[ -n "$original_gh_user" && "$original_gh_user" != "null" ]]; then
+    echo -e "${INFO} Restoring GitHub CLI to '$original_gh_user'..."
+    if gh auth switch --hostname github.com --user "$original_gh_user" 2>/dev/null; then
+        echo -e "${SUCCESS} GitHub CLI authentication restored to $original_gh_user"
+    else
+        echo -e "${YELLOW} Warning: Could not switch GitHub CLI back to $original_gh_user"
+        echo -e "${INFO} Attempting to switch to Sam-3Degrees as fallback..."
+        gh auth switch --hostname github.com --user Sam-3Degrees 2>/dev/null || {
+            echo -e "${YELLOW} GitHub CLI remains as current user"
+        }
+    fi
+else
+    echo -e "${INFO} No original GitHub CLI user saved, attempting Sam-3Degrees..."
+    gh auth switch --hostname github.com --user Sam-3Degrees 2>/dev/null || {
+        echo -e "${YELLOW} Could not switch GitHub CLI to Sam-3Degrees"
+    }
+fi
+
+# Restore git remote configuration
+echo -e "${WORKING} Restoring git remote configuration..."
 current_remote=$(git config --get remote.origin.url)
-if [[ "$current_remote" == *"appmancer"* ]]; then
-    # Convert appmancer remote back to Sam-3Degrees format
-    if [[ "$current_remote" == *"FoxyPlayer.git" ]]; then
-        git remote set-url origin git@github.com:Sam-3Degrees/FoxyPlayer.git
-        echo -e "${SUCCESS} Git remote restored to Sam-3Degrees SSH configuration"
-    else
-        echo -e "${YELLOW} Warning: Unexpected remote URL format: $current_remote"
-        echo -e "${INFO} Please manually update remote URL if needed"
-    fi
-elif [[ "$current_remote" == *"Sam-3Degrees"* ]]; then
-    echo -e "${SUCCESS} Git remote already configured for Sam-3Degrees"
+
+# Determine correct remote based on restored SSH state
+if [[ "$original_ssh_state" == "appmancer" ]]; then
+    correct_remote="git@github.com:appmancer/FoxyPlayer.git"
+    user_name="appmancer"
+    user_email="noreply@appmancer.com"
 else
-    echo -e "${YELLOW} Warning: Unknown remote URL format: $current_remote"
-    echo -e "${INFO} Please verify remote configuration manually"
+    correct_remote="git@github.com-3Degrees:Sam-3Degrees/FoxyPlayer.git"
+    user_name="Sam-3Degrees"
+    user_email="sam@3degrees.co"
 fi
 
-# Restore git user configuration for this repository
-echo -e "${WORKING} Restoring git user configuration to Sam-3Degrees..."
-git config user.name "Sam-3Degrees"
-git config user.email "sam@3degrees.co"
-echo -e "${SUCCESS} Git user configuration restored to Sam-3Degrees"
+if [[ "$current_remote" != "$correct_remote" ]]; then
+    echo -e "${INFO} Updating git remote to match SSH configuration..."
+    echo -e "${INFO} From: $current_remote"
+    echo -e "${INFO} To: $correct_remote"
+    git remote set-url origin "$correct_remote"
+    echo -e "${SUCCESS} Git remote updated"
+else
+    echo -e "${SUCCESS} Git remote already correctly configured"
+fi
+
+# Restore git user configuration
+echo -e "${WORKING} Restoring git user configuration..."
+git config user.name "$user_name"
+git config user.email "$user_email"
+echo -e "${SUCCESS} Git user configuration restored to $user_name"
 
 # Clean up any remaining workflow files
 if [[ -f ".spectrum/current-cycle.json" ]]; then

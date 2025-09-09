@@ -22,6 +22,181 @@ import com.foxy.player.music.ui.SpecificApiErrorResponse
 import com.google.gson.Gson
 import kotlinx.coroutines.delay
 
+// ===== DEBUG LOGGING UTILITY =====
+
+/**
+ * Comprehensive debug logging utility for Music Discovery pipeline.
+ * Provides structured logging for API calls, data parsing, transformations, and performance metrics.
+ */
+object MusicDiscoveryLogger {
+    private const val TAG_PREFIX = "MusicDiscovery"
+    private var isLoggingEnabled = true
+    
+    fun setLoggingEnabled(enabled: Boolean) {
+        isLoggingEnabled = enabled
+    }
+    
+    fun logApiRequest(endpoint: String, path: String) {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.API", "pCloud API request: endpoint=$endpoint, path=$path")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logApiResponse(endpoint: String, responseSize: Int, status: String) {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.API", "pCloud API response: endpoint=$endpoint, size=${responseSize}bytes, status=$status")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logResponseParsing(itemCount: Int, operation: String) {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.Parser", "Parsing pCloud response: found $itemCount items for operation=$operation")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logDataTransformation(totalItems: Int, filteredItems: Int, filterType: String) {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.Parser", "Filtering $filterType: $totalItems total, $filteredItems $filterType found")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logPerformanceMetric(operation: String, durationMs: Long) {
+        if (isLoggingEnabled) {
+            try {
+                Log.i("$TAG_PREFIX.Performance", "Operation $operation completed in ${durationMs}ms")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logError(operation: String, path: String, error: Throwable) {
+        if (isLoggingEnabled) {
+            try {
+                Log.e("$TAG_PREFIX.Error", "Operation $operation failed for path=$path: ${error.message}", error)
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logCircuitBreakerState(state: String, operation: String) {
+        if (isLoggingEnabled) {
+            try {
+                Log.w("$TAG_PREFIX.CircuitBreaker", "Circuit breaker state=$state for operation=$operation")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logCacheHit(path: String, operation: String) {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.Cache", "Cache hit for path=$path, operation=$operation")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logCacheMiss(path: String, operation: String) {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.Cache", "Cache miss for path=$path, operation=$operation - fetching from API")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logDatabaseOperation(operation: String, table: String, params: String = "") {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.Database", "Database $operation on $table: $params")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logDatabaseResult(operation: String, table: String, resultCount: Int, durationMs: Long) {
+        if (isLoggingEnabled) {
+            try {
+                Log.i("$TAG_PREFIX.Database", "Database $operation on $table completed: $resultCount records in ${durationMs}ms")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logDatabaseError(operation: String, table: String, error: Throwable) {
+        if (isLoggingEnabled) {
+            try {
+                Log.e("$TAG_PREFIX.Database", "Database $operation on $table failed: ${error.message}", error)
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logUiDataBinding(component: String, operation: String, dataSize: Int) {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.UI", "UI data binding: $component.$operation - binding $dataSize items")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logUiDataFlow(fromComponent: String, toComponent: String, dataType: String, count: Int) {
+        if (isLoggingEnabled) {
+            try {
+                Log.d("$TAG_PREFIX.UI", "Data flow: $fromComponent -> $toComponent, $dataType count=$count")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logUiPerformance(component: String, operation: String, durationMs: Long) {
+        if (isLoggingEnabled) {
+            try {
+                Log.i("$TAG_PREFIX.UI", "UI performance: $component.$operation completed in ${durationMs}ms")
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+    
+    fun logUiError(component: String, operation: String, error: Throwable) {
+        if (isLoggingEnabled) {
+            try {
+                Log.e("$TAG_PREFIX.UI", "UI error in $component.$operation: ${error.message}", error)
+            } catch (e: RuntimeException) {
+                // Ignore logging errors in test environment
+            }
+        }
+    }
+}
+
 // ===== FOLDER LISTING STRATEGY INTERFACE =====
 
 interface PCloudFolderListingStrategy {
@@ -170,11 +345,16 @@ class MusicDiscoveryService(
     }
 
     fun listPCloudFolders(path: String): Result<FolderListing> {
+        val startTime = System.currentTimeMillis()
+        MusicDiscoveryLogger.logApiRequest("/listfolder", path)
+        
         // Make real API call instead of returning hardcoded data
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
         
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
+            val responseSize = requestResult.httpResponse.length
+            MusicDiscoveryLogger.logApiResponse("/listfolder", responseSize, "success")
             
             try {
                 val pCloudResponse = gson.fromJson(
@@ -183,18 +363,26 @@ class MusicDiscoveryService(
                 )
                 
                 if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                    MusicDiscoveryLogger.logResponseParsing(pCloudResponse.contents.size, "listPCloudFolders")
                     val folderListing = extractFolderListing(pCloudResponse.contents)
+                    val duration = System.currentTimeMillis() - startTime
+                    MusicDiscoveryLogger.logPerformanceMetric("listPCloudFolders", duration)
                     Result.success(folderListing)
                 } else {
                     // Return empty result instead of hardcoded fallback
+                    val duration = System.currentTimeMillis() - startTime
+                    MusicDiscoveryLogger.logPerformanceMetric("listPCloudFolders", duration)
                     Result.success(FolderListing(folders = emptyList(), files = emptyList()))
                 }
             } catch (e: Exception) {
+                MusicDiscoveryLogger.logError("listPCloudFolders", path, e)
                 // Return empty result instead of hardcoded fallback
                 Result.success(FolderListing(folders = emptyList(), files = emptyList()))
             }
         } else {
-            Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
+            val error = apiRequest.exceptionOrNull() ?: Exception("Unknown error")
+            MusicDiscoveryLogger.logError("listPCloudFolders", path, error)
+            Result.failure(error)
         }
     }
 
@@ -382,11 +570,16 @@ class MusicDiscoveryService(
     }
 
     fun listAudioFiles(path: String): Result<AudioFilesResponse> {
+        val startTime = System.currentTimeMillis()
+        MusicDiscoveryLogger.logApiRequest("/listfolder", path)
+        
         // Make real API call to pCloud /listfolder endpoint
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
 
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
+            val responseSize = requestResult.httpResponse.length
+            MusicDiscoveryLogger.logApiResponse("/listfolder", responseSize, "success")
 
             try {
                 // Parse real pCloud JSON response
@@ -396,6 +589,8 @@ class MusicDiscoveryService(
                 )
 
                 if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                    MusicDiscoveryLogger.logResponseParsing(pCloudResponse.contents.size, "listAudioFiles")
+                    
                     // Filter real audio files based on content type and extension
                     val audioFiles = pCloudResponse.contents
                         .filter { !it.isFolder } // Only files, not folders
@@ -415,6 +610,10 @@ class MusicDiscoveryService(
                         }
                         .map { it.name }
 
+                    MusicDiscoveryLogger.logDataTransformation(pCloudResponse.contents.size, audioFiles.size, "audio files")
+                    val duration = System.currentTimeMillis() - startTime
+                    MusicDiscoveryLogger.logPerformanceMetric("listAudioFiles", duration)
+
                     Result.success(
                         AudioFilesResponse(
                             authToken = requestResult.authTokenUsed,
@@ -423,6 +622,8 @@ class MusicDiscoveryService(
                     )
                 } else {
                     // pCloud API returned error - return empty result instead of hardcoded fallback
+                    val duration = System.currentTimeMillis() - startTime
+                    MusicDiscoveryLogger.logPerformanceMetric("listAudioFiles", duration)
                     Result.success(
                         AudioFilesResponse(
                             authToken = requestResult.authTokenUsed,
@@ -431,6 +632,7 @@ class MusicDiscoveryService(
                     )
                 }
             } catch (e: Exception) {
+                MusicDiscoveryLogger.logError("listAudioFiles", path, e)
                 // JSON parsing failed - return empty result instead of hardcoded fallback
                 Result.success(
                     AudioFilesResponse(
@@ -440,7 +642,9 @@ class MusicDiscoveryService(
                 )
             }
         } else {
-            Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
+            val error = apiRequest.exceptionOrNull() ?: Exception("Unknown error")
+            MusicDiscoveryLogger.logError("listAudioFiles", path, error)
+            Result.failure(error)
         }
     }
 
@@ -523,14 +727,19 @@ class MusicDiscoveryService(
     }
 
     fun listAudioFilesWithCache(path: String): Result<CachedAudioFilesResponse> {
+        val startTime = System.currentTimeMillis()
+        
         // Check if data is in cache first
         val cachedData = cache[path]
 
         return if (cachedData != null) {
+            MusicDiscoveryLogger.logCacheHit(path, "listAudioFilesWithCache")
             // Serve from cache - get auth token from API client but use cached data
             val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder")
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
+                val duration = System.currentTimeMillis() - startTime
+                MusicDiscoveryLogger.logPerformanceMetric("listAudioFilesWithCache", duration)
                 Result.success(
                     CachedAudioFilesResponse(
                         authToken = requestResult.authTokenUsed,
@@ -540,15 +749,20 @@ class MusicDiscoveryService(
                     )
                 )
             } else {
-                Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
+                val error = apiRequest.exceptionOrNull() ?: Exception("Unknown error")
+                MusicDiscoveryLogger.logError("listAudioFilesWithCache", path, error)
+                Result.failure(error)
             }
         } else {
+            MusicDiscoveryLogger.logCacheMiss(path, "listAudioFilesWithCache")
             // Make real API call and cache the actual result
             val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
 
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
                 totalApiCalls++ // Increment API call counter
+                val responseSize = requestResult.httpResponse.length
+                MusicDiscoveryLogger.logApiResponse("/listfolder", responseSize, "success")
 
                 try {
                     val pCloudResponse = gson.fromJson(
@@ -557,8 +771,9 @@ class MusicDiscoveryService(
                     )
 
                     val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                        MusicDiscoveryLogger.logResponseParsing(pCloudResponse.contents.size, "listAudioFilesWithCache")
                         // Extract real audio files
-                        pCloudResponse.contents
+                        val files = pCloudResponse.contents
                             .filter { !it.isFolder }
                             .filter { item ->
                                 val isAudioByContentType = item.contentType?.startsWith("audio/") == true
@@ -569,12 +784,16 @@ class MusicDiscoveryService(
                                 isAudioByContentType || isAudioByExtension
                             }
                             .map { it.name }
+                        MusicDiscoveryLogger.logDataTransformation(pCloudResponse.contents.size, files.size, "audio files")
+                        files
                     } else {
                         emptyList() // Return empty instead of hardcoded data
                     }
 
                     // Store actual results in cache
                     cache[path] = audioFiles
+                    val duration = System.currentTimeMillis() - startTime
+                    MusicDiscoveryLogger.logPerformanceMetric("listAudioFilesWithCache", duration)
 
                     Result.success(
                         CachedAudioFilesResponse(
@@ -585,6 +804,7 @@ class MusicDiscoveryService(
                         )
                     )
                 } catch (e: Exception) {
+                    MusicDiscoveryLogger.logError("listAudioFilesWithCache", path, e)
                     // Return empty result instead of hardcoded data
                     cache[path] = emptyList()
                     Result.success(
@@ -597,7 +817,9 @@ class MusicDiscoveryService(
                     )
                 }
             } else {
-                Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
+                val error = apiRequest.exceptionOrNull() ?: Exception("Unknown error")
+                MusicDiscoveryLogger.logError("listAudioFilesWithCache", path, error)
+                Result.failure(error)
             }
         }
     }
@@ -886,11 +1108,15 @@ class MusicDiscoveryService(
      * Groups audio files found in the specified path by their album metadata.
      */
     fun discoverAlbums(path: String): Result<AlbumsDiscoveryResponse> {
+        val startTime = System.currentTimeMillis()
+        MusicDiscoveryLogger.logApiRequest("discoverAlbums", path)
+        
         // Make API call to get real audio files from the path
         val audioFilesResult = listAudioFiles(path)
 
         return if (audioFilesResult.isSuccess) {
             val audioFilesResponse = audioFilesResult.getOrNull()!!
+            MusicDiscoveryLogger.logResponseParsing(audioFilesResponse.audioFiles.size, "discoverAlbums")
 
             // Group real audio files by album using metadata extraction
             val albumsMap = mutableMapOf<String, MutableList<String>>()
@@ -928,6 +1154,10 @@ class MusicDiscoveryService(
                 )
             }
 
+            MusicDiscoveryLogger.logDataTransformation(audioFilesResponse.audioFiles.size, discoveredAlbums.size, "albums")
+            val duration = System.currentTimeMillis() - startTime
+            MusicDiscoveryLogger.logPerformanceMetric("discoverAlbums", duration)
+
             Result.success(
                 AlbumsDiscoveryResponse(
                     authToken = audioFilesResponse.authToken,
@@ -936,7 +1166,9 @@ class MusicDiscoveryService(
                 )
             )
         } else {
-            Result.failure(audioFilesResult.exceptionOrNull()!!)
+            val error = audioFilesResult.exceptionOrNull()!!
+            MusicDiscoveryLogger.logError("discoverAlbums", path, error)
+            Result.failure(error)
         }
     }
 
