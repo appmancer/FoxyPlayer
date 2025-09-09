@@ -1,5 +1,7 @@
 package com.foxy.player.music
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import com.foxy.player.music.database.TrackDaoInterface
 import com.foxy.player.music.entities.TrackEntity
 import com.foxy.player.music.pcloud.PCloudApiInterface
@@ -11,6 +13,20 @@ import com.foxy.player.music.sync.SyncStatus
 import com.foxy.player.music.ui.MusicTrackWithMetadata
 import com.foxy.player.music.ui.OfflineResult
 import com.foxy.player.music.ui.PagedTracksResult
+
+// ===== PLY-131: Album Room Entity =====
+
+/**
+ * Room entity representing an album in the database.
+ * This entity maps to the 'music_albums' table and contains album metadata
+ * for album data persistence as specified in PLY-131.
+ */
+@Entity(tableName = "music_albums")
+data class AlbumEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val artist: String
+)
 
 /**
  * Configuration for background sync operations.
