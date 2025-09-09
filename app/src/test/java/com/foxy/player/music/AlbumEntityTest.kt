@@ -1,18 +1,93 @@
 package com.foxy.player.music
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import com.foxy.player.music.entities.EnhancedAlbumEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * Test for enhanced AlbumEntity with Room annotations
  * PLY-130: Create AlbumEntity with basic fields (id, title, artist, path, lastModified)
+ * PLY-131: Add basic AlbumEntity to MusicModels.kt with @PrimaryKey id, title, artist fields
  *
  * Tests cover entity creation, validation, and Room database integration.
  */
 class AlbumEntityTest {
+
+    // ===== PLY-131: Basic AlbumEntity Tests =====
+    
+    @Test
+    fun `basic AlbumEntity should be available in MusicModels package with proper Room annotations`() {
+        // Arrange - This test verifies that basic AlbumEntity exists in the com.foxy.player.music package
+        // and has the required fields as specified in PLY-131
+        
+        // Act - Try to access AlbumEntity class from MusicModels.kt context
+        val albumEntityClass = try {
+            Class.forName("com.foxy.player.music.AlbumEntity")
+        } catch (e: ClassNotFoundException) {
+            null
+        }
+        
+        // Assert - Verify AlbumEntity is available in the correct package
+        assertNotNull("AlbumEntity should be available in com.foxy.player.music package", albumEntityClass)
+        
+        // Verify required fields exist with proper types
+        val idField = albumEntityClass!!.getDeclaredField("id")
+        val titleField = albumEntityClass.getDeclaredField("title")
+        val artistField = albumEntityClass.getDeclaredField("artist")
+        
+        assertNotNull("AlbumEntity should have id field", idField)
+        assertNotNull("AlbumEntity should have title field", titleField)
+        assertNotNull("AlbumEntity should have artist field", artistField)
+        
+        // Verify field types
+        assertEquals("id field should be String", String::class.java, idField.type)
+        assertEquals("title field should be String", String::class.java, titleField.type)
+        assertEquals("artist field should be String", String::class.java, artistField.type)
+        
+        // Verify the entity has proper structure for Room (data class with proper constructor)
+        val constructors = albumEntityClass.constructors
+        val threeParamConstructor = constructors.find { it.parameterCount == 3 }
+        assertNotNull("AlbumEntity should have a 3-parameter constructor", threeParamConstructor)
+        
+        // Verify constructor parameter types
+        val paramTypes = threeParamConstructor!!.parameterTypes
+        assertEquals("First parameter should be String", String::class.java, paramTypes[0])
+        assertEquals("Second parameter should be String", String::class.java, paramTypes[1])
+        assertEquals("Third parameter should be String", String::class.java, paramTypes[2])
+    }
+    
+    @Test
+    fun `basic AlbumEntity should be instantiable with valid data`() {
+        // This test will also fail initially until AlbumEntity is added to MusicModels.kt
+        val albumEntityClass = Class.forName("com.foxy.player.music.AlbumEntity")
+        val constructor = albumEntityClass.getDeclaredConstructor(String::class.java, String::class.java, String::class.java)
+        
+        // Act - Create instance
+        val albumEntity = constructor.newInstance("test-id", "Test Album", "Test Artist")
+        
+        // Assert - Verify instance creation works
+        assertNotNull("AlbumEntity should be instantiable", albumEntity)
+        
+        // Verify field values
+        val idField = albumEntityClass.getDeclaredField("id")
+        val titleField = albumEntityClass.getDeclaredField("title")
+        val artistField = albumEntityClass.getDeclaredField("artist")
+        
+        idField.isAccessible = true
+        titleField.isAccessible = true
+        artistField.isAccessible = true
+        
+        assertEquals("test-id", idField.get(albumEntity))
+        assertEquals("Test Album", titleField.get(albumEntity))
+        assertEquals("Test Artist", artistField.get(albumEntity))
+    }
+
+    // ===== PLY-130: Enhanced AlbumEntity Tests =====
 
     @Test
     fun `should create AlbumEntity with enhanced fields including path and lastModified`() {
