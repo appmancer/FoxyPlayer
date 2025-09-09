@@ -194,7 +194,7 @@ class MusicDiscoveryService(
                 Result.success(FolderListing(folders = emptyList(), files = emptyList()))
             }
         } else {
-            Result.failure(apiRequest.exceptionOrNull()!!)
+            Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
         }
     }
 
@@ -292,7 +292,7 @@ class MusicDiscoveryService(
                 Result.success(errorResponse)
             }
         } else {
-            Result.failure(apiRequest.exceptionOrNull()!!)
+            Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
         }
     }
 
@@ -377,7 +377,7 @@ class MusicDiscoveryService(
                 )
             }
         } else {
-            Result.failure(apiRequest.exceptionOrNull()!!)
+            Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
         }
     }
 
@@ -440,7 +440,7 @@ class MusicDiscoveryService(
                 )
             }
         } else {
-            Result.failure(apiRequest.exceptionOrNull()!!)
+            Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
         }
     }
 
@@ -518,7 +518,7 @@ class MusicDiscoveryService(
                 )
             }
         } else {
-            Result.failure(apiRequest.exceptionOrNull()!!)
+            Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
         }
     }
 
@@ -540,7 +540,7 @@ class MusicDiscoveryService(
                     )
                 )
             } else {
-                Result.failure(apiRequest.exceptionOrNull()!!)
+                Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
             }
         } else {
             // Make real API call and cache the actual result
@@ -597,7 +597,7 @@ class MusicDiscoveryService(
                     )
                 }
             } else {
-                Result.failure(apiRequest.exceptionOrNull()!!)
+                Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
             }
         }
     }
@@ -755,7 +755,7 @@ class MusicDiscoveryService(
                 )
             }
         } else {
-            Result.failure(apiRequest.exceptionOrNull()!!)
+            Result.failure(apiRequest.exceptionOrNull() ?: Exception("Unknown error"))
         }
     }
 
