@@ -1,7 +1,7 @@
-# Remove Mock Fallbacks from MusicDiscovery
+# Album Room Entity
 
 **Objective**
-Remove hardcoded responses in MusicDiscoveryService, implement comprehensive error handling for all API endpoints, add exponential backoff retry mechanism. This addresses the core issue preventing real data population. following test-driven development approach.
+Add @Entity AlbumEntity class with @PrimaryKey id, title, artist fields to MusicModels.kt for album data persistence. following test-driven development approach.
 
 **Context**
 Based on design specifications, implement the functionality with focus on correctness and integration with existing systems.
@@ -17,7 +17,7 @@ Based on design specifications, implement the functionality with focus on correc
 * **Context window optimization**: AI needs all domain code visible simultaneously
 
 **Task**
-Remove hardcoded responses in MusicDiscoveryService, implement comprehensive error handling for all API endpoints, add exponential backoff retry mechanism. This addresses the core issue preventing real data population. using TDD methodology:
+Add @Entity AlbumEntity class with @PrimaryKey id, title, artist fields to MusicModels.kt for album data persistence. using TDD methodology:
 
 * Write tests covering functional requirements
 * Implement core functionality following established patterns
