@@ -1,5 +1,6 @@
 package com.foxy.player.music
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.foxy.player.authentication.network.AuthRepository
@@ -33,18 +34,39 @@ class MusicHubViewModel(
     private var loaded = false
 
     init {
+        try {
+            Log.d("FoxyPlayer", "🎵 MusicHubViewModel CREATED - loading counts")
+        } catch (e: Exception) {
+            // Ignore logging errors in test environment
+        }
         loadCountsOnce()
     }
 
     fun loadCountsOnce() {
         if (loaded) return
         loaded = true
+        try {
+            Log.d(
+                "FoxyPlayer",
+                "📊 LOADING COUNTS: calling heuristic.listSongs(), listArtists(), listAlbums(), listPCloudFolders()"
+            )
+        } catch (e: Exception) {
+            // Ignore logging errors in test environment
+        }
         _state.value = _state.value.copy(isLoading = true)
         viewModelScope.launch(ioDispatcher) {
             val songs = heuristic.listSongs().getOrNull().orEmpty()
             val artists = heuristic.listArtists().getOrNull().orEmpty()
             val albums = heuristic.listAlbums().getOrNull().orEmpty()
             val folders = discoveryService.listPCloudFolders("/").getOrNull()?.folders ?: emptyList()
+            try {
+                Log.d(
+                    "FoxyPlayer",
+                    "📊 COUNTS LOADED: songs=${songs.size}, artists=${artists.size}, albums=${albums.size}, folders=${folders.size}"
+                )
+            } catch (e: Exception) {
+                // Ignore logging errors in test environment
+            }
             val cards = mapOf(
                 CardIds.Songs to CardInfo(CardIds.Songs, songs.size),
                 CardIds.Albums to CardInfo(CardIds.Albums, albums.size),
@@ -52,6 +74,11 @@ class MusicHubViewModel(
                 CardIds.Folders to CardInfo(CardIds.Folders, folders.size)
             )
             _state.value = HubState(isLoading = false, nowPlayingExpanded = false, cards = cards)
+            try {
+                Log.d("FoxyPlayer", "✅ HUB STATE UPDATED: loading=false, cards created")
+            } catch (e: Exception) {
+                // Ignore logging errors in test environment
+            }
         }
     }
 

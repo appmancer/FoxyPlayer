@@ -16,7 +16,7 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
     suspend fun listSongs(): Result<List<Song>> = runCatching {
         val startTime = System.currentTimeMillis()
         com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataFlow("HeuristicMusicDiscovery", "UI", "songs", 0)
-        
+
         try {
             val allFiles = listAllFilesRecursively("/")
             val songs = allFiles.filter { f -> f.lowercase().substringAfterLast('.', "") in AUDIO_EXTS }
@@ -31,10 +31,18 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
                     val title = name.substringBeforeLast('.')
                     Song(path = path, title = title, artist = artist, album = album)
                 }
-            
+
             val duration = System.currentTimeMillis() - startTime
-            com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataBinding("HeuristicMusicDiscovery", "listSongs", songs.size)
-            com.foxy.player.music.network.MusicDiscoveryLogger.logUiPerformance("HeuristicMusicDiscovery", "listSongs", duration)
+            com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataBinding(
+                "HeuristicMusicDiscovery",
+                "listSongs",
+                songs.size
+            )
+            com.foxy.player.music.network.MusicDiscoveryLogger.logUiPerformance(
+                "HeuristicMusicDiscovery",
+                "listSongs",
+                duration
+            )
             songs
         } catch (e: Exception) {
             com.foxy.player.music.network.MusicDiscoveryLogger.logUiError("HeuristicMusicDiscovery", "listSongs", e)
@@ -44,16 +52,29 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
 
     suspend fun listArtists(): Result<List<ArtistSummary>> = listSongs().map { songs ->
         val startTime = System.currentTimeMillis()
-        com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataFlow("HeuristicMusicDiscovery", "UI", "artists_from_songs", songs.size)
-        
+        com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataFlow(
+            "HeuristicMusicDiscovery",
+            "UI",
+            "artists_from_songs",
+            songs.size
+        )
+
         try {
             val artists = songs.groupBy { it.artist.ifBlank { "Unknown Artist" } }
                 .map { (artist, s) -> ArtistSummary(artist, s.size) }
                 .sortedBy { it.name.lowercase() }
-            
+
             val duration = System.currentTimeMillis() - startTime
-            com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataBinding("HeuristicMusicDiscovery", "listArtists", artists.size)
-            com.foxy.player.music.network.MusicDiscoveryLogger.logUiPerformance("HeuristicMusicDiscovery", "listArtists", duration)
+            com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataBinding(
+                "HeuristicMusicDiscovery",
+                "listArtists",
+                artists.size
+            )
+            com.foxy.player.music.network.MusicDiscoveryLogger.logUiPerformance(
+                "HeuristicMusicDiscovery",
+                "listArtists",
+                duration
+            )
             artists
         } catch (e: Exception) {
             com.foxy.player.music.network.MusicDiscoveryLogger.logUiError("HeuristicMusicDiscovery", "listArtists", e)
@@ -63,16 +84,29 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
 
     suspend fun listAlbums(): Result<List<AlbumSummary>> = listSongs().map { songs ->
         val startTime = System.currentTimeMillis()
-        com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataFlow("HeuristicMusicDiscovery", "UI", "albums_from_songs", songs.size)
-        
+        com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataFlow(
+            "HeuristicMusicDiscovery",
+            "UI",
+            "albums_from_songs",
+            songs.size
+        )
+
         try {
             val albums = songs.groupBy { it.artist to it.album.ifBlank { "Unknown Album" } }
                 .map { (aa, s) -> AlbumSummary(name = aa.second, artist = aa.first, songCount = s.size) }
                 .sortedWith(compareBy({ it.artist.lowercase() }, { it.name.lowercase() }))
-            
+
             val duration = System.currentTimeMillis() - startTime
-            com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataBinding("HeuristicMusicDiscovery", "listAlbums", albums.size)
-            com.foxy.player.music.network.MusicDiscoveryLogger.logUiPerformance("HeuristicMusicDiscovery", "listAlbums", duration)
+            com.foxy.player.music.network.MusicDiscoveryLogger.logUiDataBinding(
+                "HeuristicMusicDiscovery",
+                "listAlbums",
+                albums.size
+            )
+            com.foxy.player.music.network.MusicDiscoveryLogger.logUiPerformance(
+                "HeuristicMusicDiscovery",
+                "listAlbums",
+                duration
+            )
             albums
         } catch (e: Exception) {
             com.foxy.player.music.network.MusicDiscoveryLogger.logUiError("HeuristicMusicDiscovery", "listAlbums", e)

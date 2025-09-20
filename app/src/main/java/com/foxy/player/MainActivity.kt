@@ -1,6 +1,7 @@
 package com.foxy.player
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,6 +31,13 @@ import com.foxy.player.ui.theme.FoxyPlayerTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        try {
+            Log.d("FoxyPlayer", "🎯 MainActivity onCreate - Debug logging test")
+            Log.i("FoxyPlayer", "ℹ️ INFO: MainActivity started")
+            Log.w("FoxyPlayer", "⚠️ WARN: MainActivity test")
+        } catch (e: Exception) {
+            // Ignore logging errors in test environment
+        }
         enableEdgeToEdge()
         setContent {
             FoxyPlayerTheme {

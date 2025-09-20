@@ -1,5 +1,6 @@
 package com.foxy.player.music
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -17,7 +18,12 @@ class NavControllerNavigator(private val navController: NavHostController) : Nav
 
 @Composable
 fun MusicNavHost(navController: NavHostController) {
-    val authRepo = com.foxy.player.authentication.network.AuthRepository()
+    try {
+        Log.i("FoxyPlayer", "🎯 MusicNavHost COMPOSABLE EXECUTED")
+    } catch (e: Exception) {
+        // Ignore logging errors in test environment
+    }
+    val authRepo = com.foxy.player.authentication.network.AuthRepository("https://eapi.pcloud.com")
     val api = com.foxy.player.authentication.network.AuthenticatedApiClient(authRepo)
     val discovery = MusicDiscoveryService(api)
     val heuristic = HeuristicMusicDiscovery(discovery)
@@ -43,6 +49,11 @@ fun MusicNavHost(navController: NavHostController) {
             com.foxy.player.authentication.ui.LoginScreenWithNavigation(
                 authViewModel = authViewModel,
                 onLoginSuccess = {
+                    try {
+                        Log.d("FoxyPlayer", "🏠 NAVIGATING TO HOME after login success")
+                    } catch (e: Exception) {
+                        // Ignore logging errors in test environment
+                    }
                     navController.navigate(Routes.Home) {
                         popUpTo(com.foxy.player.authentication.utils.AuthRoutes.Login) { inclusive = true }
                     }

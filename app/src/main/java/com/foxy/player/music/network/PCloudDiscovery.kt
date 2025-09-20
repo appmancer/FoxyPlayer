@@ -31,11 +31,11 @@ import kotlinx.coroutines.delay
 object MusicDiscoveryLogger {
     private const val TAG_PREFIX = "MusicDiscovery"
     private var isLoggingEnabled = true
-    
+
     fun setLoggingEnabled(enabled: Boolean) {
         isLoggingEnabled = enabled
     }
-    
+
     fun logApiRequest(endpoint: String, path: String) {
         if (isLoggingEnabled) {
             try {
@@ -45,17 +45,20 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logApiResponse(endpoint: String, responseSize: Int, status: String) {
         if (isLoggingEnabled) {
             try {
-                Log.d("$TAG_PREFIX.API", "pCloud API response: endpoint=$endpoint, size=${responseSize}bytes, status=$status")
+                Log.d(
+                    "$TAG_PREFIX.API",
+                    "pCloud API response: endpoint=$endpoint, size=${responseSize}bytes, status=$status"
+                )
             } catch (e: RuntimeException) {
                 // Ignore logging errors in test environment
             }
         }
     }
-    
+
     fun logResponseParsing(itemCount: Int, operation: String) {
         if (isLoggingEnabled) {
             try {
@@ -65,17 +68,20 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logDataTransformation(totalItems: Int, filteredItems: Int, filterType: String) {
         if (isLoggingEnabled) {
             try {
-                Log.d("$TAG_PREFIX.Parser", "Filtering $filterType: $totalItems total, $filteredItems $filterType found")
+                Log.d(
+                    "$TAG_PREFIX.Parser",
+                    "Filtering $filterType: $totalItems total, $filteredItems $filterType found"
+                )
             } catch (e: RuntimeException) {
                 // Ignore logging errors in test environment
             }
         }
     }
-    
+
     fun logPerformanceMetric(operation: String, durationMs: Long) {
         if (isLoggingEnabled) {
             try {
@@ -85,7 +91,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logError(operation: String, path: String, error: Throwable) {
         if (isLoggingEnabled) {
             try {
@@ -95,7 +101,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logCircuitBreakerState(state: String, operation: String) {
         if (isLoggingEnabled) {
             try {
@@ -105,7 +111,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logCacheHit(path: String, operation: String) {
         if (isLoggingEnabled) {
             try {
@@ -115,7 +121,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logCacheMiss(path: String, operation: String) {
         if (isLoggingEnabled) {
             try {
@@ -125,7 +131,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logDatabaseOperation(operation: String, table: String, params: String = "") {
         if (isLoggingEnabled) {
             try {
@@ -135,17 +141,20 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logDatabaseResult(operation: String, table: String, resultCount: Int, durationMs: Long) {
         if (isLoggingEnabled) {
             try {
-                Log.i("$TAG_PREFIX.Database", "Database $operation on $table completed: $resultCount records in ${durationMs}ms")
+                Log.i(
+                    "$TAG_PREFIX.Database",
+                    "Database $operation on $table completed: $resultCount records in ${durationMs}ms"
+                )
             } catch (e: RuntimeException) {
                 // Ignore logging errors in test environment
             }
         }
     }
-    
+
     fun logDatabaseError(operation: String, table: String, error: Throwable) {
         if (isLoggingEnabled) {
             try {
@@ -155,7 +164,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logUiDataBinding(component: String, operation: String, dataSize: Int) {
         if (isLoggingEnabled) {
             try {
@@ -165,7 +174,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logUiDataFlow(fromComponent: String, toComponent: String, dataType: String, count: Int) {
         if (isLoggingEnabled) {
             try {
@@ -175,7 +184,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logUiPerformance(component: String, operation: String, durationMs: Long) {
         if (isLoggingEnabled) {
             try {
@@ -185,7 +194,7 @@ object MusicDiscoveryLogger {
             }
         }
     }
-    
+
     fun logUiError(component: String, operation: String, error: Throwable) {
         if (isLoggingEnabled) {
             try {
@@ -347,21 +356,21 @@ class MusicDiscoveryService(
     fun listPCloudFolders(path: String): Result<FolderListing> {
         val startTime = System.currentTimeMillis()
         MusicDiscoveryLogger.logApiRequest("/listfolder", path)
-        
+
         // Make real API call instead of returning hardcoded data
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
-        
+
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
             val responseSize = requestResult.httpResponse.length
             MusicDiscoveryLogger.logApiResponse("/listfolder", responseSize, "success")
-            
+
             try {
                 val pCloudResponse = gson.fromJson(
                     requestResult.httpResponse,
                     PCloudListFolderResponse::class.java
                 )
-                
+
                 if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
                     MusicDiscoveryLogger.logResponseParsing(pCloudResponse.contents.size, "listPCloudFolders")
                     val folderListing = extractFolderListing(pCloudResponse.contents)
@@ -572,7 +581,7 @@ class MusicDiscoveryService(
     fun listAudioFiles(path: String): Result<AudioFilesResponse> {
         val startTime = System.currentTimeMillis()
         MusicDiscoveryLogger.logApiRequest("/listfolder", path)
-        
+
         // Make real API call to pCloud /listfolder endpoint
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
 
@@ -590,7 +599,7 @@ class MusicDiscoveryService(
 
                 if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
                     MusicDiscoveryLogger.logResponseParsing(pCloudResponse.contents.size, "listAudioFiles")
-                    
+
                     // Filter real audio files based on content type and extension
                     val audioFiles = pCloudResponse.contents
                         .filter { !it.isFolder } // Only files, not folders
@@ -610,7 +619,11 @@ class MusicDiscoveryService(
                         }
                         .map { it.name }
 
-                    MusicDiscoveryLogger.logDataTransformation(pCloudResponse.contents.size, audioFiles.size, "audio files")
+                    MusicDiscoveryLogger.logDataTransformation(
+                        pCloudResponse.contents.size,
+                        audioFiles.size,
+                        "audio files"
+                    )
                     val duration = System.currentTimeMillis() - startTime
                     MusicDiscoveryLogger.logPerformanceMetric("listAudioFiles", duration)
 
@@ -728,7 +741,7 @@ class MusicDiscoveryService(
 
     fun listAudioFilesWithCache(path: String): Result<CachedAudioFilesResponse> {
         val startTime = System.currentTimeMillis()
-        
+
         // Check if data is in cache first
         val cachedData = cache[path]
 
@@ -784,7 +797,11 @@ class MusicDiscoveryService(
                                 isAudioByContentType || isAudioByExtension
                             }
                             .map { it.name }
-                        MusicDiscoveryLogger.logDataTransformation(pCloudResponse.contents.size, files.size, "audio files")
+                        MusicDiscoveryLogger.logDataTransformation(
+                            pCloudResponse.contents.size,
+                            files.size,
+                            "audio files"
+                        )
                         files
                     } else {
                         emptyList() // Return empty instead of hardcoded data
@@ -873,13 +890,13 @@ class MusicDiscoveryService(
             val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
-                
+
                 try {
                     val pCloudResponse = gson.fromJson(
                         requestResult.httpResponse,
                         PCloudListFolderResponse::class.java
                     )
-                    
+
                     val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
                         // Extract real audio files instead of generating hardcoded patterns
                         pCloudResponse.contents
@@ -896,7 +913,7 @@ class MusicDiscoveryService(
                     } else {
                         emptyList()
                     }
-                    
+
                     return Result.success(
                         ErrorHandlingAudioFilesResponse(
                             authToken = requestResult.authTokenUsed,
@@ -938,13 +955,13 @@ class MusicDiscoveryService(
         val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=$path")
         return if (apiRequest.isSuccess) {
             val requestResult = apiRequest.getOrNull()!!
-            
+
             try {
                 val pCloudResponse = gson.fromJson(
                     requestResult.httpResponse,
                     PCloudListFolderResponse::class.java
                 )
-                
+
                 val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
                     // Extract real audio files instead of generating hardcoded patterns
                     pCloudResponse.contents
@@ -961,7 +978,7 @@ class MusicDiscoveryService(
                 } else {
                     emptyList()
                 }
-                
+
                 Result.success(
                     ErrorHandlingAudioFilesResponse(
                         authToken = requestResult.authTokenUsed,
@@ -1110,7 +1127,7 @@ class MusicDiscoveryService(
     fun discoverAlbums(path: String): Result<AlbumsDiscoveryResponse> {
         val startTime = System.currentTimeMillis()
         MusicDiscoveryLogger.logApiRequest("discoverAlbums", path)
-        
+
         // Make API call to get real audio files from the path
         val audioFilesResult = listAudioFiles(path)
 
@@ -1154,7 +1171,11 @@ class MusicDiscoveryService(
                 )
             }
 
-            MusicDiscoveryLogger.logDataTransformation(audioFilesResponse.audioFiles.size, discoveredAlbums.size, "albums")
+            MusicDiscoveryLogger.logDataTransformation(
+                audioFilesResponse.audioFiles.size,
+                discoveredAlbums.size,
+                "albums"
+            )
             val duration = System.currentTimeMillis() - startTime
             MusicDiscoveryLogger.logPerformanceMetric("discoverAlbums", duration)
 

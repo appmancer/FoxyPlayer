@@ -138,8 +138,12 @@ class AlbumRepository(
 
     override suspend fun getAllAlbums(): AlbumResult<List<EnhancedAlbumEntity>> {
         val startTime = System.currentTimeMillis()
-        com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseOperation("SELECT", "music_albums", "getAllAlbums()")
-        
+        com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseOperation(
+            "SELECT",
+            "music_albums",
+            "getAllAlbums()"
+        )
+
         return try {
             val albumDao = database.enhancedAlbumDao()
                 ?: return AlbumResult.Error(
@@ -149,7 +153,12 @@ class AlbumRepository(
 
             val albums = albumDao.getAllEnhancedAlbums()
             val duration = System.currentTimeMillis() - startTime
-            com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseResult("SELECT", "music_albums", albums.size, duration)
+            com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseResult(
+                "SELECT",
+                "music_albums",
+                albums.size,
+                duration
+            )
             AlbumResult.Success(albums)
         } catch (e: Exception) {
             com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseError("SELECT", "music_albums", e)
@@ -159,8 +168,12 @@ class AlbumRepository(
 
     override suspend fun getAlbumById(albumId: String): AlbumResult<EnhancedAlbumEntity?> {
         val startTime = System.currentTimeMillis()
-        com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseOperation("SELECT", "music_albums", "getAlbumById(id=$albumId)")
-        
+        com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseOperation(
+            "SELECT",
+            "music_albums",
+            "getAlbumById(id=$albumId)"
+        )
+
         return try {
             val albumDao = database.enhancedAlbumDao()
                 ?: return AlbumResult.Error(
@@ -171,7 +184,12 @@ class AlbumRepository(
             val album = albumDao.getEnhancedAlbumById(albumId)
             val duration = System.currentTimeMillis() - startTime
             val resultCount = if (album != null) 1 else 0
-            com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseResult("SELECT", "music_albums", resultCount, duration)
+            com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseResult(
+                "SELECT",
+                "music_albums",
+                resultCount,
+                duration
+            )
             AlbumResult.Success(album)
         } catch (e: Exception) {
             com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseError("SELECT", "music_albums", e)
@@ -181,8 +199,12 @@ class AlbumRepository(
 
     override suspend fun getAlbumsByArtist(artist: String): AlbumResult<List<EnhancedAlbumEntity>> {
         val startTime = System.currentTimeMillis()
-        com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseOperation("SELECT", "music_albums", "getAlbumsByArtist(artist=$artist)")
-        
+        com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseOperation(
+            "SELECT",
+            "music_albums",
+            "getAlbumsByArtist(artist=$artist)"
+        )
+
         return try {
             val albumDao = database.enhancedAlbumDao()
                 ?: return AlbumResult.Error(
@@ -192,7 +214,12 @@ class AlbumRepository(
 
             val albums = albumDao.getAlbumsByArtist(artist)
             val duration = System.currentTimeMillis() - startTime
-            com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseResult("SELECT", "music_albums", albums.size, duration)
+            com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseResult(
+                "SELECT",
+                "music_albums",
+                albums.size,
+                duration
+            )
             AlbumResult.Success(albums)
         } catch (e: Exception) {
             com.foxy.player.music.network.MusicDiscoveryLogger.logDatabaseError("SELECT", "music_albums", e)
