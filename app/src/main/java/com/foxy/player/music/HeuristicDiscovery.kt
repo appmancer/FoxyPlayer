@@ -1,8 +1,10 @@
 package com.foxy.player.music
 
 import com.foxy.player.music.network.MusicDiscoveryService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 data class Song(val path: String, val title: String, val artist: String, val album: String)
 
@@ -116,7 +118,9 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
 
     // Utilities
     private suspend fun listAllFilesRecursively(root: String): List<String> = coroutineScope {
-        val listingResult = service.listPCloudFolders(root)
+        val listingResult = withContext(Dispatchers.IO) {
+            service.listPCloudFolders(root)
+        }
         val listing = listingResult.getOrNull() ?: return@coroutineScope emptyList()
 
         val files = listing.files.map { name -> if (root == "/") "/$name" else "$root/$name" }
