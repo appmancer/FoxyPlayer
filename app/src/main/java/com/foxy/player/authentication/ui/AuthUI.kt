@@ -1,5 +1,6 @@
 package com.foxy.player.authentication.ui
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -118,6 +119,11 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     val errorMessage: String? get() = _errorMessage
 
     fun login(username: String, password: String) {
+        try {
+            Log.d("FoxyPlayer", "🔐 LOGIN ATTEMPT: username=$username")
+        } catch (e: Exception) {
+            // Ignore logging errors in test environment
+        }
         // Minimal implementation to make the test pass
         _isLoading = true
         _username = username
@@ -128,11 +134,30 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
             Thread.sleep(50) // Simulate network delay
 
             val result = authRepository.authenticateWithPCloudAPI(username, password)
+            try {
+                Log.d(
+                    "FoxyPlayer",
+                    "🔐 LOGIN RESULT: success=${result.isSuccess}, hasToken=${result.getOrNull()?.authToken != null}"
+                )
+            } catch (e: Exception) {
+                // Ignore logging errors in test environment
+            }
 
             _isLoading = false
             if (result.isSuccess) {
                 _isAuthenticated = true
                 _authToken = result.getOrNull()?.authToken
+                try {
+                    Log.d("FoxyPlayer", "✅ LOGIN SUCCESS: authenticated=true, navigating to home")
+                } catch (e: Exception) {
+                    // Ignore logging errors in test environment
+                }
+            } else {
+                try {
+                    Log.d("FoxyPlayer", "❌ LOGIN FAILED: ${result.exceptionOrNull()?.message}")
+                } catch (e: Exception) {
+                    // Ignore logging errors in test environment
+                }
             }
         }.start()
     }
@@ -175,6 +200,11 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     // Integration with Authentication State Management - Minimal implementation for PLY-46
     fun loginWithStateManagement(username: String, password: String) {
+        try {
+            Log.d("FoxyPlayer", "🔐 LOGIN ATTEMPT (State Management): username=$username")
+        } catch (e: Exception) {
+            // Ignore logging errors in test environment
+        }
         _isLoading = true
         _username = username
 
@@ -182,18 +212,37 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
             Thread.sleep(100) // Simulate authentication delay
 
             val result = authRepository.authenticateWithPCloudAPI(username, password)
+            try {
+                Log.d(
+                    "FoxyPlayer",
+                    "🔐 LOGIN RESULT (State Management): success=${result.isSuccess}, hasToken=${result.getOrNull()?.authToken != null}"
+                )
+            } catch (e: Exception) {
+                // Ignore logging errors in test environment
+            }
             _isLoading = false
 
             if (result.isSuccess) {
                 val authResponse = result.getOrNull()!!
                 _isAuthenticated = true
                 _authToken = authResponse.authToken
+                try {
+                    Log.d("FoxyPlayer", "✅ LOGIN SUCCESS (State Management): authenticated=true, navigating to home")
+                } catch (e: Exception) {
+                    // Ignore logging errors in test environment
+                }
 
                 // Save authentication state using the repository's state management
                 authRepository.saveAuthenticationState(authResponse.authToken, authResponse.userInfo)
 
                 // Trigger login event notification
                 authRepository.triggerLoginEvent(authResponse.userInfo)
+            } else {
+                try {
+                    Log.d("FoxyPlayer", "❌ LOGIN FAILED (State Management): ${result.exceptionOrNull()?.message}")
+                } catch (e: Exception) {
+                    // Ignore logging errors in test environment
+                }
             }
         }.start()
     }
