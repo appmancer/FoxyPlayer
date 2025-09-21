@@ -1,8 +1,11 @@
 package com.foxy.player.music
 
 import com.foxy.player.music.network.MusicDiscoveryService
+import com.foxy.player.utils.DebugLogging
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 
 data class Song(val path: String, val title: String, val artist: String, val album: String)
 
@@ -116,16 +119,44 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
 
     // Utilities
     private suspend fun listAllFilesRecursively(root: String): List<String> = coroutineScope {
-        val listingResult = service.listPCloudFolders(root)
-        val listing = listingResult.getOrNull() ?: return@coroutineScope emptyList()
+        DebugLogging.log("HEURISTIC_DEBUG", "listAllFilesRecursively called with root: '$root'")
+
+        val listingResult = withContext(Dispatchers.IO) {
+            service.listPCloudFolders(root)
+        }
+        val listing = listingResult.getOrNull()
+
+        if (listing == null) {
+            DebugLogging.logError("HEURISTIC_DEBUG", "listPCloudFolders returned null for root: '$root'")
+            val error = listingResult.exceptionOrNull()
+            DebugLogging.logError("HEURISTIC_DEBUG", "Exception: ${error?.message}", error)
+            return@coroutineScope emptyList()
+        }
+
+        DebugLogging.log("HEURISTIC_DEBUG", "Folder listing for '$root':")
+        DebugLogging.log("HEURISTIC_DEBUG", "  Files found: ${listing.files.size}")
+        DebugLogging.log("HEURISTIC_DEBUG", "  Folders found: ${listing.folders.size}")
+        DebugLogging.log("HEURISTIC_DEBUG", "  Files: ${listing.files}")
+        DebugLogging.log("HEURISTIC_DEBUG", "  Folders: ${listing.folders}")
+        android.util.Log.d("HeuristicDiscovery", "  Files found: ${listing.files.size}")
+        android.util.Log.d("HeuristicDiscovery", "  Folders found: ${listing.folders.size}")
+        android.util.Log.d("HeuristicDiscovery", "  Files: ${listing.files}")
+        android.util.Log.d("HeuristicDiscovery", "  Folders: ${listing.folders}")
 
         val files = listing.files.map { name -> if (root == "/") "/$name" else "$root/$name" }
+        DebugLogging.log("HEURISTIC_DEBUG", "  Mapped files: $files")
 
         val folderFiles = listing.folders.map { folderName ->
             val child = if (root == "/") "/$folderName" else "$root/$folderName"
+            DebugLogging.log("HEURISTIC_DEBUG", "  Recursively scanning folder: '$child'")
             async { listAllFilesRecursively(child) }
         }.flatMap { it.await() }
 
-        files + folderFiles
+        val allFiles = files + folderFiles
+        DebugLogging.log("HEURISTIC_DEBUG", "Total files found in '$root': ${allFiles.size}")
+        DebugLogging.log("HEURISTIC_DEBUG", "All files: $allFiles")
+        android.util.Log.d("HeuristicDiscovery", "📋 All files: $allFiles")
+
+        allFiles
     }
 }

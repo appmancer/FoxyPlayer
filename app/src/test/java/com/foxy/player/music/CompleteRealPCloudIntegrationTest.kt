@@ -153,26 +153,32 @@ class CompleteRealPCloudIntegrationTest {
                 "metadata": {
                     "name": "/",
                     "isfolder": true,
-                    "folderid": 0
-                },
-                "contents": [
-                    {
-                        "name": "Music",
-                        "isfolder": true,
-                        "folderid": 12345,
-                        "parentfolderid": 0,
-                        "id": "d12345"
-                    },
-                    {
-                        "name": "my-song.mp3",
-                        "isfolder": false,
-                        "fileid": 98765,
-                        "parentfolderid": 0,
-                        "size": 5242880,
-                        "contenttype": "audio/mpeg",
-                        "id": "f98765"
-                    }
-                ]
+                    "folderid": 0,
+                    "parentfolderid": 0,
+                    "created": "Fri, 01 Jan 2021 00:00:00 +0000",
+                    "contents": [
+                        {
+                            "name": "Music",
+                            "isfolder": true,
+                            "folderid": 12345,
+                            "parentfolderid": 0,
+                            "created": "Fri, 01 Jan 2021 00:00:00 +0000",
+                            "modified": "Fri, 01 Jan 2021 00:00:00 +0000",
+                            "id": "d12345"
+                        },
+                        {
+                            "name": "my-song.mp3",
+                            "isfolder": false,
+                            "fileid": 98765,
+                            "parentfolderid": 0,
+                            "created": "Fri, 01 Jan 2021 00:00:00 +0000",
+                            "modified": "Fri, 01 Jan 2021 00:00:00 +0000",
+                            "size": 5242880,
+                            "contenttype": "audio/mpeg",
+                            "id": "f98765"
+                        }
+                    ]
+                }
             }
         """.trimIndent()
 
@@ -206,43 +212,43 @@ class CompleteRealPCloudIntegrationTest {
                     "created": "Fri, 28 Jul 2023 10:15:30 +0000",
                     "isfolder": true,
                     "folderid": 12345,
-                    "parentfolderid": 0
-                },
-                "contents": [
-                    {
-                        "name": "Rock",
-                        "created": "Sat, 29 Jul 2023 11:20:00 +0000",
-                        "modified": "Sat, 29 Jul 2023 11:20:00 +0000",
-                        "isfolder": true,
-                        "folderid": 54321,
-                        "parentfolderid": 12345,
-                        "id": "d54321"
-                    },
-                    {
-                        "name": "Bohemian Rhapsody.mp3",
-                        "created": "Sun, 30 Jul 2023 15:45:12 +0000",
-                        "modified": "Sun, 30 Jul 2023 15:45:12 +0000",
-                        "isfolder": false,
-                        "fileid": 11111,
-                        "parentfolderid": 12345,
-                        "size": 7890123,
-                        "contenttype": "audio/mpeg",
-                        "category": 2,
-                        "id": "f11111"
-                    },
-                    {
-                        "name": "Classical Suite.flac",
-                        "created": "Mon, 31 Jul 2023 20:10:30 +0000",
-                        "modified": "Mon, 31 Jul 2023 20:10:30 +0000",
-                        "isfolder": false,
-                        "fileid": 22222,
-                        "parentfolderid": 12345,
-                        "size": 45123456,
-                        "contenttype": "audio/flac",
-                        "category": 2,
-                        "id": "f22222"
-                    }
-                ]
+                    "parentfolderid": 0,
+                    "contents": [
+                        {
+                            "name": "Rock",
+                            "created": "Sat, 29 Jul 2023 11:20:00 +0000",
+                            "modified": "Sat, 29 Jul 2023 11:20:00 +0000",
+                            "isfolder": true,
+                            "folderid": 54321,
+                            "parentfolderid": 12345,
+                            "id": "d54321"
+                        },
+                        {
+                            "name": "Bohemian Rhapsody.mp3",
+                            "created": "Sun, 30 Jul 2023 15:45:12 +0000",
+                            "modified": "Sun, 30 Jul 2023 15:45:12 +0000",
+                            "isfolder": false,
+                            "fileid": 11111,
+                            "parentfolderid": 12345,
+                            "size": 7890123,
+                            "contenttype": "audio/mpeg",
+                            "category": 2,
+                            "id": "f11111"
+                        },
+                        {
+                            "name": "Classical Suite.flac",
+                            "created": "Mon, 31 Jul 2023 20:10:30 +0000",
+                            "modified": "Mon, 31 Jul 2023 20:10:30 +0000",
+                            "isfolder": false,
+                            "fileid": 22222,
+                            "parentfolderid": 12345,
+                            "size": 45123456,
+                            "contenttype": "audio/flac",
+                            "category": 2,
+                            "id": "f22222"
+                        }
+                    ]
+                }
             }
         """.trimIndent()
 
@@ -253,9 +259,9 @@ class CompleteRealPCloudIntegrationTest {
         assertNotNull("Response should parse successfully", response)
         assertEquals("Should have correct result code", 0, response.result)
         assertNotNull("Should have metadata", response.metadata)
-        assertNotNull("Should have contents", response.contents)
+        assertNotNull("Should have contents in metadata", response.metadata?.contents)
 
-        val contents = response.contents!!
+        val contents = response.metadata?.contents!!
         assertEquals("Should have 3 items", 3, contents.size)
 
         // Test folder parsing

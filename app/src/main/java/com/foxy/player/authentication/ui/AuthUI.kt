@@ -215,7 +215,8 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
             try {
                 Log.d(
                     "FoxyPlayer",
-                    "🔐 LOGIN RESULT (State Management): success=${result.isSuccess}, hasToken=${result.getOrNull()?.authToken != null}"
+                    "🔐 LOGIN RESULT (State Management): success=${result.isSuccess}, " +
+                        "hasToken=${result.getOrNull()?.authToken != null}"
                 )
             } catch (e: Exception) {
                 // Ignore logging errors in test environment

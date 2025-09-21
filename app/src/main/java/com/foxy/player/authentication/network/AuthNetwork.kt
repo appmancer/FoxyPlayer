@@ -10,6 +10,7 @@ import com.foxy.player.authentication.models.PCloudResponse
 import com.foxy.player.authentication.models.ServerRoutingResult
 import com.foxy.player.authentication.models.UserInfo
 import com.foxy.player.authentication.utils.SecureTokenStorage
+import com.foxy.player.utils.DebugLogging
 import com.google.gson.Gson
 import java.io.IOException
 import javax.net.ssl.SSLException
@@ -302,7 +303,7 @@ class AuthRepository(private val baseUrl: String = "") {
 
         for (serverUrl in servers) {
             try {
-                println("AUTH: Trying server: $serverUrl")
+                DebugLogging.log("AUTH", "Trying server: $serverUrl")
                 val requestBody = FormBody.Builder()
                     .add("username", username)
                     .add("password", password)
@@ -316,13 +317,13 @@ class AuthRepository(private val baseUrl: String = "") {
                     .build()
 
                 val response = httpClient.newCall(request).execute()
-                println("AUTH: Response code: ${response.code}")
+                DebugLogging.log("AUTH", "Response code: ${response.code}")
                 if (response.isSuccessful) {
                     val jsonResponse = response.body?.string() ?: ""
-                    println("AUTH: Response body: $jsonResponse")
+                    DebugLogging.log("AUTH", "Response body: $jsonResponse")
 
                     val parseResult = parseAuthResponse(jsonResponse)
-                    println("AUTH: Parse result success: ${parseResult.isSuccess}")
+                    DebugLogging.log("AUTH", "Parse result success: ${parseResult.isSuccess}")
 
                     if (parseResult.isSuccess) {
                         return parseResult
@@ -337,7 +338,7 @@ class AuthRepository(private val baseUrl: String = "") {
                         )
                     }
                 } else {
-                    println("AUTH: HTTP error: ${response.code} - ${response.message}")
+                    DebugLogging.logError("AUTH", "HTTP error: ${response.code} - ${response.message}")
                 }
             } catch (e: Exception) {
                 // Continue to next server
@@ -640,13 +641,23 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
     private val gson = Gson()
 
     fun makeAuthenticatedRequest(endpoint: String): Result<AuthenticatedRequestResult> {
+        DebugLogging.log("PCLOUD_DEBUG", "makeAuthenticatedRequest called with endpoint: $endpoint")
+
         return try {
             // Get current authentication state
             val authState = authRepository.getPersistedAuthenticationState()
-                ?: return Result.failure(AuthenticationException("No authentication state found"))
+            if (authState == null) {
+                DebugLogging.logError("PCLOUD_DEBUG", "No authentication state found!")
+                return Result.failure(AuthenticationException("No authentication state found"))
+            }
 
             // Get base URL from repository
             val baseUrl = authRepository.getLastSuccessfulServer() ?: "https://eapi.pcloud.com"
+
+            // 🔍 DEBUG: Log the API request details (sanitized for security)
+            DebugLogging.log("PCLOUD_DEBUG", "Making pCloud API request:")
+            DebugLogging.log("PCLOUD_DEBUG", "  URL: $baseUrl$endpoint")
+            DebugLogging.log("PCLOUD_DEBUG", "  Auth token length: ${authState.authToken.length}")
 
             // Make authenticated request with token injection
             val requestBody = FormBody.Builder()
@@ -661,6 +672,25 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             val response = httpClient.newCall(request).execute()
             val responseBody = response.body?.string() ?: ""
 
+            // 🔍 DEBUG: Log the API response details
+            DebugLogging.log("PCLOUD_DEBUG", "pCloud API response:")
+            DebugLogging.log("PCLOUD_DEBUG", "  HTTP Status: ${response.code}")
+            DebugLogging.log("PCLOUD_DEBUG", "  Response size: ${responseBody.length} bytes")
+            DebugLogging.log("PCLOUD_DEBUG", "  Response preview: ${responseBody.take(200)}")
+
+            // Parse JSON to check for pCloud API errors
+            try {
+                val jsonObject = gson.fromJson(responseBody, com.google.gson.JsonObject::class.java)
+                val resultCode = jsonObject.get("result")?.asInt ?: -1
+                val errorMessage = jsonObject.get("error")?.asString ?: "No error message"
+                DebugLogging.log("PCLOUD_DEBUG", "  pCloud result code: $resultCode")
+                if (resultCode != 0) {
+                    DebugLogging.logError("PCLOUD_DEBUG", "  ⚠️ pCloud API error: $errorMessage")
+                }
+            } catch (e: Exception) {
+                DebugLogging.logError("PCLOUD_DEBUG", "  Could not parse response as JSON: ${e.message}")
+            }
+
             // Create result with auth token confirmation
             val result = AuthenticatedRequestResult(
                 httpResponse = responseBody,
@@ -669,6 +699,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
 
             Result.success(result)
         } catch (e: Exception) {
+            DebugLogging.logError("PCLOUD_DEBUG", "API request failed: ${e.message}", e)
             Result.failure(e)
         }
     }

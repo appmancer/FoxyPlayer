@@ -366,14 +366,41 @@ class MusicDiscoveryService(
             MusicDiscoveryLogger.logApiResponse("/listfolder", responseSize, "success")
 
             try {
+                // Add detailed debug logging for JSON parsing (sanitized for security)
+                android.util.Log.d("PCloudDebug", "JSON response size: ${requestResult.httpResponse.length} bytes")
+                android.util.Log.d("PCloudDebug", "JSON response type: ${if (requestResult.httpResponse.startsWith("{")) "object" else "unknown"}")
+
                 val pCloudResponse = gson.fromJson(
                     requestResult.httpResponse,
                     PCloudListFolderResponse::class.java
                 )
 
-                if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
-                    MusicDiscoveryLogger.logResponseParsing(pCloudResponse.contents.size, "listPCloudFolders")
-                    val folderListing = extractFolderListing(pCloudResponse.contents)
+                // Debug the parsed response structure
+                android.util.Log.d("PCloudDebug", "Parsed result code: ${pCloudResponse.result}")
+                android.util.Log.d("PCloudDebug", "Parsed metadata exists: ${pCloudResponse.metadata != null}")
+                android.util.Log.d(
+                    "PCloudDebug",
+                    "Parsed contents exists: ${pCloudResponse.metadata?.contents != null}"
+                )
+                android.util.Log.d(
+                    "PCloudDebug",
+                    "Parsed contents size: ${pCloudResponse.metadata?.contents?.size ?: 0}"
+                )
+
+                if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
+                    MusicDiscoveryLogger.logResponseParsing(pCloudResponse.metadata.contents.size, "listPCloudFolders")
+
+                    // Debug what items we found before extraction
+                    pCloudResponse.metadata.contents.forEach { item ->
+                        android.util.Log.d("PCloudDebug", "Found item: ${item.name}, isFolder: ${item.isFolder}")
+                    }
+
+                    val folderListing = extractFolderListing(pCloudResponse.metadata.contents)
+
+                    // Debug what was extracted
+                    android.util.Log.d("PCloudDebug", "Extracted folders: ${folderListing.folders}")
+                    android.util.Log.d("PCloudDebug", "Extracted files: ${folderListing.files}")
+
                     val duration = System.currentTimeMillis() - startTime
                     MusicDiscoveryLogger.logPerformanceMetric("listPCloudFolders", duration)
                     Result.success(folderListing)
@@ -426,8 +453,8 @@ class MusicDiscoveryService(
                             PCloudListFolderResponse::class.java
                         )
 
-                        if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
-                            val folderListing = extractFolderListing(pCloudResponse.contents)
+                        if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
+                            val folderListing = extractFolderListing(pCloudResponse.metadata.contents)
                             PCloudAPIResponse(requestResult.authTokenUsed, folderListing)
                         } else {
                             val errorResponse = folderListingStrategy.handleApiError(
@@ -467,9 +494,9 @@ class MusicDiscoveryService(
                     PCloudListFolderResponse::class.java
                 )
 
-                if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
                     // Extract real folders and files from API response
-                    val folderListing = extractFolderListing(pCloudResponse.contents)
+                    val folderListing = extractFolderListing(pCloudResponse.metadata.contents)
                     Result.success(PCloudAPIResponse(requestResult.authTokenUsed, folderListing))
                 } else {
                     // pCloud API returned error - delegate to strategy pattern
@@ -524,13 +551,13 @@ class MusicDiscoveryService(
                     PCloudListFolderResponse::class.java
                 )
 
-                if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
                     // Extract real folder structure from API response
                     val allFolders = mutableListOf<String>()
                     var directoriesTraversed = 0
 
                     // Process all items to build folder hierarchy
-                    pCloudResponse.contents.forEach { item ->
+                    pCloudResponse.metadata.contents.forEach { item ->
                         if (item.isFolder) {
                             directoriesTraversed++
 
@@ -597,11 +624,11 @@ class MusicDiscoveryService(
                     PCloudListFolderResponse::class.java
                 )
 
-                if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
-                    MusicDiscoveryLogger.logResponseParsing(pCloudResponse.contents.size, "listAudioFiles")
+                if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
+                    MusicDiscoveryLogger.logResponseParsing(pCloudResponse.metadata.contents.size, "listAudioFiles")
 
                     // Filter real audio files based on content type and extension
-                    val audioFiles = pCloudResponse.contents
+                    val audioFiles = pCloudResponse.metadata.contents
                         .filter { !it.isFolder } // Only files, not folders
                         .filter { item ->
                             // Check content type first
@@ -620,7 +647,7 @@ class MusicDiscoveryService(
                         .map { it.name }
 
                     MusicDiscoveryLogger.logDataTransformation(
-                        pCloudResponse.contents.size,
+                        pCloudResponse.metadata.contents.size,
                         audioFiles.size,
                         "audio files"
                     )
@@ -678,9 +705,9 @@ class MusicDiscoveryService(
                     PCloudListFolderResponse::class.java
                 )
 
-                if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
                     // Extract real audio files and implement proper pagination
-                    val audioFiles = pCloudResponse.contents
+                    val audioFiles = pCloudResponse.metadata.contents
                         .filter { !it.isFolder }
                         .filter { item ->
                             val isAudioByContentType = item.contentType?.startsWith("audio/") == true
@@ -783,10 +810,13 @@ class MusicDiscoveryService(
                         PCloudListFolderResponse::class.java
                     )
 
-                    val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
-                        MusicDiscoveryLogger.logResponseParsing(pCloudResponse.contents.size, "listAudioFilesWithCache")
+                    val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
+                        MusicDiscoveryLogger.logResponseParsing(
+                            pCloudResponse.metadata.contents.size,
+                            "listAudioFilesWithCache"
+                        )
                         // Extract real audio files
-                        val files = pCloudResponse.contents
+                        val files = pCloudResponse.metadata.contents
                             .filter { !it.isFolder }
                             .filter { item ->
                                 val isAudioByContentType = item.contentType?.startsWith("audio/") == true
@@ -798,7 +828,7 @@ class MusicDiscoveryService(
                             }
                             .map { it.name }
                         MusicDiscoveryLogger.logDataTransformation(
-                            pCloudResponse.contents.size,
+                            pCloudResponse.metadata.contents.size,
                             files.size,
                             "audio files"
                         )
@@ -897,9 +927,9 @@ class MusicDiscoveryService(
                         PCloudListFolderResponse::class.java
                     )
 
-                    val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                    val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
                         // Extract real audio files instead of generating hardcoded patterns
-                        pCloudResponse.contents
+                        pCloudResponse.metadata.contents
                             .filter { !it.isFolder }
                             .filter { item ->
                                 val isAudioByContentType = item.contentType?.startsWith("audio/") == true
@@ -962,9 +992,9 @@ class MusicDiscoveryService(
                     PCloudListFolderResponse::class.java
                 )
 
-                val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.contents != null) {
+                val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
                     // Extract real audio files instead of generating hardcoded patterns
-                    pCloudResponse.contents
+                    pCloudResponse.metadata.contents
                         .filter { !it.isFolder }
                         .filter { item ->
                             val isAudioByContentType = item.contentType?.startsWith("audio/") == true
@@ -1118,6 +1148,52 @@ class MusicDiscoveryService(
         return Result.success(report)
     }
 
+    // ===== DEBUG API AUTHENTICATION =====
+
+    /**
+     * Debug method to verify pCloud API authentication and inspect raw API responses.
+     * Makes a direct call to pCloud /listfolder?path=/ to test authentication and capture response details.
+     */
+    fun debugPCloudAPIAuthentication(): Result<PCloudAPIDebugInfo> {
+        val startTime = System.currentTimeMillis()
+
+        return try {
+            // Make direct API call to root folder to test authentication
+            val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=/")
+
+            if (apiRequest.isSuccess) {
+                val requestResult = apiRequest.getOrNull()!!
+                val endTime = System.currentTimeMillis()
+
+                // Capture debug information (sanitized for security)
+                val debugInfo = PCloudAPIDebugInfo(
+                    authTokenLength = requestResult.authTokenUsed.length,
+                    responseSize = requestResult.httpResponse.length,
+                    responseParsingInfo = "API response captured successfully",
+                    requestDurationMs = endTime - startTime,
+                    endpoint = "/listfolder?path=/",
+                    timestamp = startTime,
+                    responseType = if (requestResult.httpResponse.startsWith("{")) "JSON" else "unknown"
+                )
+
+                // Log debug information (sanitized for security)
+                android.util.Log.d("PCloudDebug", "API authentication test successful")
+                android.util.Log.d("PCloudDebug", "Auth token length: ${requestResult.authTokenUsed.length} chars")
+                android.util.Log.d("PCloudDebug", "Response size: ${requestResult.httpResponse.length} bytes")
+                android.util.Log.d("PCloudDebug", "Response type: ${if (requestResult.httpResponse.startsWith("{")) "JSON" else "unknown"}")
+
+                Result.success(debugInfo)
+            } else {
+                val error: Exception = (apiRequest.exceptionOrNull() as? Exception) ?: Exception("Unknown API error")
+                android.util.Log.e("PCloudDebug", "API authentication test failed", error)
+                Result.failure(error)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PCloudDebug", "Debug authentication method failed", e)
+            Result.failure(e)
+        }
+    }
+
     // ===== ALBUM DISCOVERY FUNCTIONALITY =====
 
     /**
@@ -1228,4 +1304,17 @@ data class DiscoveredAlbum(
     val title: String,
     val artist: String,
     val audioFiles: List<String>
+)
+
+/**
+ * Debug information for pCloud API authentication and response analysis.
+ */
+data class PCloudAPIDebugInfo(
+    val authTokenLength: Int,        // Changed: only store length, not actual token
+    val responseSize: Int,           // Changed: only store size, not raw content
+    val responseParsingInfo: String,
+    val requestDurationMs: Long,
+    val endpoint: String,
+    val timestamp: Long,
+    val responseType: String         // Added: indicate JSON/other without exposing content
 )

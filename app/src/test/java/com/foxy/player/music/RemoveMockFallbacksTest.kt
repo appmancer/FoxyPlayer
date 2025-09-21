@@ -34,19 +34,23 @@ class RemoveMockFallbacksTest {
         if (result.isSuccess) {
             val folderListing = result.getOrNull()!!
             assertFalse(
-                "Should not return hardcoded 'Music' folder from mock fallback", folderListing.folders.contains("Music")
+                "Should not return hardcoded 'Music' folder from mock fallback",
+                folderListing.folders.contains("Music")
             )
             assertFalse(
-                "Should not return hardcoded 'Audio' folder from mock fallback", folderListing.folders.contains("Audio")
+                "Should not return hardcoded 'Audio' folder from mock fallback",
+                folderListing.folders.contains("Audio")
             )
             assertFalse(
-                "Should not return hardcoded 'Downloads' folder from mock fallback", folderListing.folders.contains("Downloads")
+                "Should not return hardcoded 'Downloads' folder from mock fallback",
+                folderListing.folders.contains("Downloads")
             )
 
             // If all three hardcoded folders are present, this indicates mock fallback is still active
             val hasAllMockFolders = folderListing.folders.containsAll(listOf("Music", "Audio", "Downloads"))
             assertFalse(
-                "Mock fallback still active - returning hardcoded ['Music', 'Audio', 'Downloads']", hasAllMockFolders
+                "Mock fallback still active - returning hardcoded ['Music', 'Audio', 'Downloads']",
+                hasAllMockFolders
             )
         }
     }
@@ -60,13 +64,16 @@ class RemoveMockFallbacksTest {
         if (result.isSuccess) {
             val paginatedResponse = result.getOrNull()!!
             assertFalse(
-                "Should not return hardcoded 'page1_song1.mp3' from mock fallback", paginatedResponse.audioFiles.contains("page1_song1.mp3")
+                "Should not return hardcoded 'page1_song1.mp3' from mock fallback",
+                paginatedResponse.audioFiles.contains("page1_song1.mp3")
             )
             assertFalse(
-                "Should not return hardcoded 'page1_track2.flac' from mock fallback", paginatedResponse.audioFiles.contains("page1_track2.flac")
+                "Should not return hardcoded 'page1_track2.flac' from mock fallback",
+                paginatedResponse.audioFiles.contains("page1_track2.flac")
             )
             assertFalse(
-                "Should not return hardcoded 'page1_audio3.wav' from mock fallback", paginatedResponse.audioFiles.contains("page1_audio3.wav")
+                "Should not return hardcoded 'page1_audio3.wav' from mock fallback",
+                paginatedResponse.audioFiles.contains("page1_audio3.wav")
             )
 
             // Check for the specific pattern of hardcoded pagination mock data
@@ -84,13 +91,16 @@ class RemoveMockFallbacksTest {
         if (result.isSuccess) {
             val cachedResponse = result.getOrNull()!!
             assertFalse(
-                "Should not return hardcoded 'cached_song1.mp3' from mock fallback", cachedResponse.audioFiles.contains("cached_song1.mp3")
+                "Should not return hardcoded 'cached_song1.mp3' from mock fallback",
+                cachedResponse.audioFiles.contains("cached_song1.mp3")
             )
             assertFalse(
-                "Should not return hardcoded 'cached_track2.flac' from mock fallback", cachedResponse.audioFiles.contains("cached_track2.flac")
+                "Should not return hardcoded 'cached_track2.flac' from mock fallback",
+                cachedResponse.audioFiles.contains("cached_track2.flac")
             )
             assertFalse(
-                "Should not return hardcoded 'cached_audio3.wav' from mock fallback", cachedResponse.audioFiles.contains("cached_audio3.wav")
+                "Should not return hardcoded 'cached_audio3.wav' from mock fallback",
+                cachedResponse.audioFiles.contains("cached_audio3.wav")
             )
 
             // Check for the specific pattern of hardcoded cache mock data
@@ -109,10 +119,12 @@ class RemoveMockFallbacksTest {
             val albumsResponse = result.getOrNull()!!
             val allAudioFiles = albumsResponse.albums.flatMap { it.audioFiles }
             assertFalse(
-                "Should not return hardcoded 'Artist - Album - Song1.mp3' from mock fallback", allAudioFiles.contains("Artist - Album - Song1.mp3")
+                "Should not return hardcoded 'Artist - Album - Song1.mp3' from mock fallback",
+                allAudioFiles.contains("Artist - Album - Song1.mp3")
             )
             assertFalse(
-                "Should not return hardcoded 'Artist - Album - Song2.mp3' from mock fallback", allAudioFiles.contains("Artist - Album - Song2.mp3")
+                "Should not return hardcoded 'Artist - Album - Song2.mp3' from mock fallback",
+                allAudioFiles.contains("Artist - Album - Song2.mp3")
             )
 
             // Check for the specific pattern of hardcoded album mock data
@@ -125,7 +137,8 @@ class RemoveMockFallbacksTest {
     fun `listAudioFilesWithErrorHandling should not return hardcoded retry patterns when retryScenario is false`() {
         // Act - Call without retry scenario activated
         val result = musicDiscoveryService.listAudioFilesWithErrorHandling(
-            "/music", retryScenario = false // Explicitly disable retry scenario
+            "/music",
+            retryScenario = false // Explicitly disable retry scenario
         )
 
         // Assert - Should NOT return hardcoded retry patterns
