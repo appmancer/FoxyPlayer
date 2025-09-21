@@ -659,10 +659,14 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             System.out.println("🔍 PCLOUD_DEBUG:   URL: $baseUrl$endpoint")
             System.out.println("🔍 PCLOUD_DEBUG:   Auth token length: ${authState.authToken.length}")
             System.out.println("🔍 PCLOUD_DEBUG:   Auth token preview: ${authState.authToken.take(10)}...")
-            android.util.Log.d("AuthenticatedApiClient", "🔍 Making pCloud API request:")
-            android.util.Log.d("AuthenticatedApiClient", "  URL: $baseUrl$endpoint")
-            android.util.Log.d("AuthenticatedApiClient", "  Auth token length: ${authState.authToken.length}")
-            android.util.Log.d("AuthenticatedApiClient", "  Auth token preview: ${authState.authToken.take(10)}...")
+            try {
+                android.util.Log.d("AuthenticatedApiClient", "🔍 Making pCloud API request:")
+                android.util.Log.d("AuthenticatedApiClient", "  URL: $baseUrl$endpoint")
+                android.util.Log.d("AuthenticatedApiClient", "  Auth token length: ${authState.authToken.length}")
+                android.util.Log.d("AuthenticatedApiClient", "  Auth token preview: ${authState.authToken.take(10)}...")
+            } catch (e: Exception) {
+                // Android logging not available in unit tests
+            }
 
             // Make authenticated request with token injection
             val requestBody = FormBody.Builder()
@@ -682,10 +686,14 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             System.out.println("🔍 PCLOUD_DEBUG:   HTTP Status: ${response.code}")
             System.out.println("🔍 PCLOUD_DEBUG:   Response size: ${responseBody.length} bytes")
             System.out.println("🔍 PCLOUD_DEBUG:   Response preview: ${responseBody.take(200)}")
-            android.util.Log.d("AuthenticatedApiClient", "🔍 pCloud API response:")
-            android.util.Log.d("AuthenticatedApiClient", "  HTTP Status: ${response.code}")
-            android.util.Log.d("AuthenticatedApiClient", "  Response size: ${responseBody.length} bytes")
-            android.util.Log.d("AuthenticatedApiClient", "  Response preview: ${responseBody.take(200)}")
+            try {
+                android.util.Log.d("AuthenticatedApiClient", "🔍 pCloud API response:")
+                android.util.Log.d("AuthenticatedApiClient", "  HTTP Status: ${response.code}")
+                android.util.Log.d("AuthenticatedApiClient", "  Response size: ${responseBody.length} bytes")
+                android.util.Log.d("AuthenticatedApiClient", "  Response preview: ${responseBody.take(200)}")
+            } catch (e: Exception) {
+                // Android logging not available in unit tests
+            }
 
             // Parse JSON to check for pCloud API errors
             try {
@@ -693,14 +701,26 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 val resultCode = jsonObject.get("result")?.asInt ?: -1
                 val errorMessage = jsonObject.get("error")?.asString ?: "No error message"
                 System.out.println("🔍 PCLOUD_DEBUG:   pCloud result code: $resultCode")
-                android.util.Log.d("AuthenticatedApiClient", "  pCloud result code: $resultCode")
+                try {
+                    android.util.Log.d("AuthenticatedApiClient", "  pCloud result code: $resultCode")
+                } catch (e: Exception) {
+                    // Android logging not available in unit tests
+                }
                 if (resultCode != 0) {
                     System.out.println("🚨 PCLOUD_DEBUG:   ⚠️ pCloud API error: $errorMessage")
-                    android.util.Log.w("AuthenticatedApiClient", "  ⚠️ pCloud API error: $errorMessage")
+                    try {
+                        android.util.Log.w("AuthenticatedApiClient", "  ⚠️ pCloud API error: $errorMessage")
+                    } catch (e: Exception) {
+                        // Android logging not available in unit tests
+                    }
                 }
             } catch (e: Exception) {
                 System.out.println("🚨 PCLOUD_DEBUG:   Could not parse response as JSON: ${e.message}")
-                android.util.Log.w("AuthenticatedApiClient", "  Could not parse response as JSON: ${e.message}")
+                try {
+                    android.util.Log.w("AuthenticatedApiClient", "  Could not parse response as JSON: ${e.message}")
+                } catch (e: Exception) {
+                    // Android logging not available in unit tests
+                }
             }
 
             // Create result with auth token confirmation
@@ -712,7 +732,11 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             Result.success(result)
         } catch (e: Exception) {
             System.out.println("🚨 PCLOUD_DEBUG: API request failed: ${e.message}")
-            android.util.Log.e("AuthenticatedApiClient", "🚨 API request failed", e)
+            try {
+                android.util.Log.e("AuthenticatedApiClient", "🚨 API request failed", e)
+            } catch (e: Exception) {
+                // Android logging not available in unit tests
+            }
             Result.failure(e)
         }
     }
