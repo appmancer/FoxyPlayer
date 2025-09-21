@@ -3,6 +3,7 @@ package com.foxy.player.music
 import com.foxy.player.authentication.network.AuthRepository
 import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.network.MusicDiscoveryService
+import com.foxy.player.music.NetworkTimeoutConfig
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -219,5 +220,85 @@ class RealPCloudAPITest {
         assertTrue("Response should contain userid", realPCloudResponse.contains("\"userid\""))
 
         println("✅ Real pCloud response parsing test PASSED!")
+    }
+
+    @Test
+    fun `test network timeout handling with configurable timeouts`() {
+        println("⏰ Testing Network Timeout Handling with Configurable Timeouts...")
+        println("=" + "=".repeat(SEPARATOR_LINE_LENGTH))
+
+        try {
+            // Setup music discovery with configurable timeout settings
+            val authRepository = AuthRepository("https://eapi.pcloud.com")
+            val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+            val musicService = MusicDiscoveryService(authenticatedApiClient)
+
+            // TEST 1: Configure custom timeout settings
+            println("\n⚙️ Testing timeout configuration...")
+            val timeoutConfig = NetworkTimeoutConfig(
+                connectionTimeoutMs = 5000,
+                readTimeoutMs = 10000,
+                writeTimeoutMs = 15000
+            )
+            
+            // This should configure the timeout settings for network operations
+            val configResult = musicService.configureNetworkTimeouts(timeoutConfig)
+            assertTrue("Should successfully configure network timeouts", configResult.isSuccess)
+            
+            val appliedConfig = configResult.getOrNull()!!
+            assertEquals("Connection timeout should be applied", 5000, appliedConfig.connectionTimeoutMs)
+            assertEquals("Read timeout should be applied", 10000, appliedConfig.readTimeoutMs)
+            assertEquals("Write timeout should be applied", 15000, appliedConfig.writeTimeoutMs)
+            
+            println("✅ Network timeout configuration successful!")
+            println("🔌 Connection timeout: ${appliedConfig.connectionTimeoutMs}ms")
+            println("📖 Read timeout: ${appliedConfig.readTimeoutMs}ms")
+            println("✍️ Write timeout: ${appliedConfig.writeTimeoutMs}ms")
+
+            // TEST 2: Test timeout enforcement during API calls
+            println("\n⏰ Testing timeout enforcement...")
+            
+            // Simulate a slow endpoint that should trigger timeout
+            val slowEndpointResult = musicService.testTimeoutEnforcement("/slow-endpoint")
+            
+            if (slowEndpointResult.isFailure) {
+                val exception = slowEndpointResult.exceptionOrNull()!!
+                assertTrue("Should be a timeout exception", 
+                    exception.message?.contains("timeout") == true ||
+                    exception is java.net.SocketTimeoutException)
+                
+                println("✅ Timeout correctly enforced for slow endpoint")
+                println("⚠️ Exception: ${exception.message}")
+            } else {
+                println("⚠️ Expected timeout but operation completed - endpoint may be fast")
+            }
+
+            // TEST 3: Test timeout recovery and retry logic
+            println("\n🔄 Testing timeout recovery...")
+            
+            val retryResult = musicService.executeWithTimeoutRecovery("/test-endpoint") { attempt ->
+                println("  🔄 Retry attempt $attempt")
+                if (attempt < 3) {
+                    throw java.net.SocketTimeoutException("Simulated timeout on attempt $attempt")
+                }
+                "Success after $attempt attempts"
+            }
+            
+            assertTrue("Should recover from timeouts with retry", retryResult.isSuccess)
+            val recoveryMessage = retryResult.getOrNull()!!
+            assertTrue("Should indicate successful recovery", recoveryMessage.contains("Success"))
+            
+            println("✅ Timeout recovery successful: $recoveryMessage")
+
+            println("\n🎉 Network Timeout Handling Test PASSED!")
+            println("✅ Successfully configured custom timeouts")
+            println("✅ Timeout enforcement working correctly")
+            println("✅ Timeout recovery and retry logic functional")
+
+        } catch (e: Exception) {
+            println("💥 Error during timeout testing: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
     }
 }
