@@ -368,32 +368,38 @@ class MusicDiscoveryService(
             try {
                 // Add detailed debug logging for JSON parsing
                 android.util.Log.d("PCloudDebug", "Raw JSON response: ${requestResult.httpResponse}")
-                
+
                 val pCloudResponse = gson.fromJson(
                     requestResult.httpResponse,
                     PCloudListFolderResponse::class.java
                 )
-                
+
                 // Debug the parsed response structure
                 android.util.Log.d("PCloudDebug", "Parsed result code: ${pCloudResponse.result}")
                 android.util.Log.d("PCloudDebug", "Parsed metadata exists: ${pCloudResponse.metadata != null}")
-                android.util.Log.d("PCloudDebug", "Parsed contents exists: ${pCloudResponse.metadata?.contents != null}")
-                android.util.Log.d("PCloudDebug", "Parsed contents size: ${pCloudResponse.metadata?.contents?.size ?: 0}")
+                android.util.Log.d(
+                    "PCloudDebug",
+                    "Parsed contents exists: ${pCloudResponse.metadata?.contents != null}"
+                )
+                android.util.Log.d(
+                    "PCloudDebug",
+                    "Parsed contents size: ${pCloudResponse.metadata?.contents?.size ?: 0}"
+                )
 
                 if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
                     MusicDiscoveryLogger.logResponseParsing(pCloudResponse.metadata.contents.size, "listPCloudFolders")
-                    
+
                     // Debug what items we found before extraction
                     pCloudResponse.metadata.contents.forEach { item ->
                         android.util.Log.d("PCloudDebug", "Found item: ${item.name}, isFolder: ${item.isFolder}")
                     }
-                    
+
                     val folderListing = extractFolderListing(pCloudResponse.metadata.contents)
-                    
+
                     // Debug what was extracted
                     android.util.Log.d("PCloudDebug", "Extracted folders: ${folderListing.folders}")
                     android.util.Log.d("PCloudDebug", "Extracted files: ${folderListing.files}")
-                    
+
                     val duration = System.currentTimeMillis() - startTime
                     MusicDiscoveryLogger.logPerformanceMetric("listPCloudFolders", duration)
                     Result.success(folderListing)
@@ -804,7 +810,10 @@ class MusicDiscoveryService(
                     )
 
                     val audioFiles = if (pCloudResponse.result == 0 && pCloudResponse.metadata?.contents != null) {
-                        MusicDiscoveryLogger.logResponseParsing(pCloudResponse.metadata.contents.size, "listAudioFilesWithCache")
+                        MusicDiscoveryLogger.logResponseParsing(
+                            pCloudResponse.metadata.contents.size,
+                            "listAudioFilesWithCache"
+                        )
                         // Extract real audio files
                         val files = pCloudResponse.metadata.contents
                             .filter { !it.isFolder }
@@ -1146,15 +1155,15 @@ class MusicDiscoveryService(
      */
     fun debugPCloudAPIAuthentication(): Result<PCloudAPIDebugInfo> {
         val startTime = System.currentTimeMillis()
-        
+
         return try {
             // Make direct API call to root folder to test authentication
             val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=/")
-            
+
             if (apiRequest.isSuccess) {
                 val requestResult = apiRequest.getOrNull()!!
                 val endTime = System.currentTimeMillis()
-                
+
                 // Capture all debug information
                 val debugInfo = PCloudAPIDebugInfo(
                     authTokenUsed = requestResult.authTokenUsed,
@@ -1165,13 +1174,13 @@ class MusicDiscoveryService(
                     endpoint = "/listfolder?path=/",
                     timestamp = startTime
                 )
-                
+
                 // Log debug information
                 android.util.Log.d("PCloudDebug", "API authentication test successful")
                 android.util.Log.d("PCloudDebug", "Auth token: ${requestResult.authTokenUsed}")
                 android.util.Log.d("PCloudDebug", "Response size: ${requestResult.httpResponse.length} bytes")
                 android.util.Log.d("PCloudDebug", "Raw response: ${requestResult.httpResponse}")
-                
+
                 Result.success(debugInfo)
             } else {
                 val error: Exception = (apiRequest.exceptionOrNull() as? Exception) ?: Exception("Unknown API error")

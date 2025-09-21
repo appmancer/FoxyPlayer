@@ -642,7 +642,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
     fun makeAuthenticatedRequest(endpoint: String): Result<AuthenticatedRequestResult> {
         // 🚨 AGGRESSIVE DEBUG: Using System.out to ensure visibility
         System.out.println("🔍 PCLOUD_DEBUG: makeAuthenticatedRequest called with endpoint: $endpoint")
-        
+
         return try {
             // Get current authentication state
             val authState = authRepository.getPersistedAuthenticationState()

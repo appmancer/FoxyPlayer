@@ -120,12 +120,12 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
     private suspend fun listAllFilesRecursively(root: String): List<String> = coroutineScope {
         System.out.println("🔍 HEURISTIC_DEBUG: listAllFilesRecursively called with root: '$root'")
         android.util.Log.d("HeuristicDiscovery", "🔍 listAllFilesRecursively called with root: '$root'")
-        
+
         val listingResult = withContext(Dispatchers.IO) {
             service.listPCloudFolders(root)
         }
         val listing = listingResult.getOrNull()
-        
+
         if (listing == null) {
             System.out.println("🚨 HEURISTIC_DEBUG: listPCloudFolders returned null for root: '$root'")
             android.util.Log.w("HeuristicDiscovery", "⚠️ listPCloudFolders returned null for root: '$root'")
@@ -134,7 +134,7 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
             android.util.Log.w("HeuristicDiscovery", "⚠️ Exception: ${error?.message}", error)
             return@coroutineScope emptyList()
         }
-        
+
         System.out.println("📂 HEURISTIC_DEBUG: Folder listing for '$root':")
         System.out.println("📂 HEURISTIC_DEBUG:   Files found: ${listing.files.size}")
         System.out.println("📂 HEURISTIC_DEBUG:   Folders found: ${listing.folders.size}")
@@ -162,7 +162,7 @@ class HeuristicMusicDiscovery(private val service: MusicDiscoveryService) {
         System.out.println("📋 HEURISTIC_DEBUG: All files: $allFiles")
         android.util.Log.d("HeuristicDiscovery", "📋 Total files found in '$root': ${allFiles.size}")
         android.util.Log.d("HeuristicDiscovery", "📋 All files: $allFiles")
-        
+
         allFiles
     }
 }

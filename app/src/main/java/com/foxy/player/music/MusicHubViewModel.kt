@@ -45,7 +45,7 @@ class MusicHubViewModel(
     fun loadCountsOnce() {
         if (loaded) return
         loaded = true
-        
+
         System.out.println("🎵 MUSICHUB_DEBUG: loadData() called - starting music discovery")
         try {
             Log.d(
@@ -58,7 +58,7 @@ class MusicHubViewModel(
         _state.value = _state.value.copy(isLoading = true)
         viewModelScope.launch(ioDispatcher) {
             System.out.println("🎵 MUSICHUB_DEBUG: Starting music discovery calls in coroutine...")
-            
+
             // 🔍 DEBUG: Test pCloud API authentication before any discovery
             System.out.println("🔍 MUSICHUB_DEBUG: Testing pCloud API authentication...")
             try {
@@ -69,7 +69,9 @@ class MusicHubViewModel(
                     System.out.println("🔍 MUSICHUB_DEBUG:   - Auth token length: ${debugInfo.authTokenUsed.length}")
                     System.out.println("🔍 MUSICHUB_DEBUG:   - Response size: ${debugInfo.responseSize} bytes")
                     System.out.println("🔍 MUSICHUB_DEBUG:   - Request duration: ${debugInfo.requestDurationMs}ms")
-                    System.out.println("🔍 MUSICHUB_DEBUG:   - Raw response preview: ${debugInfo.rawApiResponse.take(300)}...")
+                    System.out.println(
+                        "🔍 MUSICHUB_DEBUG:   - Raw response preview: ${debugInfo.rawApiResponse.take(300)}..."
+                    )
                 } else {
                     val error = debugResult.exceptionOrNull()
                     System.out.println("🚨 MUSICHUB_DEBUG: ❌ pCloud API authentication FAILED: ${error?.message}")
@@ -78,19 +80,19 @@ class MusicHubViewModel(
             } catch (e: Exception) {
                 System.out.println("🚨 MUSICHUB_DEBUG: ❌ Debug API call threw exception: ${e.message}")
             }
-            
+
             val songs = heuristic.listSongs().getOrNull().orEmpty()
             System.out.println("🎵 MUSICHUB_DEBUG: Songs discovery completed: ${songs.size} songs")
-            
+
             val artists = heuristic.listArtists().getOrNull().orEmpty()
             System.out.println("🎵 MUSICHUB_DEBUG: Artists discovery completed: ${artists.size} artists")
-            
+
             val albums = heuristic.listAlbums().getOrNull().orEmpty()
             System.out.println("🎵 MUSICHUB_DEBUG: Albums discovery completed: ${albums.size} albums")
-            
+
             val folders = discoveryService.listPCloudFolders("/").getOrNull()?.folders ?: emptyList()
             System.out.println("🎵 MUSICHUB_DEBUG: Folders discovery completed: ${folders.size} folders")
-            
+
             try {
                 Log.d(
                     "FoxyPlayer",
