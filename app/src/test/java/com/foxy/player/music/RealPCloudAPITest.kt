@@ -437,13 +437,15 @@ class RealPCloudAPITest {
             // 4. Retry attempts with individual failure reasons
             // 5. Performance impact metrics
             val detailedErrorLogResult = musicService.recordDetailedNetworkFailure(
-                errorType = "TIMEOUT_ERROR", errorMessage = "Connection timeout after 100ms",
+                errorType = "TIMEOUT_ERROR",
+                errorMessage = "Connection timeout after 100ms",
                 contextPath = "/test/timeout/path",
                 duration = 150L,
                 retryAttempt = 1,
                 additionalContext = mapOf(
                     "originalTimeout" to "100ms",
-                    "actualDuration" to "150ms", "networkState" to "available",
+                    "actualDuration" to "150ms",
+                    "networkState" to "available",
                     "circuitBreakerState" to "CLOSED"
                 )
             )

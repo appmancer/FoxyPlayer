@@ -1337,7 +1337,9 @@ class MusicDiscoveryService(
     private var enhancedLastFailureTime: Long? = null
     private var simulatedTimeOffset = 0L // For testing time passage
 
-    fun configureEnhancedCircuitBreaker(config: com.foxy.player.music.EnhancedCircuitBreakerConfig): Result<com.foxy.player.music.EnhancedCircuitBreakerConfig> {
+    fun configureEnhancedCircuitBreaker(
+        config: com.foxy.player.music.EnhancedCircuitBreakerConfig
+    ): Result<com.foxy.player.music.EnhancedCircuitBreakerConfig> {
         enhancedCircuitBreakerConfig = config
         return Result.success(config)
     }
@@ -1348,9 +1350,11 @@ class MusicDiscoveryService(
         val lastFailure = enhancedLastFailureTime
 
         val state = when {
-            config != null && enhancedFailureCount >= config.failureThreshold && lastFailure != null && (currentTime - lastFailure) < config.halfOpenTimeout -> "OPEN"
+            config != null && enhancedFailureCount >= config.failureThreshold &&
+                lastFailure != null && (currentTime - lastFailure) < config.halfOpenTimeout -> "OPEN"
 
-            config != null && enhancedFailureCount >= config.failureThreshold && lastFailure != null && (currentTime - lastFailure) >= config.halfOpenTimeout -> "HALF_OPEN"
+            config != null && enhancedFailureCount >= config.failureThreshold &&
+                lastFailure != null && (currentTime - lastFailure) >= config.halfOpenTimeout -> "HALF_OPEN"
 
             else -> "CLOSED"
         }
