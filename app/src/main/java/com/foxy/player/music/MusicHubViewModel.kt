@@ -96,7 +96,8 @@ class MusicHubViewModel(
             try {
                 Log.d(
                     "FoxyPlayer",
-                    "📊 COUNTS LOADED: songs=${songs.size}, artists=${artists.size}, albums=${albums.size}, folders=${folders.size}"
+                    "📊 COUNTS LOADED: songs=${songs.size}, artists=${artists.size}, " +
+                        "albums=${albums.size}, folders=${folders.size}"
                 )
             } catch (e: Exception) {
                 // Ignore logging errors in test environment
