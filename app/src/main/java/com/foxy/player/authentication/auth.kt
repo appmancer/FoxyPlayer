@@ -137,8 +137,21 @@ class AuthRepository(private val baseUrl: String = "") {
     private var refreshUsername: String? = null
     private var refreshPassword: String? = null
     
+    // PLY-119: Authentication operation logging
+    private val authenticationLogs = mutableListOf<String>()
+    
     companion object {
         private var persistedAuthState: AuthResponse? = null
+    }
+    
+    // PLY-119: Get authentication logs for monitoring
+    fun getAuthenticationLogs(): List<String> {
+        return authenticationLogs.toList()
+    }
+    
+    // PLY-119: Add log entry
+    private fun addAuthLog(message: String) {
+        authenticationLogs.add(message)
     }
     
     // PLY-119: Token management methods for 401 handling
@@ -160,29 +173,36 @@ class AuthRepository(private val baseUrl: String = "") {
     // PLY-119: Authenticated request with 401 handling and token refresh
     fun makeAuthenticatedRequest(endpoint: String): Result<AuthenticatedRequestResult> {
         return try {
+            addAuthLog("Authentication request to $endpoint")
             val token = getCurrentToken()
             if (token == null) {
+                addAuthLog("No authentication token available for $endpoint")
                 return Result.failure(AuthenticationException("No authentication token available"))
             }
             
             // Simulate API call that returns 401 for expired token
             if (token == "expired_token_12345") {
+                addAuthLog("Token expired for $endpoint, attempting refresh")
                 // Handle 401 by refreshing token
                 val refreshResult = refreshToken()
                 if (refreshResult.isSuccess) {
                     val newToken = refreshResult.getOrNull()
                     if (newToken != null) {
                         setCurrentToken(newToken)
+                        addAuthLog("Token refreshed successfully for $endpoint")
                         // Retry request with new token
                         return Result.success(AuthenticatedRequestResult("Success with refreshed token", newToken))
                     }
                 }
+                addAuthLog("Token refresh failed for $endpoint")
                 return Result.failure(AuthenticationException("Token refresh failed"))
             }
             
+            addAuthLog("Authentication request successful for $endpoint")
             // Normal successful request
             Result.success(AuthenticatedRequestResult("Success", token))
         } catch (e: Exception) {
+            addAuthLog("Authentication request failed for $endpoint: ${e.message}")
             Result.failure(e)
         }
     }
@@ -254,8 +274,10 @@ class AuthRepository(private val baseUrl: String = "") {
     // PLY-119: Authenticated request with network timeout and connection error handling
     fun makeAuthenticatedRequestWithNetworkHandling(endpoint: String): NetworkAwareRequestResult {
         return try {
+            addAuthLog("Network-aware authentication request to $endpoint")
             val token = getCurrentToken()
             if (token == null) {
+                addAuthLog("No authentication token available for network request to $endpoint")
                 return NetworkAwareRequestResult(
                     isSuccess = false,
                     isNetworkError = false,
@@ -266,6 +288,7 @@ class AuthRepository(private val baseUrl: String = "") {
             
             // Simulate network timeout for slow endpoints
             if (endpoint.contains("slow-endpoint")) {
+                addAuthLog("Network timeout occurred for $endpoint")
                 // Simulate network timeout handling
                 return NetworkAwareRequestResult(
                     isSuccess = false,
@@ -275,6 +298,7 @@ class AuthRepository(private val baseUrl: String = "") {
                 )
             }
             
+            addAuthLog("Network-aware authentication request successful for $endpoint")
             // Normal successful request
             NetworkAwareRequestResult(
                 isSuccess = true,
@@ -283,6 +307,7 @@ class AuthRepository(private val baseUrl: String = "") {
                 errorMessage = null
             )
         } catch (e: Exception) {
+            addAuthLog("Network-aware authentication request failed for $endpoint: ${e.message}")
             NetworkAwareRequestResult(
                 isSuccess = false,
                 isNetworkError = false,

@@ -66,4 +66,28 @@ class AuthToken401Test {
         assertFalse("Should not crash on network timeout", result.hasException)
         assertNotNull("Should provide meaningful error information", result.errorMessage)
     }
+    
+    // PLY-119: Test for authentication operation logging for monitoring and debugging
+    @Test
+    fun `Add_authentication_operation_logging_for_monitoring_and_debugging`() {
+        // Arrange
+        val authRepository = AuthRepository()
+        val testToken = "test_token_for_logging"
+        
+        // Set up logging capture mechanism
+        authRepository.setCurrentToken(testToken)
+        
+        // Act - perform various authentication operations
+        authRepository.makeAuthenticatedRequest("/api/userinfo")
+        authRepository.makeAuthenticatedRequestWithNetworkHandling("/api/slow-endpoint")
+        
+        // Assert - verify that logging occurred
+        val logEntries = authRepository.getAuthenticationLogs()
+        assertTrue("Should have logged authentication operations", logEntries.isNotEmpty())
+        assertTrue("Should log request attempts", 
+                  logEntries.any { it.contains("Authentication request to /api/userinfo") })
+        assertTrue("Should log network errors", 
+                  logEntries.any { it.contains("Network timeout occurred") })
+        assertNotNull("Should provide log access for monitoring", logEntries)
+    }
 }
