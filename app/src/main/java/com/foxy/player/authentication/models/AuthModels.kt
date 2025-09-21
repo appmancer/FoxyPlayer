@@ -6,6 +6,7 @@ class AuthenticationException(message: String) : Exception(message)
 class AccessException(message: String) : Exception(message) // PLY-44: For 4000 series errors
 class TokenExpiredException(message: String) : Exception(message) // PLY-43: For expired tokens
 class TokenValidationException(message: String) : Exception(message) // PLY-43: For invalid tokens
+class RateLimitingException(message: String, val retryAfterSeconds: Int) : Exception(message) // PLY-118: For 429 rate limiting errors
 
 // ===== CORE AUTH DATA MODELS =====
 

@@ -2,6 +2,7 @@ package com.foxy.player.authentication
 
 import com.foxy.player.authentication.models.AccessException
 import com.foxy.player.authentication.models.AuthenticationException
+import com.foxy.player.authentication.models.RateLimitingException
 import com.foxy.player.authentication.models.UserInfo
 import com.foxy.player.authentication.network.AuthRepository
 import com.foxy.player.authentication.network.AuthenticatedApiClient
@@ -221,5 +222,31 @@ class AuthenticatedApiClientTest {
 
         // successfulServer may be null if both servers failed
         // This is acceptable for testing without guaranteed network connectivity
+    }
+
+    @Test
+    fun `AuthenticatedApiClient_handles_429_rate_limiting_errors_with_appropriate_error_response`() {
+        // Arrange
+        val authRepository = AuthRepository()
+        val apiClient = AuthenticatedApiClient(authRepository)
+        
+        // Simulate a scenario where pCloud API returns 429 rate limiting response
+        // We need to create a realistic test that expects the new rate limiting handling
+        
+        // Act - This will fail because rate limiting handling doesn't exist yet
+        val result = apiClient.handleRateLimitingResponse(
+            httpStatusCode = 429,
+            pCloudErrorCode = 4004, // Assume pCloud uses this for rate limiting
+            retryAfterHeader = "60" // Retry after 60 seconds
+        )
+        
+        // Assert - Expect rate limiting error handling with retry information
+        assertTrue("Should handle rate limiting response", result.isFailure)
+        val exception = result.exceptionOrNull()
+        assertTrue("Should throw RateLimitingException", exception is RateLimitingException)
+        
+        val rateLimitException = exception as RateLimitingException
+        assertEquals("Should include retry after time", 60, rateLimitException.retryAfterSeconds)
+        assertTrue("Should indicate rate limiting", rateLimitException.message?.contains("rate limit") == true)
     }
 }
