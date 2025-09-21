@@ -4,9 +4,6 @@ import com.foxy.player.authentication.models.UserInfo
 import com.foxy.player.authentication.network.AuthRepository
 import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.business.MusicMetadataExtractor
-import com.foxy.player.music.entities.AlbumEntity
-import com.foxy.player.music.entities.EnhancedTrackEntity
-import com.foxy.player.music.entities.AlbumTrackEntity
 import com.foxy.player.music.network.MusicDiscoveryService
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -21,7 +18,7 @@ class EnhancedMetadataExtractionTest {
         authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
         val authenticatedApiClient = AuthenticatedApiClient(authRepository)
         val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
-        
+
         // Create enhanced metadata extractor that doesn't exist yet
         val enhancedExtractor = MusicMetadataExtractor()
 
