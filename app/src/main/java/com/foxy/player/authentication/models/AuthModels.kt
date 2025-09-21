@@ -6,6 +6,7 @@ class AuthenticationException(message: String) : Exception(message)
 class AccessException(message: String) : Exception(message) // PLY-44: For 4000 series errors
 class TokenExpiredException(message: String) : Exception(message) // PLY-43: For expired tokens
 class TokenValidationException(message: String) : Exception(message) // PLY-43: For invalid tokens
+class RateLimitingException(message: String, val retryAfterSeconds: Int) : Exception(message)
 
 // ===== CORE AUTH DATA MODELS =====
 
@@ -79,4 +80,30 @@ data class AuthenticatedRequestResult(
 data class ServerRoutingResult(
     val attemptedServers: List<String>,
     val successfulServer: String?
+)
+
+// PLY-118: Rate Limiting Retry Result Models
+data class RetryRequestResult(
+    val retriesAttempted: Int,
+    val backoffIntervalsUsed: List<Long>,
+    val finalHttpResponse: String,
+    val finalException: Exception?
+)
+
+// PLY-118: Request Throttling Result Models
+data class ThrottledRequestResult(
+    val httpResponse: String,
+    val authTokenUsed: String,
+    val throttleDelayMs: Long
+) {
+    fun containsAuthToken(token: String): Boolean {
+        return authTokenUsed == token
+    }
+}
+
+// PLY-118: Circuit Breaker State Models
+data class CircuitBreakerState(
+    val status: String, // "OPEN", "CLOSED", "HALF_OPEN"
+    val consecutiveFailures: Int,
+    val openedAtMs: Long
 )
