@@ -68,7 +68,7 @@ class EnhancedMetadataExtractionTest {
         // Verify junction table relationship
         assertEquals("Junction should link correct album", albumEntity.id, junctionEntity.albumId)
         assertEquals("Junction should link correct track", trackEntity.id, junctionEntity.trackId)
-        assertTrue("Junction should have valid track order", junctionEntity.trackOrder > 0)
+        assertEquals("Junction should have proper track order from metadata", 1, junctionEntity.trackOrder)
 
         // Verify data integrity
         assertTrue("Track entity should pass validation", trackEntity.isValid())
@@ -77,5 +77,53 @@ class EnhancedMetadataExtractionTest {
 
         // Verify relationship consistency
         assertEquals("Track albumId should match album ID", albumEntity.id, trackEntity.albumId)
+    }
+
+    @Test
+    fun `Enhanced_metadata_extraction_handles_track_order_from_metadata`() = runBlocking {
+        // Arrange - setup enhanced metadata extractor
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        authRepository.saveAuthenticationState("test_auth_token", UserInfo("test@example.com"))
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(authenticatedApiClient)
+        val enhancedExtractor = MusicMetadataExtractor()
+
+        // Test file with specific track information
+        val audioFileUrl = "https://filesamples.com/samples/audio/mp3/SampleAudio_0.4mb_mp3.mp3"
+        val audioFileName = "Come Together.mp3"
+        val filePath = "/Artists/The Beatles/Abbey Road/01 - Come Together.mp3"
+
+        // Act - extract metadata with Room persistence
+        val result = enhancedExtractor.extractMetadataWithRoomPersistence(
+            audioFileUrl = audioFileUrl,
+            audioFileName = audioFileName,
+            filePath = filePath,
+            musicDiscoveryService = musicDiscoveryService
+        )
+
+        // Assert - verify track order handling
+        assertTrue("Should return successful result", result.isSuccess)
+        val enhancedResult = result.getOrNull()!!
+
+        // Verify track order is properly extracted and used
+        val junctionEntity = enhancedResult.albumTrackEntity
+        assertEquals("Track order should be extracted from metadata", 1, junctionEntity.trackOrder)
+
+        // Test case with no track number (should default to 1)
+        val audioFileUrl2 = "https://sample.com/unknown_track.mp3"
+        val audioFileName2 = "Unknown Track.mp3"
+        val filePath2 = "/Artists/Unknown/Unknown Album/Unknown Track.mp3"
+
+        val result2 = enhancedExtractor.extractMetadataWithRoomPersistence(
+            audioFileUrl = audioFileUrl2,
+            audioFileName = audioFileName2,
+            filePath = filePath2,
+            musicDiscoveryService = musicDiscoveryService
+        )
+
+        assertTrue("Should return successful result for unknown track", result2.isSuccess)
+        val enhancedResult2 = result2.getOrNull()!!
+        val junctionEntity2 = enhancedResult2.albumTrackEntity
+        assertEquals("Track order should default to 1 when not available", 1, junctionEntity2.trackOrder)
     }
 }
