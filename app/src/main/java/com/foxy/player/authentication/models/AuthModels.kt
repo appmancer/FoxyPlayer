@@ -100,3 +100,10 @@ data class ThrottledRequestResult(
         return authTokenUsed == token
     }
 }
+
+// PLY-118: Circuit Breaker State Models
+data class CircuitBreakerState(
+    val status: String, // "OPEN", "CLOSED", "HALF_OPEN"
+    val consecutiveFailures: Int,
+    val openedAtMs: Long
+)

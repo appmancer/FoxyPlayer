@@ -337,4 +337,47 @@ class AuthenticatedApiClientTest {
             throttleResult3.throttleDelayMs >= throttleResult2.throttleDelayMs
         )
     }
+
+    @Test
+    fun `AuthenticatedApiClient_implements_circuit_breaker_to_temporarily_halt_requests_after_consecutive_failures`() {
+        // Arrange
+        val authRepository = AuthRepository()
+        val apiClient = AuthenticatedApiClient(authRepository)
+        
+        // Set up authentication state
+        val testToken = "test_auth_token_for_circuit_breaker_test"
+        val userInfo = UserInfo(TEST_USERNAME)
+        authRepository.saveAuthenticationState(testToken, userInfo)
+        
+        // Act - Simulate consecutive failures to trigger circuit breaker
+        // This test will fail because circuit breaker functionality doesn't exist yet
+        
+        // First, trigger consecutive failures to open the circuit
+        val failure1 = apiClient.makeRequestWithCircuitBreaker("/non-existent-endpoint-1")
+        val failure2 = apiClient.makeRequestWithCircuitBreaker("/non-existent-endpoint-2")
+        val failure3 = apiClient.makeRequestWithCircuitBreaker("/non-existent-endpoint-3")
+        
+        // Circuit should now be OPEN - requests should be immediately rejected
+        val rejectedRequest = apiClient.makeRequestWithCircuitBreaker(TEST_ENDPOINT)
+        
+        // Assert - Circuit breaker should prevent requests after consecutive failures
+        assertTrue("Circuit breaker should track failure 1", failure1.isFailure)
+        assertTrue("Circuit breaker should track failure 2", failure2.isFailure) 
+        assertTrue("Circuit breaker should track failure 3", failure3.isFailure)
+        
+        // The fourth request should be immediately rejected by circuit breaker
+        assertTrue("Circuit breaker should reject request when open", rejectedRequest.isFailure)
+        
+        val circuitBreakerException = rejectedRequest.exceptionOrNull()
+        assertTrue(
+            "Should throw circuit breaker exception", 
+            circuitBreakerException?.message?.contains("Circuit breaker") == true
+        )
+        
+        // Verify circuit breaker state can be queried
+        val circuitState = apiClient.getCircuitBreakerState()
+        assertEquals("Circuit should be OPEN after failures", "OPEN", circuitState.status)
+        assertTrue("Should track failure count", circuitState.consecutiveFailures >= 3)
+        assertTrue("Should have opened timestamp", circuitState.openedAtMs > 0)
+    }
 }
