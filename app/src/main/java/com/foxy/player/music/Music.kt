@@ -41,3 +41,16 @@ data class NetworkTimeoutConfig(
     val readTimeoutMs: Int,
     val writeTimeoutMs: Int
 )
+
+data class EnhancedCircuitBreakerConfig(
+    val failureThreshold: Int,
+    val halfOpenTimeout: Long,
+    val resetSuccessThreshold: Int,
+    val monitoringEnabled: Boolean
+)
+
+data class EnhancedCircuitBreakerState(
+    val state: String,
+    val failureCount: Int,
+    val lastFailureTimeMs: Long?
+)

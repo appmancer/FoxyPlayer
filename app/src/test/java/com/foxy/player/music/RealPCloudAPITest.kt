@@ -4,6 +4,7 @@ import com.foxy.player.authentication.network.AuthRepository
 import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.network.MusicDiscoveryService
 import com.foxy.player.music.NetworkTimeoutConfig
+import com.foxy.player.music.EnhancedCircuitBreakerConfig
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -297,6 +298,104 @@ class RealPCloudAPITest {
 
         } catch (e: Exception) {
             println("💥 Error during timeout testing: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+    @Test
+    fun `test enhanced circuit breaker with failure thresholds and state management`() {
+        println("🔧 Testing Enhanced Circuit Breaker with Failure Thresholds...")
+        println("=" + "=".repeat(SEPARATOR_LINE_LENGTH))
+
+        try {
+            // Setup music discovery service
+            val authRepository = AuthRepository("https://eapi.pcloud.com")
+            val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+            val musicService = MusicDiscoveryService(authenticatedApiClient)
+
+            // TEST 1: Configure enhanced circuit breaker with custom thresholds
+            println("\n⚙️ Testing enhanced circuit breaker configuration...")
+            val enhancedConfig = EnhancedCircuitBreakerConfig(
+                failureThreshold = 5,
+                halfOpenTimeout = 30000L,
+                resetSuccessThreshold = 3,
+                monitoringEnabled = true
+            )
+            
+            val configResult = musicService.configureEnhancedCircuitBreaker(enhancedConfig)
+            assertTrue("Should successfully configure enhanced circuit breaker", configResult.isSuccess)
+            
+            val appliedConfig = configResult.getOrNull()!!
+            assertEquals("Failure threshold should be applied", 5, appliedConfig.failureThreshold)
+            assertEquals("Half-open timeout should be applied", 30000L, appliedConfig.halfOpenTimeout)
+            assertEquals("Reset success threshold should be applied", 3, appliedConfig.resetSuccessThreshold)
+            assertTrue("Monitoring should be enabled", appliedConfig.monitoringEnabled)
+            
+            println("✅ Enhanced circuit breaker configuration successful!")
+            println("⚠️ Failure threshold: ${appliedConfig.failureThreshold}")
+            println("⏱️ Half-open timeout: ${appliedConfig.halfOpenTimeout}ms")
+            println("✅ Reset success threshold: ${appliedConfig.resetSuccessThreshold}")
+            println("📊 Monitoring enabled: ${appliedConfig.monitoringEnabled}")
+
+            // TEST 2: Test progressive failure detection and state transitions
+            println("\n🚨 Testing failure detection and state transitions...")
+            
+            // Initially circuit should be CLOSED
+            var state = musicService.getEnhancedCircuitBreakerState()
+            assertEquals("Circuit should start in CLOSED state", "CLOSED", state.state)
+            assertEquals("Initial failure count should be 0", 0, state.failureCount)
+            
+            println("✅ Initial state: ${state.state} (failures: ${state.failureCount})")
+            
+            // Simulate failures to reach threshold
+            for (i in 1..5) {
+                musicService.recordEnhancedApiFailure("timeout", "Test failure $i")
+                val currentState = musicService.getEnhancedCircuitBreakerState()
+                println("  🔥 Failure $i: State = ${currentState.state}, Failures = ${currentState.failureCount}")
+            }
+            
+            // After 5 failures, circuit should be OPEN
+            state = musicService.getEnhancedCircuitBreakerState()
+            assertEquals("Circuit should be OPEN after reaching threshold", "OPEN", state.state)
+            assertEquals("Failure count should match threshold", 5, state.failureCount)
+            
+            println("✅ Circuit opened after reaching failure threshold")
+
+            // TEST 3: Test automatic recovery and half-open state
+            println("\n🔄 Testing automatic recovery mechanism...")
+            
+            // Simulate time passage to enter HALF_OPEN state
+            Thread.sleep(100) // Small delay to ensure time passage
+            val futureState = musicService.simulateTimePassage(31000L) // Simulate 31 seconds
+            assertEquals("Circuit should transition to HALF_OPEN after timeout", "HALF_OPEN", futureState.state)
+            
+            println("✅ Circuit transitioned to HALF_OPEN state after timeout")
+            
+            // TEST 4: Test successful recovery with reset threshold
+            println("\n💚 Testing successful recovery with reset threshold...")
+            
+            // Record successful operations to reset circuit
+            for (i in 1..3) {
+                val successResult = musicService.recordEnhancedApiSuccess()
+                assertTrue("Success recording should work", successResult.isSuccess)
+                println("  ✅ Success $i recorded")
+            }
+            
+            val recoveredState = musicService.getEnhancedCircuitBreakerState()
+            assertEquals("Circuit should return to CLOSED after successful operations", "CLOSED", recoveredState.state)
+            assertEquals("Failure count should be reset", 0, recoveredState.failureCount)
+            
+            println("✅ Circuit fully recovered to CLOSED state")
+
+            println("\n🎉 Enhanced Circuit Breaker Test PASSED!")
+            println("✅ Successfully configured enhanced circuit breaker")
+            println("✅ Failure detection and state transitions working")
+            println("✅ Automatic recovery mechanism functional")
+            println("✅ Success-based reset logic working correctly")
+
+        } catch (e: Exception) {
+            println("💥 Error during enhanced circuit breaker testing: ${e.message}")
             e.printStackTrace()
             throw e
         }

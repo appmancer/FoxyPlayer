@@ -14,6 +14,8 @@ import com.foxy.player.music.ui.CircuitBreakerResponse
 import com.foxy.player.music.ui.CircuitBreakerState
 import com.foxy.player.music.ui.DetailedErrorReport
 import com.foxy.player.music.NetworkTimeoutConfig
+import com.foxy.player.music.EnhancedCircuitBreakerConfig
+import com.foxy.player.music.EnhancedCircuitBreakerState
 import com.foxy.player.music.ui.ErrorHandlingAudioFilesResponse
 import com.foxy.player.music.ui.MetadataExtractionErrorResponse
 import com.foxy.player.music.ui.MultiStrategyErrorResult
@@ -1318,6 +1320,67 @@ class MusicDiscoveryService(
             }
         }
         return Result.failure(Exception("All retry attempts failed"))
+    }
+    
+    // ===== ENHANCED CIRCUIT BREAKER - PLY-120 =====
+    
+    private var enhancedCircuitBreakerConfig: com.foxy.player.music.EnhancedCircuitBreakerConfig? = null
+    private var enhancedFailureCount = 0
+    private var enhancedSuccessCount = 0
+    private var enhancedLastFailureTime: Long? = null
+    private var simulatedTimeOffset = 0L // For testing time passage
+    
+    fun configureEnhancedCircuitBreaker(config: com.foxy.player.music.EnhancedCircuitBreakerConfig): Result<com.foxy.player.music.EnhancedCircuitBreakerConfig> {
+        enhancedCircuitBreakerConfig = config
+        return Result.success(config)
+    }
+    
+    fun getEnhancedCircuitBreakerState(): com.foxy.player.music.EnhancedCircuitBreakerState {
+        val config = enhancedCircuitBreakerConfig
+        val currentTime = System.currentTimeMillis() + simulatedTimeOffset
+        val lastFailure = enhancedLastFailureTime
+        
+        val state = when {
+            config != null && enhancedFailureCount >= config.failureThreshold && 
+            lastFailure != null && 
+            (currentTime - lastFailure) < config.halfOpenTimeout -> "OPEN"
+            
+            config != null && enhancedFailureCount >= config.failureThreshold && 
+            lastFailure != null && 
+            (currentTime - lastFailure) >= config.halfOpenTimeout -> "HALF_OPEN"
+            
+            else -> "CLOSED"
+        }
+        
+        return com.foxy.player.music.EnhancedCircuitBreakerState(
+            state = state,
+            failureCount = enhancedFailureCount,
+            lastFailureTimeMs = enhancedLastFailureTime
+        )
+    }
+    
+    fun recordEnhancedApiFailure(errorType: String, errorMessage: String) {
+        enhancedFailureCount++
+        enhancedLastFailureTime = System.currentTimeMillis() + simulatedTimeOffset
+        enhancedSuccessCount = 0
+    }
+    
+    fun recordEnhancedApiSuccess(): Result<String> {
+        val config = enhancedCircuitBreakerConfig
+        enhancedSuccessCount++
+        
+        if (config != null && enhancedSuccessCount >= config.resetSuccessThreshold) {
+            enhancedFailureCount = 0
+            enhancedSuccessCount = 0
+            enhancedLastFailureTime = null
+        }
+        
+        return Result.success("Success recorded")
+    }
+    
+    fun simulateTimePassage(milliseconds: Long): com.foxy.player.music.EnhancedCircuitBreakerState {
+        simulatedTimeOffset += milliseconds
+        return getEnhancedCircuitBreakerState()
     }
 }
 
