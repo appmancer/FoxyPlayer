@@ -5,7 +5,7 @@ package com.foxy.player.utils
  * Handles both System.out (visible in unit tests) and Android Log (visible in device logs).
  */
 object DebugLogging {
-    
+
     /**
      * Log a debug message using both System.out and Android Log.
      * System.out ensures visibility in unit tests, Android Log ensures visibility on device.
@@ -13,7 +13,7 @@ object DebugLogging {
     fun log(tag: String, message: String) {
         // Always use System.out for unit test visibility
         System.out.println("🔍 $tag: $message")
-        
+
         // Try Android logging (fails gracefully in unit tests)
         try {
             android.util.Log.d(tag, "🔍 $message")
@@ -21,7 +21,7 @@ object DebugLogging {
             // Android logging not available in unit tests - this is expected
         }
     }
-    
+
     /**
      * Log an error message using both System.out and Android Log.
      */
@@ -29,7 +29,7 @@ object DebugLogging {
         // Always use System.out for unit test visibility
         System.out.println("🚨 $tag: $message")
         throwable?.let { System.out.println("🚨 $tag: ${it.message}") }
-        
+
         // Try Android logging (fails gracefully in unit tests)
         try {
             if (throwable != null) {

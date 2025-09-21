@@ -32,3 +32,25 @@ package com.foxy.player.music
 // ✅ Dependency hierarchy: models → discovery → library → search
 // ✅ All existing functionality preserved
 // ✅ Backward compatibility maintained
+
+// ===== NETWORK TIMEOUT HANDLING =====
+// PLY-120: Network Timeout Error Handling Implementation
+
+data class NetworkTimeoutConfig(
+    val connectionTimeoutMs: Int,
+    val readTimeoutMs: Int,
+    val writeTimeoutMs: Int
+)
+
+data class EnhancedCircuitBreakerConfig(
+    val failureThreshold: Int,
+    val halfOpenTimeout: Long,
+    val resetSuccessThreshold: Int,
+    val monitoringEnabled: Boolean
+)
+
+data class EnhancedCircuitBreakerState(
+    val state: String,
+    val failureCount: Int,
+    val lastFailureTimeMs: Long?
+)
