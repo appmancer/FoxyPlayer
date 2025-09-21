@@ -3,8 +3,6 @@ package com.foxy.player.music
 import com.foxy.player.authentication.network.AuthRepository
 import com.foxy.player.authentication.network.AuthenticatedApiClient
 import com.foxy.player.music.network.MusicDiscoveryService
-import com.foxy.player.music.NetworkTimeoutConfig
-import com.foxy.player.music.EnhancedCircuitBreakerConfig
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -241,16 +239,16 @@ class RealPCloudAPITest {
                 readTimeoutMs = 10000,
                 writeTimeoutMs = 15000
             )
-            
+
             // This should configure the timeout settings for network operations
             val configResult = musicService.configureNetworkTimeouts(timeoutConfig)
             assertTrue("Should successfully configure network timeouts", configResult.isSuccess)
-            
+
             val appliedConfig = configResult.getOrNull()!!
             assertEquals("Connection timeout should be applied", 5000, appliedConfig.connectionTimeoutMs)
             assertEquals("Read timeout should be applied", 10000, appliedConfig.readTimeoutMs)
             assertEquals("Write timeout should be applied", 15000, appliedConfig.writeTimeoutMs)
-            
+
             println("✅ Network timeout configuration successful!")
             println("🔌 Connection timeout: ${appliedConfig.connectionTimeoutMs}ms")
             println("📖 Read timeout: ${appliedConfig.readTimeoutMs}ms")
@@ -258,16 +256,18 @@ class RealPCloudAPITest {
 
             // TEST 2: Test timeout enforcement during API calls
             println("\n⏰ Testing timeout enforcement...")
-            
+
             // Simulate a slow endpoint that should trigger timeout
             val slowEndpointResult = musicService.testTimeoutEnforcement("/slow-endpoint")
-            
+
             if (slowEndpointResult.isFailure) {
                 val exception = slowEndpointResult.exceptionOrNull()!!
-                assertTrue("Should be a timeout exception", 
+                assertTrue(
+                    "Should be a timeout exception",
                     exception.message?.contains("timeout") == true ||
-                    exception is java.net.SocketTimeoutException)
-                
+                        exception is java.net.SocketTimeoutException
+                )
+
                 println("✅ Timeout correctly enforced for slow endpoint")
                 println("⚠️ Exception: ${exception.message}")
             } else {
@@ -276,7 +276,7 @@ class RealPCloudAPITest {
 
             // TEST 3: Test timeout recovery and retry logic
             println("\n🔄 Testing timeout recovery...")
-            
+
             val retryResult = musicService.executeWithTimeoutRecovery("/test-endpoint") { attempt ->
                 println("  🔄 Retry attempt $attempt")
                 if (attempt < 3) {
@@ -284,18 +284,17 @@ class RealPCloudAPITest {
                 }
                 "Success after $attempt attempts"
             }
-            
+
             assertTrue("Should recover from timeouts with retry", retryResult.isSuccess)
             val recoveryMessage = retryResult.getOrNull()!!
             assertTrue("Should indicate successful recovery", recoveryMessage.contains("Success"))
-            
+
             println("✅ Timeout recovery successful: $recoveryMessage")
 
             println("\n🎉 Network Timeout Handling Test PASSED!")
             println("✅ Successfully configured custom timeouts")
             println("✅ Timeout enforcement working correctly")
             println("✅ Timeout recovery and retry logic functional")
-
         } catch (e: Exception) {
             println("💥 Error during timeout testing: ${e.message}")
             e.printStackTrace()
@@ -322,16 +321,16 @@ class RealPCloudAPITest {
                 resetSuccessThreshold = 3,
                 monitoringEnabled = true
             )
-            
+
             val configResult = musicService.configureEnhancedCircuitBreaker(enhancedConfig)
             assertTrue("Should successfully configure enhanced circuit breaker", configResult.isSuccess)
-            
+
             val appliedConfig = configResult.getOrNull()!!
             assertEquals("Failure threshold should be applied", 5, appliedConfig.failureThreshold)
             assertEquals("Half-open timeout should be applied", 30000L, appliedConfig.halfOpenTimeout)
             assertEquals("Reset success threshold should be applied", 3, appliedConfig.resetSuccessThreshold)
             assertTrue("Monitoring should be enabled", appliedConfig.monitoringEnabled)
-            
+
             println("✅ Enhanced circuit breaker configuration successful!")
             println("⚠️ Failure threshold: ${appliedConfig.failureThreshold}")
             println("⏱️ Half-open timeout: ${appliedConfig.halfOpenTimeout}ms")
@@ -340,52 +339,52 @@ class RealPCloudAPITest {
 
             // TEST 2: Test progressive failure detection and state transitions
             println("\n🚨 Testing failure detection and state transitions...")
-            
+
             // Initially circuit should be CLOSED
             var state = musicService.getEnhancedCircuitBreakerState()
             assertEquals("Circuit should start in CLOSED state", "CLOSED", state.state)
             assertEquals("Initial failure count should be 0", 0, state.failureCount)
-            
+
             println("✅ Initial state: ${state.state} (failures: ${state.failureCount})")
-            
+
             // Simulate failures to reach threshold
             for (i in 1..5) {
                 musicService.recordEnhancedApiFailure("timeout", "Test failure $i")
                 val currentState = musicService.getEnhancedCircuitBreakerState()
                 println("  🔥 Failure $i: State = ${currentState.state}, Failures = ${currentState.failureCount}")
             }
-            
+
             // After 5 failures, circuit should be OPEN
             state = musicService.getEnhancedCircuitBreakerState()
             assertEquals("Circuit should be OPEN after reaching threshold", "OPEN", state.state)
             assertEquals("Failure count should match threshold", 5, state.failureCount)
-            
+
             println("✅ Circuit opened after reaching failure threshold")
 
             // TEST 3: Test automatic recovery and half-open state
             println("\n🔄 Testing automatic recovery mechanism...")
-            
+
             // Simulate time passage to enter HALF_OPEN state
             Thread.sleep(100) // Small delay to ensure time passage
             val futureState = musicService.simulateTimePassage(31000L) // Simulate 31 seconds
             assertEquals("Circuit should transition to HALF_OPEN after timeout", "HALF_OPEN", futureState.state)
-            
+
             println("✅ Circuit transitioned to HALF_OPEN state after timeout")
-            
+
             // TEST 4: Test successful recovery with reset threshold
             println("\n💚 Testing successful recovery with reset threshold...")
-            
+
             // Record successful operations to reset circuit
             for (i in 1..3) {
                 val successResult = musicService.recordEnhancedApiSuccess()
                 assertTrue("Success recording should work", successResult.isSuccess)
                 println("  ✅ Success $i recorded")
             }
-            
+
             val recoveredState = musicService.getEnhancedCircuitBreakerState()
             assertEquals("Circuit should return to CLOSED after successful operations", "CLOSED", recoveredState.state)
             assertEquals("Failure count should be reset", 0, recoveredState.failureCount)
-            
+
             println("✅ Circuit fully recovered to CLOSED state")
 
             println("\n🎉 Enhanced Circuit Breaker Test PASSED!")
@@ -393,7 +392,6 @@ class RealPCloudAPITest {
             println("✅ Failure detection and state transitions working")
             println("✅ Automatic recovery mechanism functional")
             println("✅ Success-based reset logic working correctly")
-
         } catch (e: Exception) {
             println("💥 Error during enhanced circuit breaker testing: ${e.message}")
             e.printStackTrace()
@@ -409,20 +407,20 @@ class RealPCloudAPITest {
         try {
             // TEST 1: Verify enhanced timeout error logging
             println("\n⏱️ Testing timeout error logging with detailed context...")
-            
+
             val musicService = MusicDiscoveryService.getInstance()
-            
+
             // Configure timeout handling for testing
             val timeoutConfig = NetworkTimeoutConfig(
-                connectionTimeoutMs = 100,  // Very short timeout to trigger failure
+                connectionTimeoutMs = 100, // Very short timeout to trigger failure
                 readTimeoutMs = 100,
                 writeTimeoutMs = 100
             )
             musicService.configureNetworkTimeouts(timeoutConfig)
-            
+
             // TEST 2: Verify circuit breaker error logging captures failure details
             println("\n🔄 Testing circuit breaker failure logging...")
-            
+
             val circuitConfig = EnhancedCircuitBreakerConfig(
                 failureThreshold = 3,
                 halfOpenTimeout = 30000L,
@@ -430,38 +428,36 @@ class RealPCloudAPITest {
                 monitoringEnabled = true
             )
             musicService.configureEnhancedCircuitBreaker(circuitConfig)
-            
+
             // Act - This should fail and generate enhanced logging
             // We expect the enhanced error logging to capture:
             // 1. Detailed timeout information with exact duration
-            // 2. Circuit breaker state changes with timestamps  
+            // 2. Circuit breaker state changes with timestamps
             // 3. Failure classification (timeout vs network vs auth)
             // 4. Retry attempts with individual failure reasons
             // 5. Performance impact metrics
             val detailedErrorLogResult = musicService.recordDetailedNetworkFailure(
-                errorType = "TIMEOUT_ERROR", 
-                errorMessage = "Connection timeout after 100ms",
+                errorType = "TIMEOUT_ERROR", errorMessage = "Connection timeout after 100ms",
                 contextPath = "/test/timeout/path",
                 duration = 150L,
                 retryAttempt = 1,
                 additionalContext = mapOf(
                     "originalTimeout" to "100ms",
-                    "actualDuration" to "150ms", 
-                    "networkState" to "available",
+                    "actualDuration" to "150ms", "networkState" to "available",
                     "circuitBreakerState" to "CLOSED"
                 )
             )
-            
+
             // TEST 3: Verify structured error logging output
             println("\n📋 Testing structured error logging output...")
-            
+
             // The enhanced logging should provide structured output that includes:
             // - Error classification and severity
-            // - Detailed timing information  
+            // - Detailed timing information
             // - Circuit breaker impact analysis
             // - Actionable debugging information
             val logAnalysisResult = musicService.getDetailedErrorAnalysis()
-            
+
             // Assertions for TDD cycle - these should fail initially
             assertNotNull("Enhanced error logging should capture detailed failure information", detailedErrorLogResult)
             assertTrue("Detailed error logging should succeed", detailedErrorLogResult.isSuccess)
@@ -469,12 +465,11 @@ class RealPCloudAPITest {
             assertTrue("Error analysis should contain timeout details", logAnalysisResult.contains("TIMEOUT_ERROR"))
             assertTrue("Error analysis should contain circuit breaker state", logAnalysisResult.contains("CLOSED"))
             assertTrue("Error analysis should contain performance metrics", logAnalysisResult.contains("150ms"))
-            
+
             println("✅ Enhanced error logging test completed")
             println("✅ Timeout scenarios logged with detailed context")
             println("✅ Circuit breaker state changes tracked")
             println("✅ Structured error analysis available")
-
         } catch (e: Exception) {
             println("💥 Error during enhanced error logging testing: ${e.message}")
             e.printStackTrace()
