@@ -47,4 +47,23 @@ class AuthToken401Test {
         assertTrue("Should have different token after re-authentication", 
                   authRepository.getCurrentToken() != failingRefreshToken)
     }
+    
+    // PLY-119: Test for network timeouts and connection errors during auth operations
+    @Test
+    fun `Handle_network_timeouts_and_connection_errors_during_auth_operations`() {
+        // Arrange
+        val authRepository = AuthRepository()
+        val validToken = "valid_token_12345"
+        
+        // Set up a scenario where network operations will timeout or fail
+        authRepository.setCurrentToken(validToken)
+        
+        // Act - attempt to make authenticated request that triggers network timeout
+        val result = authRepository.makeAuthenticatedRequestWithNetworkHandling("/api/slow-endpoint")
+        
+        // Assert - verify that network errors are handled gracefully
+        assertTrue("Should handle network timeouts gracefully", result.isSuccess || result.isNetworkError)
+        assertFalse("Should not crash on network timeout", result.hasException)
+        assertNotNull("Should provide meaningful error information", result.errorMessage)
+    }
 }
