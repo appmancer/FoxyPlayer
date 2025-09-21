@@ -287,4 +287,54 @@ class AuthenticatedApiClientTest {
         assertTrue("Should eventually succeed or fail with final result", 
             retryResult.finalHttpResponse.isNotEmpty() || retryResult.finalException != null)
     }
+
+    @Test
+    fun `AuthenticatedApiClient_throttles_requests_to_prevent_rate_limiting`() {
+        // Arrange
+        val authRepository = AuthRepository()
+        val apiClient = AuthenticatedApiClient(authRepository)
+        
+        // Set up authentication state
+        val testToken = "test_auth_token_for_throttling_test"
+        val userInfo = UserInfo(TEST_USERNAME)
+        authRepository.saveAuthenticationState(testToken, userInfo)
+        
+        // Act - Make multiple rapid requests to test throttling mechanism
+        // This test will fail because request throttling doesn't exist yet
+        val startTime = System.currentTimeMillis()
+        
+        val request1 = apiClient.makeThrottledRequest(TEST_ENDPOINT)
+        val request2 = apiClient.makeThrottledRequest(TEST_ENDPOINT)
+        val request3 = apiClient.makeThrottledRequest(TEST_ENDPOINT)
+        
+        val endTime = System.currentTimeMillis()
+        val totalTime = endTime - startTime
+        
+        // Assert - Requests should be throttled with appropriate delays
+        assertTrue("First request should succeed", request1.isSuccess)
+        assertTrue("Second request should succeed", request2.isSuccess)
+        assertTrue("Third request should succeed", request3.isSuccess)
+        
+        // Note: In unit testing, we don't test actual timing delays to avoid flaky tests
+        // The throttling delay metadata is tested instead
+        
+        val throttleResult1 = request1.getOrNull()!!
+        val throttleResult2 = request2.getOrNull()!!
+        val throttleResult3 = request3.getOrNull()!!
+        
+        // Verify throttling metadata is tracked
+        assertTrue("Should track throttling delay for request 1", throttleResult1.throttleDelayMs >= 0)
+        assertTrue("Should track throttling delay for request 2", throttleResult2.throttleDelayMs > 0)
+        assertTrue("Should track throttling delay for request 3", throttleResult3.throttleDelayMs > 0)
+        
+        // Verify progressive throttling (later requests have longer delays)
+        assertTrue(
+            "Second request should have longer or equal delay than first",
+            throttleResult2.throttleDelayMs >= throttleResult1.throttleDelayMs
+        )
+        assertTrue(
+            "Third request should have longer or equal delay than second",
+            throttleResult3.throttleDelayMs >= throttleResult2.throttleDelayMs
+        )
+    }
 }

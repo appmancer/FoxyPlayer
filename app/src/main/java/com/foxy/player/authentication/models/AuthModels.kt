@@ -89,3 +89,14 @@ data class RetryRequestResult(
     val finalHttpResponse: String,
     val finalException: Exception?
 )
+
+// PLY-118: Request Throttling Result Models
+data class ThrottledRequestResult(
+    val httpResponse: String,
+    val authTokenUsed: String,
+    val throttleDelayMs: Long
+) {
+    fun containsAuthToken(token: String): Boolean {
+        return authTokenUsed == token
+    }
+}
