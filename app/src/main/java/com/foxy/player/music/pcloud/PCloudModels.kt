@@ -20,13 +20,11 @@ interface PCloudApiInterface {
  * Represents the response from the pCloud API for a folder listing request.
  *
  * @property result The result code of the API call (0 for success, non-zero for errors).
- * @property metadata Metadata about the folder, if available.
- * @property contents List of items (files and folders) contained in the folder, if available.
+ * @property metadata Metadata about the folder, including its contents if available.
  */
 data class PCloudListFolderResponse(
     val result: Int,
-    val metadata: PCloudMetadata?,
-    val contents: List<PCloudItem>?
+    val metadata: PCloudMetadata?
 )
 
 /**
@@ -37,13 +35,15 @@ data class PCloudListFolderResponse(
  * @property isFolder Whether this item is a folder (should always be true for folders).
  * @property folderId The unique identifier for the folder.
  * @property parentFolderId The unique identifier of the parent folder.
+ * @property contents List of items (files and folders) contained in the folder, if available.
  */
 data class PCloudMetadata(
     val name: String,
     val created: String,
     @SerializedName("isfolder") val isFolder: Boolean,
     @SerializedName("folderid") val folderId: Long,
-    @SerializedName("parentfolderid") val parentFolderId: Long
+    @SerializedName("parentfolderid") val parentFolderId: Long,
+    val contents: List<PCloudItem>?
 )
 
 /**

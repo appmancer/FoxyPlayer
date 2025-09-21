@@ -93,7 +93,7 @@ class BackgroundSyncService(
                 )
             }
 
-            val remoteContents = remoteResponse.contents ?: emptyList()
+            val remoteContents = remoteResponse.metadata?.contents ?: emptyList()
 
             // Get current local tracks for deduplication
             val localTracks = trackRepository.getAllTracks()
