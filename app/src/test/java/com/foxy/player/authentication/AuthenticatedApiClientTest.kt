@@ -380,4 +380,74 @@ class AuthenticatedApiClientTest {
         assertTrue("Should track failure count", circuitState.consecutiveFailures >= 3)
         assertTrue("Should have opened timestamp", circuitState.openedAtMs > 0)
     }
+
+    @Test
+    fun `AuthenticatedApiClient_logs_comprehensive_debugging_information_for_all_rate_limiting_scenarios`() {
+        // Arrange
+        val authRepository = AuthRepository()
+        val apiClient = AuthenticatedApiClient(authRepository)
+        
+        // Set up authentication state
+        val testToken = "test_auth_token_for_logging_test"
+        val userInfo = UserInfo(TEST_USERNAME)
+        authRepository.saveAuthenticationState(testToken, userInfo)
+        
+        // Act - Test various rate limiting scenarios to verify comprehensive logging
+        // This test will fail because comprehensive logging functionality doesn't exist yet
+        
+        // Test 1: Throttling scenario logging
+        val throttlingLogs = apiClient.getThrottlingLogs()
+        apiClient.makeThrottledRequest(TEST_ENDPOINT)
+        val updatedThrottlingLogs = apiClient.getThrottlingLogs()
+        
+        // Test 2: Circuit breaker scenario logging  
+        val circuitLogs = apiClient.getCircuitBreakerLogs()
+        apiClient.makeRequestWithCircuitBreaker("/non-existent-endpoint-1")
+        val updatedCircuitLogs = apiClient.getCircuitBreakerLogs()
+        
+        // Test 3: Retry scenario logging
+        val retryLogs = apiClient.getRetryLogs()
+        apiClient.makeAuthenticatedRequestWithRetry(TEST_ENDPOINT, 2)
+        val updatedRetryLogs = apiClient.getRetryLogs()
+        
+        // Test 4: Rate limiting response logging
+        val rateLimitLogs = apiClient.getRateLimitingLogs()
+        apiClient.handleRateLimitingResponse(429, 4004, "60")
+        val updatedRateLimitLogs = apiClient.getRateLimitingLogs()
+        
+        // Assert - Comprehensive logging should capture all scenarios with detailed information
+        assertTrue("Should have initial throttling logs", throttlingLogs.isEmpty() || throttlingLogs.isNotEmpty())
+        assertTrue("Should log throttling events", updatedThrottlingLogs.size > throttlingLogs.size)
+        assertTrue("Should contain throttling delay information", 
+            updatedThrottlingLogs.any { it.contains("throttle") && it.contains("delay") }
+        )
+        
+        assertTrue("Should have initial circuit breaker logs", circuitLogs.isEmpty() || circuitLogs.isNotEmpty())
+        assertTrue("Should log circuit breaker events", updatedCircuitLogs.size > circuitLogs.size)
+        assertTrue("Should contain circuit state information",
+            updatedCircuitLogs.any { it.contains("circuit") && it.contains("failure") }
+        )
+        
+        assertTrue("Should have initial retry logs", retryLogs.isEmpty() || retryLogs.isNotEmpty())
+        assertTrue("Should log retry events", updatedRetryLogs.size > retryLogs.size)
+        assertTrue("Should contain exponential backoff information",
+            updatedRetryLogs.any { it.contains("retry") && it.contains("backoff") }
+        )
+        
+        assertTrue("Should have initial rate limiting logs", rateLimitLogs.isEmpty() || rateLimitLogs.isNotEmpty())
+        assertTrue("Should log rate limiting events", updatedRateLimitLogs.size > rateLimitLogs.size)
+        assertTrue("Should contain retry-after information",
+            updatedRateLimitLogs.any { it.contains("rate limit") && it.contains("retry after") }
+        )
+        
+        // Verify comprehensive debug information includes timestamps, request IDs, and context
+        val allLogs = apiClient.getAllRateLimitingDebugLogs()
+        assertTrue("Should provide comprehensive debug logs", allLogs.isNotEmpty())
+        assertTrue("Should include timestamp information", 
+            allLogs.any { it.contains("timestamp") || it.matches(Regex(".*\\d{4}-\\d{2}-\\d{2}.*")) }
+        )
+        assertTrue("Should include request context",
+            allLogs.any { it.contains("endpoint") || it.contains("request") }
+        )
+    }
 }

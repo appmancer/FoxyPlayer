@@ -784,6 +784,9 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
         pCloudErrorCode: Int,
         retryAfterHeader: String
     ): Result<Nothing> {
+        // Log rate limiting response handling
+        Companion.rateLimitingLogs.add("Handling rate limiting response: HTTP $httpStatusCode, pCloud code $pCloudErrorCode, retry after $retryAfterHeader seconds at timestamp ${System.currentTimeMillis()}")
+        
         // Minimal implementation to satisfy the test
         val retryAfterSeconds = retryAfterHeader.toIntOrNull() ?: 60
         val message = "pCloud API rate limit exceeded"
@@ -803,6 +806,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
         val backoffIntervalsUsed = mutableListOf<Long>()
         var retriesAttempted = 0
         
+        Companion.retryLogs.add("Starting retry request to $endpoint with maxRetries $maxRetries at timestamp ${System.currentTimeMillis()}")
+        
         // For testing purposes, simulate multiple retries to demonstrate exponential backoff
         var simulateFailures = 2 // Simulate 2 failures to demonstrate exponential backoff
         
@@ -813,6 +818,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 val backoffMs = 1000L * (1L shl (attempt - 1))
                 backoffIntervalsUsed.add(backoffMs)
                 retriesAttempted = attempt
+                
+                Companion.retryLogs.add("retry attempt $attempt with exponential backoff delay ${backoffMs}ms at timestamp ${System.currentTimeMillis()}")
                 
                 // For testing, we don't actually sleep
                 // Thread.sleep(backoffMs)
@@ -834,6 +841,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 if (requestResult.isSuccess) {
                     // Success case - return the result wrapped in RetryRequestResult
                     val authResult = requestResult.getOrNull()!!
+                    Companion.retryLogs.add("Retry request succeeded after $retriesAttempted attempts at timestamp ${System.currentTimeMillis()}")
                     return Result.success(
                         RetryRequestResult(
                             retriesAttempted = retriesAttempted,
@@ -848,6 +856,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 val exception = requestResult.exceptionOrNull() as? Exception
                 if (exception !is RateLimitingException) {
                     // Not a rate limiting error, fail immediately
+                    Companion.retryLogs.add("Retry request failed with non-retryable error after $retriesAttempted attempts at timestamp ${System.currentTimeMillis()}")
                     return Result.success(
                         RetryRequestResult(
                             retriesAttempted = retriesAttempted,
@@ -860,6 +869,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 
                 // If we've reached max retries, fail
                 if (attempt >= maxRetries) {
+                    Companion.retryLogs.add("Retry request exhausted max retries ($maxRetries) at timestamp ${System.currentTimeMillis()}")
                     return Result.success(
                         RetryRequestResult(
                             retriesAttempted = retriesAttempted,
@@ -873,6 +883,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 // Continue to next retry attempt
             } catch (e: Exception) {
                 // Non-retryable error
+                Companion.retryLogs.add("Retry request failed with exception after $retriesAttempted attempts: ${e.message} at timestamp ${System.currentTimeMillis()}")
                 return Result.success(
                     RetryRequestResult(
                         retriesAttempted = retriesAttempted,
@@ -885,6 +896,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
         }
         
         // Should not reach here
+        Companion.retryLogs.add("Retry request completed unexpectedly at timestamp ${System.currentTimeMillis()}")
         return Result.success(
             RetryRequestResult(
                 retriesAttempted = retriesAttempted,
@@ -905,6 +917,12 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
         private var consecutiveFailureCount = 0
         private var circuitOpenedAtMs: Long = 0
         private const val FAILURE_THRESHOLD = 3  // Open circuit after 3 consecutive failures
+        
+        // PLY-118: Comprehensive logging for rate limiting scenarios
+        private val throttlingLogs = mutableListOf<String>()
+        private val circuitBreakerLogs = mutableListOf<String>()
+        private val retryLogs = mutableListOf<String>()
+        private val rateLimitingLogs = mutableListOf<String>()
     }
     
     fun makeThrottledRequest(endpoint: String): Result<ThrottledRequestResult> {
@@ -914,6 +932,9 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
         } else {
             requestCount * 50L  // Progressive throttling: 50ms, 100ms, 150ms, etc.
         }
+        
+        // Log throttling activity
+        Companion.throttlingLogs.add("throttle request to $endpoint with delay ${currentThrottleDelay}ms at timestamp ${System.currentTimeMillis()}")
         
         // Update state for next call
         lastRequestTime = System.currentTimeMillis()
@@ -937,12 +958,15 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
     fun makeRequestWithCircuitBreaker(endpoint: String): Result<AuthenticatedRequestResult> {
         // Check if circuit is OPEN - immediately reject requests
         if (circuitBreakerStatus == "OPEN") {
+            Companion.circuitBreakerLogs.add("Circuit breaker OPEN - rejecting request to $endpoint at timestamp ${System.currentTimeMillis()}")
             return Result.failure(
                 Exception("Circuit breaker is OPEN - too many consecutive failures. Request rejected to prevent further rate limiting.")
             )
         }
         
         try {
+            Companion.circuitBreakerLogs.add("Circuit breaker ${circuitBreakerStatus} - processing request to $endpoint with failure count $consecutiveFailureCount at timestamp ${System.currentTimeMillis()}")
+            
             // Simulate failed request for testing - in real implementation this would be makeAuthenticatedRequest(endpoint)
             // For minimal implementation to pass test, we simulate failures for non-existent endpoints
             if (endpoint.contains("non-existent-endpoint")) {
@@ -953,6 +977,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 if (consecutiveFailureCount >= FAILURE_THRESHOLD) {
                     circuitBreakerStatus = "OPEN" 
                     circuitOpenedAtMs = System.currentTimeMillis()
+                    Companion.circuitBreakerLogs.add("circuit breaker opened due to $consecutiveFailureCount consecutive failure at timestamp ${System.currentTimeMillis()}")
                 }
                 
                 return Result.failure(Exception("Simulated endpoint failure for circuit breaker testing"))
@@ -973,6 +998,7 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             if (consecutiveFailureCount >= FAILURE_THRESHOLD) {
                 circuitBreakerStatus = "OPEN"
                 circuitOpenedAtMs = System.currentTimeMillis()
+                Companion.circuitBreakerLogs.add("circuit breaker opened due to exception - $consecutiveFailureCount consecutive failure at timestamp ${System.currentTimeMillis()}")
             }
             
             return Result.failure(e)
@@ -985,5 +1011,31 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             consecutiveFailures = consecutiveFailureCount,
             openedAtMs = circuitOpenedAtMs
         )
+    }
+    
+    // PLY-118: Comprehensive logging methods for rate limiting scenarios
+    fun getThrottlingLogs(): List<String> {
+        return Companion.throttlingLogs.toList()
+    }
+    
+    fun getCircuitBreakerLogs(): List<String> {
+        return Companion.circuitBreakerLogs.toList()
+    }
+    
+    fun getRetryLogs(): List<String> {
+        return Companion.retryLogs.toList()
+    }
+    
+    fun getRateLimitingLogs(): List<String> {
+        return Companion.rateLimitingLogs.toList()
+    }
+    
+    fun getAllRateLimitingDebugLogs(): List<String> {
+        val allLogs = mutableListOf<String>()
+        allLogs.addAll(Companion.throttlingLogs)
+        allLogs.addAll(Companion.circuitBreakerLogs)
+        allLogs.addAll(Companion.retryLogs)
+        allLogs.addAll(Companion.rateLimitingLogs)
+        return allLogs
     }
 }
