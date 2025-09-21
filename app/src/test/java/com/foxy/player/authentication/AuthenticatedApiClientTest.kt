@@ -278,9 +278,10 @@ class AuthenticatedApiClientTest {
         // Verify exponential backoff timing: each interval should be roughly double the previous
         val intervals = retryResult.backoffIntervalsUsed
         if (intervals.size >= 2) {
-            assertTrue(
-                "Second interval should be roughly double the first", intervals[1] >= intervals[0] * 1.5 && intervals[1] <= intervals[0] * 2.5
-            )
+        assertTrue(
+            "Second interval should be roughly double the first", 
+            intervals[1] >= intervals[0] * 1.5 && intervals[1] <= intervals[0] * 2.5
+        )
         }
 
         assertTrue(
