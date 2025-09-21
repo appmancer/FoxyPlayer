@@ -249,4 +249,42 @@ class AuthenticatedApiClientTest {
         assertEquals("Should include retry after time", 60, rateLimitException.retryAfterSeconds)
         assertTrue("Should indicate rate limiting", rateLimitException.message?.contains("rate limit") == true)
     }
+
+    @Test
+    fun `AuthenticatedApiClient_retries_429_responses_with_exponential_backoff`() {
+        // Arrange
+        val authRepository = AuthRepository()
+        val apiClient = AuthenticatedApiClient(authRepository)
+        
+        // Set up authentication state
+        val testToken = "test_auth_token_for_retry_test"
+        val userInfo = UserInfo(TEST_USERNAME)
+        authRepository.saveAuthenticationState(testToken, userInfo)
+        
+        // Act - Test that requests with 429 responses are retried with exponential backoff
+        // This test will fail because exponential backoff retry mechanism doesn't exist yet
+        val result = apiClient.makeAuthenticatedRequestWithRetry(
+            endpoint = TEST_ENDPOINT,
+            maxRetries = 3
+        )
+        
+        // Assert - Should handle retries with exponential backoff
+        assertTrue("Should return result after retries", result.isSuccess)
+        
+        val retryResult = result.getOrNull()!!
+        assertTrue("Should have attempted retries", retryResult.retriesAttempted > 0)
+        assertTrue("Should use exponential backoff", retryResult.backoffIntervalsUsed.size > 1)
+        
+        // Verify exponential backoff timing: each interval should be roughly double the previous
+        val intervals = retryResult.backoffIntervalsUsed
+        if (intervals.size >= 2) {
+            assertTrue(
+                "Second interval should be roughly double the first", 
+                intervals[1] >= intervals[0] * 1.5 && intervals[1] <= intervals[0] * 2.5
+            )
+        }
+        
+        assertTrue("Should eventually succeed or fail with final result", 
+            retryResult.finalHttpResponse.isNotEmpty() || retryResult.finalException != null)
+    }
 }

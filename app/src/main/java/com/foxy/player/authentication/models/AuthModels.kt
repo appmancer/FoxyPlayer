@@ -81,3 +81,11 @@ data class ServerRoutingResult(
     val attemptedServers: List<String>,
     val successfulServer: String?
 )
+
+// PLY-118: Rate Limiting Retry Result Models
+data class RetryRequestResult(
+    val retriesAttempted: Int,
+    val backoffIntervalsUsed: List<Long>,
+    val finalHttpResponse: String,
+    val finalException: Exception?
+)
