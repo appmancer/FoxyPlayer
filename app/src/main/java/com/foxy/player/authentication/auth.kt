@@ -2,14 +2,8 @@
 
 package com.foxy.player.authentication
 
-import com.foxy.player.utils.DebugLogging
 import com.google.gson.Gson
-import java.io.IOException
-import javax.net.ssl.SSLException
-import javax.net.ssl.SSLHandshakeException
-import okhttp3.FormBody
 import okhttp3.OkHttpClient
-import okhttp3.Request
 
 // ===== AUTHENTICATION EXCEPTIONS =====
 
@@ -110,19 +104,19 @@ data class ServerRoutingResult(
 
 class SecureTokenStorage {
     private val tokenStore = mutableMapOf<String, String>()
-    
+
     fun saveAuthToken(alias: String, token: String) {
         tokenStore[alias] = token
     }
-    
+
     fun getAuthToken(alias: String): String? {
         return tokenStore[alias]
     }
-    
+
     fun deleteAuthToken(alias: String) {
         tokenStore.remove(alias)
     }
-    
+
     fun hasAuthToken(alias: String): Boolean {
         return tokenStore.containsKey(alias)
     }
@@ -138,47 +132,47 @@ class AuthRepository(private val baseUrl: String = "") {
     private var readTimeout: Long = 30000L
     private val secureTokenStorage = SecureTokenStorage()
     private val secureTokenAlias = "auth_token_secure"
-    
+
     // PLY-119: Current token management
     private var currentToken: String? = null
-    
+
     // PLY-119: Re-authentication credentials storage
     private var refreshUsername: String? = null
     private var refreshPassword: String? = null
-    
+
     // PLY-119: Authentication operation logging
     private val authenticationLogs = mutableListOf<String>()
-    
+
     companion object {
         private var persistedAuthState: AuthResponse? = null
     }
-    
+
     // PLY-119: Get authentication logs for monitoring
     fun getAuthenticationLogs(): List<String> {
         return authenticationLogs.toList()
     }
-    
+
     // PLY-119: Add log entry
     private fun addAuthLog(message: String) {
         authenticationLogs.add(message)
     }
-    
+
     // PLY-119: Token management methods for 401 handling
     fun setCurrentToken(token: String) {
         currentToken = token
         secureTokenStorage.saveAuthToken(secureTokenAlias, token)
     }
-    
+
     fun getCurrentToken(): String? {
         return currentToken ?: secureTokenStorage.getAuthToken(secureTokenAlias)
     }
-    
+
     // PLY-119: Set credentials for re-authentication
     fun setRefreshCredentials(username: String, password: String) {
         refreshUsername = username
         refreshPassword = password
     }
-    
+
     // PLY-119: Authenticated request with 401 handling and token refresh
     fun makeAuthenticatedRequest(endpoint: String): Result<AuthenticatedRequestResult> {
         return try {
@@ -188,7 +182,7 @@ class AuthRepository(private val baseUrl: String = "") {
                 addAuthLog("No authentication token available for $endpoint")
                 return Result.failure(AuthenticationException("No authentication token available"))
             }
-            
+
             // Simulate API call that returns 401 for expired token
             if (token == "expired_token_12345") {
                 addAuthLog("Token expired for $endpoint, attempting refresh")
@@ -206,7 +200,7 @@ class AuthRepository(private val baseUrl: String = "") {
                 addAuthLog("Token refresh failed for $endpoint")
                 return Result.failure(AuthenticationException("Token refresh failed"))
             }
-            
+
             addAuthLog("Authentication request successful for $endpoint")
             // Normal successful request
             Result.success(AuthenticatedRequestResult("Success", token))
@@ -215,7 +209,7 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     // PLY-119: Authenticated request with re-authentication fallback
     fun makeAuthenticatedRequestWithReauth(endpoint: String): Result<AuthenticatedRequestResult> {
         return try {
@@ -223,7 +217,7 @@ class AuthRepository(private val baseUrl: String = "") {
             if (token == null) {
                 return Result.failure(AuthenticationException("No authentication token available"))
             }
-            
+
             // Simulate API call that returns 401 for refresh failure token
             if (token == "refresh_failure_token") {
                 // First try to refresh token
@@ -235,20 +229,22 @@ class AuthRepository(private val baseUrl: String = "") {
                         val newToken = reauthResult.getOrNull()
                         if (newToken != null) {
                             setCurrentToken(newToken)
-                            return Result.success(AuthenticatedRequestResult("Success with re-authentication", newToken))
+                            return Result.success(
+                                AuthenticatedRequestResult("Success with re-authentication", newToken)
+                            )
                         }
                     }
                     return Result.failure(AuthenticationException("Re-authentication failed"))
                 }
             }
-            
+
             // Normal successful request or after successful refresh
             Result.success(AuthenticatedRequestResult("Success", token))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     // PLY-119: Token refresh logic
     private fun refreshToken(): Result<String> {
         return try {
@@ -256,7 +252,7 @@ class AuthRepository(private val baseUrl: String = "") {
             if (getCurrentToken() == "refresh_failure_token") {
                 return Result.failure(AuthenticationException("Token refresh failed"))
             }
-            
+
             // Simulate successful token refresh
             val newToken = "refreshed_token_${System.currentTimeMillis()}"
             Result.success(newToken)
@@ -264,14 +260,14 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     // PLY-119: Re-authentication logic
     private fun performReAuthentication(): Result<String> {
         return try {
             if (refreshUsername == null || refreshPassword == null) {
                 return Result.failure(AuthenticationException("No credentials available for re-authentication"))
             }
-            
+
             // Simulate re-authentication - in real implementation this would call pCloud API
             val newToken = "reauthenticated_token_${System.currentTimeMillis()}"
             Result.success(newToken)
@@ -279,7 +275,7 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     // PLY-119: Authenticated request with network timeout and connection error handling
     fun makeAuthenticatedRequestWithNetworkHandling(endpoint: String): NetworkAwareRequestResult {
         return try {
@@ -294,7 +290,7 @@ class AuthRepository(private val baseUrl: String = "") {
                     errorMessage = "No authentication token available"
                 )
             }
-            
+
             // Simulate network timeout for slow endpoints
             if (endpoint.contains("slow-endpoint")) {
                 addAuthLog("Network timeout occurred for $endpoint")
@@ -306,7 +302,7 @@ class AuthRepository(private val baseUrl: String = "") {
                     errorMessage = "Network timeout occurred"
                 )
             }
-            
+
             addAuthLog("Network-aware authentication request successful for $endpoint")
             // Normal successful request
             NetworkAwareRequestResult(
@@ -325,7 +321,7 @@ class AuthRepository(private val baseUrl: String = "") {
             )
         }
     }
-    
+
     // PLY-119: Perform integrated authentication flow validation
     fun performIntegratedAuthFlow(
         initialToken: String,
@@ -335,24 +331,24 @@ class AuthRepository(private val baseUrl: String = "") {
         return try {
             // Clear existing logs for clean integration test
             authenticationLogs.clear()
-            
+
             // Set initial token
             setCurrentToken(initialToken)
             addAuthLog("Starting integrated auth flow with token: $initialToken")
-            
+
             // Test the complete flow including all components
             val authResult = makeAuthenticatedRequest(endpoint)
             val networkResult = makeAuthenticatedRequestWithNetworkHandling("/api/slow-endpoint")
-            
+
             // Validate network handling occurred
             val networkHandled = networkResult.isNetworkError
-            
+
             // Final validation
             val finalToken = getCurrentToken()
             val flowValidation = "Complete 401 auth failure flow validated"
-            
+
             addAuthLog("Integrated auth flow completed successfully")
-            
+
             IntegratedAuthFlowResult(
                 isSuccess = true,
                 finalToken = finalToken,
@@ -371,7 +367,7 @@ class AuthRepository(private val baseUrl: String = "") {
             )
         }
     }
-    
+
     // Existing methods (minimal implementation for compatibility)
     fun authenticate(username: String, password: String): Result<AuthToken> {
         return try {
@@ -380,7 +376,7 @@ class AuthRepository(private val baseUrl: String = "") {
             Result.failure(e)
         }
     }
-    
+
     fun isAuthenticated(): Boolean {
         return persistedAuthState != null
     }
