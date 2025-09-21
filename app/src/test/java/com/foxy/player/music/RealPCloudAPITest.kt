@@ -400,4 +400,85 @@ class RealPCloudAPITest {
             throw e
         }
     }
+
+    @Test
+    fun `testEnhancedErrorLoggingForCircuitBreakerTimeoutScenariosWithDetailedFailureTracking`() {
+        println("📊 Testing Enhanced Error Logging for Circuit Breaker Timeout Scenarios")
+        println("=" + "=".repeat(SEPARATOR_LINE_LENGTH))
+
+        try {
+            // TEST 1: Verify enhanced timeout error logging
+            println("\n⏱️ Testing timeout error logging with detailed context...")
+            
+            val musicService = MusicDiscoveryService.getInstance()
+            
+            // Configure timeout handling for testing
+            val timeoutConfig = NetworkTimeoutConfig(
+                connectionTimeoutMs = 100,  // Very short timeout to trigger failure
+                readTimeoutMs = 100,
+                writeTimeoutMs = 100
+            )
+            musicService.configureNetworkTimeouts(timeoutConfig)
+            
+            // TEST 2: Verify circuit breaker error logging captures failure details
+            println("\n🔄 Testing circuit breaker failure logging...")
+            
+            val circuitConfig = EnhancedCircuitBreakerConfig(
+                failureThreshold = 3,
+                halfOpenTimeout = 30000L,
+                resetSuccessThreshold = 2,
+                monitoringEnabled = true
+            )
+            musicService.configureEnhancedCircuitBreaker(circuitConfig)
+            
+            // Act - This should fail and generate enhanced logging
+            // We expect the enhanced error logging to capture:
+            // 1. Detailed timeout information with exact duration
+            // 2. Circuit breaker state changes with timestamps  
+            // 3. Failure classification (timeout vs network vs auth)
+            // 4. Retry attempts with individual failure reasons
+            // 5. Performance impact metrics
+            val detailedErrorLogResult = musicService.recordDetailedNetworkFailure(
+                errorType = "TIMEOUT_ERROR", 
+                errorMessage = "Connection timeout after 100ms",
+                contextPath = "/test/timeout/path",
+                duration = 150L,
+                retryAttempt = 1,
+                additionalContext = mapOf(
+                    "originalTimeout" to "100ms",
+                    "actualDuration" to "150ms", 
+                    "networkState" to "available",
+                    "circuitBreakerState" to "CLOSED"
+                )
+            )
+            
+            // TEST 3: Verify structured error logging output
+            println("\n📋 Testing structured error logging output...")
+            
+            // The enhanced logging should provide structured output that includes:
+            // - Error classification and severity
+            // - Detailed timing information  
+            // - Circuit breaker impact analysis
+            // - Actionable debugging information
+            val logAnalysisResult = musicService.getDetailedErrorAnalysis()
+            
+            // Assertions for TDD cycle - these should fail initially
+            assertNotNull("Enhanced error logging should capture detailed failure information", detailedErrorLogResult)
+            assertTrue("Detailed error logging should succeed", detailedErrorLogResult.isSuccess)
+            assertNotNull("Error analysis should be available", logAnalysisResult)
+            assertTrue("Error analysis should contain timeout details", logAnalysisResult.contains("TIMEOUT_ERROR"))
+            assertTrue("Error analysis should contain circuit breaker state", logAnalysisResult.contains("CLOSED"))
+            assertTrue("Error analysis should contain performance metrics", logAnalysisResult.contains("150ms"))
+            
+            println("✅ Enhanced error logging test completed")
+            println("✅ Timeout scenarios logged with detailed context")
+            println("✅ Circuit breaker state changes tracked")
+            println("✅ Structured error analysis available")
+
+        } catch (e: Exception) {
+            println("💥 Error during enhanced error logging testing: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
+    }
 }
