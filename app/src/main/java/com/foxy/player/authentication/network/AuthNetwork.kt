@@ -794,7 +794,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
         val message = "pCloud API rate limit exceeded"
         return Result.failure(
             com.foxy.player.authentication.models.RateLimitingException(
-                message, retryAfterSeconds
+                message,
+                retryAfterSeconds
             )
         )
     }

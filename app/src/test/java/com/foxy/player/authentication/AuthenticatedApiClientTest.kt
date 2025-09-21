@@ -278,14 +278,14 @@ class AuthenticatedApiClientTest {
         // Verify exponential backoff timing: each interval should be roughly double the previous
         val intervals = retryResult.backoffIntervalsUsed
         if (intervals.size >= 2) {
-        assertTrue(
-            "Second interval should be roughly double the first", 
-            intervals[1] >= intervals[0] * 1.5 && intervals[1] <= intervals[0] * 2.5
-        )
+            assertTrue(
+                "Second interval should be roughly double the first", intervals[1] >= intervals[0] * 1.5 && intervals[1] <= intervals[0] * 2.5
+            )
         }
 
         assertTrue(
-            "Should eventually succeed or fail with final result", retryResult.finalHttpResponse.isNotEmpty() || retryResult.finalException != null
+            "Should eventually succeed or fail with final result",
+            retryResult.finalHttpResponse.isNotEmpty() || retryResult.finalException != null
         )
     }
 
@@ -363,15 +363,15 @@ class AuthenticatedApiClientTest {
 
         // Assert - Circuit breaker should prevent requests after consecutive failures
         assertTrue("Circuit breaker should track failure 1", failure1.isFailure)
-        assertTrue("Circuit breaker should track failure 2", failure2.isFailure) 
-        assertTrue("Circuit breaker should track failure 3", failure3.isFailure)
+        assertTrue("Circuit breaker should track failure 2", failure2.isFailure) assertTrue("Circuit breaker should track failure 3", failure3.isFailure)
 
         // The fourth request should be immediately rejected by circuit breaker
         assertTrue("Circuit breaker should reject request when open", rejectedRequest.isFailure)
 
         val circuitBreakerException = rejectedRequest.exceptionOrNull()
         assertTrue(
-            "Should throw circuit breaker exception", circuitBreakerException?.message?.contains("Circuit breaker") == true
+            "Should throw circuit breaker exception",
+            circuitBreakerException?.message?.contains("Circuit breaker") == true
         )
 
         // Verify circuit breaker state can be queried
@@ -419,7 +419,8 @@ class AuthenticatedApiClientTest {
         assertTrue("Should have initial throttling logs", throttlingLogs.isEmpty() || throttlingLogs.isNotEmpty())
         assertTrue("Should log throttling events", updatedThrottlingLogs.size > throttlingLogs.size)
         assertTrue(
-            "Should contain throttling delay information", updatedThrottlingLogs.any { it.contains("throttle") && it.contains("delay") }
+            "Should contain throttling delay information",
+            updatedThrottlingLogs.any { it.contains("throttle") && it.contains("delay") }
         )
 
         assertTrue("Should have initial circuit breaker logs", circuitLogs.isEmpty() || circuitLogs.isNotEmpty())
@@ -447,7 +448,8 @@ class AuthenticatedApiClientTest {
         val allLogs = apiClient.getAllRateLimitingDebugLogs()
         assertTrue("Should provide comprehensive debug logs", allLogs.isNotEmpty())
         assertTrue(
-            "Should include timestamp information", allLogs.any { it.contains("timestamp") || it.matches(Regex(".*\\d{4}-\\d{2}-\\d{2}.*")) }
+            "Should include timestamp information",
+            allLogs.any { it.contains("timestamp") || it.matches(Regex(".*\\d{4}-\\d{2}-\\d{2}.*")) }
         )
         assertTrue(
             "Should include request context",
