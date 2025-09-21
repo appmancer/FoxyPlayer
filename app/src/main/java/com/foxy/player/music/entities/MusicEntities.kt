@@ -119,7 +119,8 @@ data class AudioMetadata(
     val album: String,
     val durationMs: Long, // Keep original field name for consistency
     val format: String,
-    val bitrate: Int
+    val bitrate: Int,
+    val trackNumber: Int? = null // Track number from metadata, null if not available
 )
 
 /**
