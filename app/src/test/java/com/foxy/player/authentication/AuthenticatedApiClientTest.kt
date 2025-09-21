@@ -363,7 +363,8 @@ class AuthenticatedApiClientTest {
 
         // Assert - Circuit breaker should prevent requests after consecutive failures
         assertTrue("Circuit breaker should track failure 1", failure1.isFailure)
-        assertTrue("Circuit breaker should track failure 2", failure2.isFailure) assertTrue("Circuit breaker should track failure 3", failure3.isFailure)
+        assertTrue("Circuit breaker should track failure 2", failure2.isFailure) 
+        assertTrue("Circuit breaker should track failure 3", failure3.isFailure)
 
         // The fourth request should be immediately rejected by circuit breaker
         assertTrue("Circuit breaker should reject request when open", rejectedRequest.isFailure)
