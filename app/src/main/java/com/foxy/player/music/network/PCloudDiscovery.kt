@@ -1331,20 +1331,20 @@ class MusicDiscoveryService(
 
     // ===== ENHANCED CIRCUIT BREAKER - PLY-120 =====
 
-    private var enhancedCircuitBreakerConfig: com.foxy.player.music.EnhancedCircuitBreakerConfig? = null
+    private var enhancedCircuitBreakerConfig: EnhancedCircuitBreakerConfig? = null
     private var enhancedFailureCount = 0
     private var enhancedSuccessCount = 0
     private var enhancedLastFailureTime: Long? = null
     private var simulatedTimeOffset = 0L // For testing time passage
 
     fun configureEnhancedCircuitBreaker(
-        config: com.foxy.player.music.EnhancedCircuitBreakerConfig
-    ): Result<com.foxy.player.music.EnhancedCircuitBreakerConfig> {
+        config: EnhancedCircuitBreakerConfig
+    ): Result<EnhancedCircuitBreakerConfig> {
         enhancedCircuitBreakerConfig = config
         return Result.success(config)
     }
 
-    fun getEnhancedCircuitBreakerState(): com.foxy.player.music.EnhancedCircuitBreakerState {
+    fun getEnhancedCircuitBreakerState(): EnhancedCircuitBreakerState {
         val config = enhancedCircuitBreakerConfig
         val currentTime = System.currentTimeMillis() + simulatedTimeOffset
         val lastFailure = enhancedLastFailureTime
@@ -1359,7 +1359,7 @@ class MusicDiscoveryService(
             else -> "CLOSED"
         }
 
-        return com.foxy.player.music.EnhancedCircuitBreakerState(
+        return EnhancedCircuitBreakerState(
             state = state,
             failureCount = enhancedFailureCount,
             lastFailureTimeMs = enhancedLastFailureTime
@@ -1385,7 +1385,7 @@ class MusicDiscoveryService(
         return Result.success("Success recorded")
     }
 
-    fun simulateTimePassage(milliseconds: Long): com.foxy.player.music.EnhancedCircuitBreakerState {
+    fun simulateTimePassage(milliseconds: Long): EnhancedCircuitBreakerState {
         simulatedTimeOffset += milliseconds
         return getEnhancedCircuitBreakerState()
     }
