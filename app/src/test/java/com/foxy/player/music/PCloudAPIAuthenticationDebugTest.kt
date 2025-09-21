@@ -55,15 +55,18 @@ class PCloudAPIAuthenticationDebugTest {
             assertTrue("Debug result should indicate authentication success", debugResult.isSuccess)
 
             val debugInfo = debugResult.getOrNull()!!
-            assertNotNull("Auth token should be present", debugInfo.authTokenUsed)
-            assertNotNull("Raw API response should be captured", debugInfo.rawApiResponse)
+            assertTrue("Auth token length should be > 0", debugInfo.authTokenLength > 0)
+            assertTrue("Response size should be > 0", debugInfo.responseSize > 0)
             assertNotNull("Response parsing info should be available", debugInfo.responseParsingInfo)
+            assertNotNull("Response type should be available", debugInfo.responseType)
+            assertNotNull("Endpoint should be available", debugInfo.endpoint)
 
             println("✅ Debug test completed successfully!")
-            println("🔍 Auth token length: ${debugInfo.authTokenUsed.length}")
+            println("🔍 Auth token length: ${debugInfo.authTokenLength}")
             println("🔍 Response size: ${debugInfo.responseSize} bytes")
             println("🔍 Request duration: ${debugInfo.requestDurationMs}ms")
-            println("🔍 Raw response preview: ${debugInfo.rawApiResponse.take(200)}...")
+            println("🔍 Response type: ${debugInfo.responseType}")
+            println("🔍 Endpoint: ${debugInfo.endpoint}")
         } catch (e: Exception) {
             println("❌ Debug test failed: ${e.message}")
             throw e

@@ -366,8 +366,9 @@ class MusicDiscoveryService(
             MusicDiscoveryLogger.logApiResponse("/listfolder", responseSize, "success")
 
             try {
-                // Add detailed debug logging for JSON parsing
-                android.util.Log.d("PCloudDebug", "Raw JSON response: ${requestResult.httpResponse}")
+                // Add detailed debug logging for JSON parsing (sanitized for security)
+                android.util.Log.d("PCloudDebug", "JSON response size: ${requestResult.httpResponse.length} bytes")
+                android.util.Log.d("PCloudDebug", "JSON response type: ${if (requestResult.httpResponse.startsWith("{")) "object" else "unknown"}")
 
                 val pCloudResponse = gson.fromJson(
                     requestResult.httpResponse,
@@ -1164,22 +1165,22 @@ class MusicDiscoveryService(
                 val requestResult = apiRequest.getOrNull()!!
                 val endTime = System.currentTimeMillis()
 
-                // Capture all debug information
+                // Capture debug information (sanitized for security)
                 val debugInfo = PCloudAPIDebugInfo(
-                    authTokenUsed = requestResult.authTokenUsed,
-                    rawApiResponse = requestResult.httpResponse,
-                    responseParsingInfo = "Raw API response captured successfully",
+                    authTokenLength = requestResult.authTokenUsed.length,
                     responseSize = requestResult.httpResponse.length,
+                    responseParsingInfo = "API response captured successfully",
                     requestDurationMs = endTime - startTime,
                     endpoint = "/listfolder?path=/",
-                    timestamp = startTime
+                    timestamp = startTime,
+                    responseType = if (requestResult.httpResponse.startsWith("{")) "JSON" else "unknown"
                 )
 
-                // Log debug information
+                // Log debug information (sanitized for security)
                 android.util.Log.d("PCloudDebug", "API authentication test successful")
-                android.util.Log.d("PCloudDebug", "Auth token: ${requestResult.authTokenUsed}")
+                android.util.Log.d("PCloudDebug", "Auth token length: ${requestResult.authTokenUsed.length} chars")
                 android.util.Log.d("PCloudDebug", "Response size: ${requestResult.httpResponse.length} bytes")
-                android.util.Log.d("PCloudDebug", "Raw response: ${requestResult.httpResponse}")
+                android.util.Log.d("PCloudDebug", "Response type: ${if (requestResult.httpResponse.startsWith("{")) "JSON" else "unknown"}")
 
                 Result.success(debugInfo)
             } else {
@@ -1309,11 +1310,11 @@ data class DiscoveredAlbum(
  * Debug information for pCloud API authentication and response analysis.
  */
 data class PCloudAPIDebugInfo(
-    val authTokenUsed: String,
-    val rawApiResponse: String,
+    val authTokenLength: Int,        // Changed: only store length, not actual token
+    val responseSize: Int,           // Changed: only store size, not raw content
     val responseParsingInfo: String,
-    val responseSize: Int,
     val requestDurationMs: Long,
     val endpoint: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val responseType: String         // Added: indicate JSON/other without exposing content
 )

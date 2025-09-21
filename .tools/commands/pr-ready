@@ -303,12 +303,15 @@ Generated with [opencode](https://opencode.ai)"
 
 # Create PR targeting dev branch (CRITICAL from AGENTS.md)
 echo -e "${WORKING} Creating PR targeting dev branch..."
+echo -e "${INFO} This may take a few moments depending on GitHub API response time..."
 
 # Try creating PR with explicit head specification to handle remote branch issues
+echo -e "${INFO} Attempting PR creation with head specification..."
 if ! gh pr create --base dev --head "$branch" --title "$ticket_id: $ticket_title" --body "$pr_description"; then
     echo -e "${ERROR} Failed to create PR with --head flag, trying without..."
     
     # Fallback: try without --head flag
+    echo -e "${INFO} Attempting PR creation without head specification..."
     if ! gh pr create --base dev --title "$ticket_id: $ticket_title" --body "$pr_description"; then
         echo -e "${ERROR} Failed to create PR automatically"
         echo -e "${INFO} Troubleshooting:"
@@ -327,10 +330,26 @@ if ! gh pr create --base dev --head "$branch" --title "$ticket_id: $ticket_title
     fi
 fi
 
-# Get PR URL for workflow state update
-if ! pr_url=$(gh pr view --json url --jq '.url' 2>/dev/null); then
-    echo -e "${ERROR} Could not retrieve PR URL"
+echo -e "${SUCCESS} PR created successfully"
+
+# Get PR URL for workflow state update with retry logic
+echo -e "${INFO} Retrieving PR URL..."
+pr_url=""
+for attempt in {1..5}; do
+    if pr_url=$(gh pr view --json url --jq '.url' 2>/dev/null); then
+        echo -e "${SUCCESS} PR URL retrieved: $pr_url"
+        break
+    else
+        echo -e "${WORKING} Attempt $attempt/5: Waiting for PR to be available..."
+        sleep 2
+    fi
+done
+
+if [[ -z "$pr_url" ]]; then
+    echo -e "${ERROR} Could not retrieve PR URL after 5 attempts"
     echo -e "${INFO} PR may have been created - check GitHub manually"
+    echo -e "${INFO} You can update the workflow state manually with:"
+    echo "  jq '.phase = \"pr-created\" | .pr_url = \"YOUR_PR_URL\"' .spectrum/current-ticket.json > tmp && mv tmp .spectrum/current-ticket.json"
     exit 1
 fi
 

@@ -66,12 +66,11 @@ class MusicHubViewModel(
                 if (debugResult.isSuccess) {
                     val debugInfo = debugResult.getOrNull()!!
                     System.out.println("🔍 MUSICHUB_DEBUG: ✅ pCloud API authentication SUCCESSFUL")
-                    System.out.println("🔍 MUSICHUB_DEBUG:   - Auth token length: ${debugInfo.authTokenUsed.length}")
+                    System.out.println("🔍 MUSICHUB_DEBUG:   - Auth token length: ${debugInfo.authTokenLength}")
                     System.out.println("🔍 MUSICHUB_DEBUG:   - Response size: ${debugInfo.responseSize} bytes")
                     System.out.println("🔍 MUSICHUB_DEBUG:   - Request duration: ${debugInfo.requestDurationMs}ms")
-                    System.out.println(
-                        "🔍 MUSICHUB_DEBUG:   - Raw response preview: ${debugInfo.rawApiResponse.take(300)}..."
-                    )
+                    System.out.println("🔍 MUSICHUB_DEBUG:   - Response type: ${debugInfo.responseType}")
+                    System.out.println("🔍 MUSICHUB_DEBUG:   - Endpoint: ${debugInfo.endpoint}")
                 } else {
                     val error = debugResult.exceptionOrNull()
                     System.out.println("🚨 MUSICHUB_DEBUG: ❌ pCloud API authentication FAILED: ${error?.message}")
