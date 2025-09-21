@@ -640,13 +640,29 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
     private val gson = Gson()
 
     fun makeAuthenticatedRequest(endpoint: String): Result<AuthenticatedRequestResult> {
+        // 🚨 AGGRESSIVE DEBUG: Using System.out to ensure visibility
+        System.out.println("🔍 PCLOUD_DEBUG: makeAuthenticatedRequest called with endpoint: $endpoint")
+        
         return try {
             // Get current authentication state
             val authState = authRepository.getPersistedAuthenticationState()
-                ?: return Result.failure(AuthenticationException("No authentication state found"))
+            if (authState == null) {
+                System.out.println("🚨 PCLOUD_DEBUG: No authentication state found!")
+                return Result.failure(AuthenticationException("No authentication state found"))
+            }
 
             // Get base URL from repository
             val baseUrl = authRepository.getLastSuccessfulServer() ?: "https://eapi.pcloud.com"
+
+            // 🔍 DEBUG: Log the API request details
+            System.out.println("🔍 PCLOUD_DEBUG: Making pCloud API request:")
+            System.out.println("🔍 PCLOUD_DEBUG:   URL: $baseUrl$endpoint")
+            System.out.println("🔍 PCLOUD_DEBUG:   Auth token length: ${authState.authToken.length}")
+            System.out.println("🔍 PCLOUD_DEBUG:   Auth token preview: ${authState.authToken.take(10)}...")
+            android.util.Log.d("AuthenticatedApiClient", "🔍 Making pCloud API request:")
+            android.util.Log.d("AuthenticatedApiClient", "  URL: $baseUrl$endpoint")
+            android.util.Log.d("AuthenticatedApiClient", "  Auth token length: ${authState.authToken.length}")
+            android.util.Log.d("AuthenticatedApiClient", "  Auth token preview: ${authState.authToken.take(10)}...")
 
             // Make authenticated request with token injection
             val requestBody = FormBody.Builder()
@@ -661,6 +677,32 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             val response = httpClient.newCall(request).execute()
             val responseBody = response.body?.string() ?: ""
 
+            // 🔍 DEBUG: Log the API response details
+            System.out.println("🔍 PCLOUD_DEBUG: pCloud API response:")
+            System.out.println("🔍 PCLOUD_DEBUG:   HTTP Status: ${response.code}")
+            System.out.println("🔍 PCLOUD_DEBUG:   Response size: ${responseBody.length} bytes")
+            System.out.println("🔍 PCLOUD_DEBUG:   Response preview: ${responseBody.take(200)}")
+            android.util.Log.d("AuthenticatedApiClient", "🔍 pCloud API response:")
+            android.util.Log.d("AuthenticatedApiClient", "  HTTP Status: ${response.code}")
+            android.util.Log.d("AuthenticatedApiClient", "  Response size: ${responseBody.length} bytes")
+            android.util.Log.d("AuthenticatedApiClient", "  Response preview: ${responseBody.take(200)}")
+
+            // Parse JSON to check for pCloud API errors
+            try {
+                val jsonObject = gson.fromJson(responseBody, com.google.gson.JsonObject::class.java)
+                val resultCode = jsonObject.get("result")?.asInt ?: -1
+                val errorMessage = jsonObject.get("error")?.asString ?: "No error message"
+                System.out.println("🔍 PCLOUD_DEBUG:   pCloud result code: $resultCode")
+                android.util.Log.d("AuthenticatedApiClient", "  pCloud result code: $resultCode")
+                if (resultCode != 0) {
+                    System.out.println("🚨 PCLOUD_DEBUG:   ⚠️ pCloud API error: $errorMessage")
+                    android.util.Log.w("AuthenticatedApiClient", "  ⚠️ pCloud API error: $errorMessage")
+                }
+            } catch (e: Exception) {
+                System.out.println("🚨 PCLOUD_DEBUG:   Could not parse response as JSON: ${e.message}")
+                android.util.Log.w("AuthenticatedApiClient", "  Could not parse response as JSON: ${e.message}")
+            }
+
             // Create result with auth token confirmation
             val result = AuthenticatedRequestResult(
                 httpResponse = responseBody,
@@ -669,6 +711,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
 
             Result.success(result)
         } catch (e: Exception) {
+            System.out.println("🚨 PCLOUD_DEBUG: API request failed: ${e.message}")
+            android.util.Log.e("AuthenticatedApiClient", "🚨 API request failed", e)
             Result.failure(e)
         }
     }

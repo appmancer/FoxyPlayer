@@ -1118,6 +1118,52 @@ class MusicDiscoveryService(
         return Result.success(report)
     }
 
+    // ===== DEBUG API AUTHENTICATION =====
+
+    /**
+     * Debug method to verify pCloud API authentication and inspect raw API responses.
+     * Makes a direct call to pCloud /listfolder?path=/ to test authentication and capture response details.
+     */
+    fun debugPCloudAPIAuthentication(): Result<PCloudAPIDebugInfo> {
+        val startTime = System.currentTimeMillis()
+        
+        return try {
+            // Make direct API call to root folder to test authentication
+            val apiRequest = authenticatedApiClient.makeAuthenticatedRequest("/listfolder?path=/")
+            
+            if (apiRequest.isSuccess) {
+                val requestResult = apiRequest.getOrNull()!!
+                val endTime = System.currentTimeMillis()
+                
+                // Capture all debug information
+                val debugInfo = PCloudAPIDebugInfo(
+                    authTokenUsed = requestResult.authTokenUsed,
+                    rawApiResponse = requestResult.httpResponse,
+                    responseParsingInfo = "Raw API response captured successfully",
+                    responseSize = requestResult.httpResponse.length,
+                    requestDurationMs = endTime - startTime,
+                    endpoint = "/listfolder?path=/",
+                    timestamp = startTime
+                )
+                
+                // Log debug information
+                android.util.Log.d("PCloudDebug", "API authentication test successful")
+                android.util.Log.d("PCloudDebug", "Auth token: ${requestResult.authTokenUsed}")
+                android.util.Log.d("PCloudDebug", "Response size: ${requestResult.httpResponse.length} bytes")
+                android.util.Log.d("PCloudDebug", "Raw response: ${requestResult.httpResponse}")
+                
+                Result.success(debugInfo)
+            } else {
+                val error: Exception = (apiRequest.exceptionOrNull() as? Exception) ?: Exception("Unknown API error")
+                android.util.Log.e("PCloudDebug", "API authentication test failed", error)
+                Result.failure(error)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PCloudDebug", "Debug authentication method failed", e)
+            Result.failure(e)
+        }
+    }
+
     // ===== ALBUM DISCOVERY FUNCTIONALITY =====
 
     /**
@@ -1228,4 +1274,17 @@ data class DiscoveredAlbum(
     val title: String,
     val artist: String,
     val audioFiles: List<String>
+)
+
+/**
+ * Debug information for pCloud API authentication and response analysis.
+ */
+data class PCloudAPIDebugInfo(
+    val authTokenUsed: String,
+    val rawApiResponse: String,
+    val responseParsingInfo: String,
+    val responseSize: Int,
+    val requestDurationMs: Long,
+    val endpoint: String,
+    val timestamp: Long
 )
