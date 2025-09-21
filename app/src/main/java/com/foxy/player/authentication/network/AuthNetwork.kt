@@ -996,7 +996,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
 
                 // Check if we should open the circuit
                 if (consecutiveFailureCount >= FAILURE_THRESHOLD) {
-                    circuitBreakerStatus = "OPEN" circuitOpenedAtMs = System.currentTimeMillis()
+                    circuitBreakerStatus = "OPEN"
+                    circuitOpenedAtMs = System.currentTimeMillis()
                     Companion.circuitBreakerLogs.add(
                         "circuit breaker opened due to $consecutiveFailureCount consecutive failure at timestamp ${System.currentTimeMillis()}"
                     )
