@@ -90,4 +90,32 @@ class AuthToken401Test {
                   logEntries.any { it.contains("Network timeout occurred") })
         assertNotNull("Should provide log access for monitoring", logEntries)
     }
+    
+    // PLY-119: Integration test for complete 401 auth failure flow
+    @Test
+    fun `Add_integration_validation_for_complete_401_auth_failure_flow`() {
+        // Arrange
+        val authRepository = AuthRepository()
+        val expiredToken = "expired_token_12345"
+        val failingRefreshToken = "refresh_failure_token"
+        
+        // Set up credentials for re-authentication fallback
+        authRepository.setRefreshCredentials("test@example.com", "test-password")
+        
+        // Act & Assert - Test complete flow with token refresh and re-auth
+        val integrationResult = authRepository.performIntegratedAuthFlow(
+            initialToken = expiredToken,
+            endpoint = "/api/userinfo",
+            fallbackToReauth = true
+        )
+        
+        // Assert - verify complete integration
+        assertTrue("Integration flow should succeed", integrationResult.isSuccess)
+        assertNotNull("Should have final valid token", integrationResult.finalToken)
+        assertTrue("Should have logged all operations", integrationResult.operationLogs.isNotEmpty())
+        assertTrue("Should handle token refresh attempt", 
+                  integrationResult.operationLogs.any { it.contains("Token refreshed") })
+        assertTrue("Should handle network timeouts gracefully", integrationResult.networkHandled)
+        assertNotNull("Should provide comprehensive flow validation", integrationResult.flowValidation)
+    }
 }

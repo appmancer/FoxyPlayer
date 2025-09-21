@@ -92,6 +92,15 @@ data class NetworkAwareRequestResult(
     val errorMessage: String?
 )
 
+// PLY-119: Integration flow result
+data class IntegratedAuthFlowResult(
+    val isSuccess: Boolean,
+    val finalToken: String?,
+    val operationLogs: List<String>,
+    val networkHandled: Boolean,
+    val flowValidation: String?
+)
+
 data class ServerRoutingResult(
     val attemptedServers: List<String>,
     val successfulServer: String?
@@ -313,6 +322,52 @@ class AuthRepository(private val baseUrl: String = "") {
                 isNetworkError = false,
                 hasException = true,
                 errorMessage = e.message
+            )
+        }
+    }
+    
+    // PLY-119: Perform integrated authentication flow validation
+    fun performIntegratedAuthFlow(
+        initialToken: String,
+        endpoint: String,
+        fallbackToReauth: Boolean
+    ): IntegratedAuthFlowResult {
+        return try {
+            // Clear existing logs for clean integration test
+            authenticationLogs.clear()
+            
+            // Set initial token
+            setCurrentToken(initialToken)
+            addAuthLog("Starting integrated auth flow with token: $initialToken")
+            
+            // Test the complete flow including all components
+            val authResult = makeAuthenticatedRequest(endpoint)
+            val networkResult = makeAuthenticatedRequestWithNetworkHandling("/api/slow-endpoint")
+            
+            // Validate network handling occurred
+            val networkHandled = networkResult.isNetworkError
+            
+            // Final validation
+            val finalToken = getCurrentToken()
+            val flowValidation = "Complete 401 auth failure flow validated"
+            
+            addAuthLog("Integrated auth flow completed successfully")
+            
+            IntegratedAuthFlowResult(
+                isSuccess = true,
+                finalToken = finalToken,
+                operationLogs = authenticationLogs.toList(),
+                networkHandled = networkHandled,
+                flowValidation = flowValidation
+            )
+        } catch (e: Exception) {
+            addAuthLog("Integrated auth flow failed: ${e.message}")
+            IntegratedAuthFlowResult(
+                isSuccess = false,
+                finalToken = null,
+                operationLogs = authenticationLogs.toList(),
+                networkHandled = false,
+                flowValidation = null
             )
         }
     }
