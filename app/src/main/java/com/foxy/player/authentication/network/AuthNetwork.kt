@@ -786,14 +786,15 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
     ): Result<Nothing> {
         // Log rate limiting response handling
         Companion.rateLimitingLogs.add(
-            "Handling rate limiting response: HTTP $httpStatusCode, pCloud code $pCloudErrorCode, retry after $retryAfterHeader seconds at timestamp ${System.currentTimeMillis()}"
+            "Handling rate limiting response: HTTP $httpStatusCode, pCloud code $pCloudErrorCode, " +
+                "retry after $retryAfterHeader seconds at timestamp ${System.currentTimeMillis()}"
         )
 
         // Minimal implementation to satisfy the test
         val retryAfterSeconds = retryAfterHeader.toIntOrNull() ?: 60
         val message = "pCloud API rate limit exceeded"
         return Result.failure(
-            com.foxy.player.authentication.models.RateLimitingException(
+            RateLimitingException(
                 message,
                 retryAfterSeconds
             )
@@ -809,7 +810,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
         var retriesAttempted = 0
 
         Companion.retryLogs.add(
-            "Starting retry request to $endpoint with maxRetries $maxRetries at timestamp ${System.currentTimeMillis()}"
+            "Starting retry request to $endpoint with maxRetries $maxRetries " +
+                "at timestamp ${System.currentTimeMillis()}"
         )
 
         // For testing purposes, simulate multiple retries to demonstrate exponential backoff
@@ -824,7 +826,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 retriesAttempted = attempt
 
                 Companion.retryLogs.add(
-                    "retry attempt $attempt with exponential backoff delay ${backoffMs}ms at timestamp ${System.currentTimeMillis()}"
+                    "retry attempt $attempt with exponential backoff delay ${backoffMs}ms " +
+                        "at timestamp ${System.currentTimeMillis()}"
                 )
 
                 // For testing, we don't actually sleep
@@ -848,7 +851,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                     // Success case - return the result wrapped in RetryRequestResult
                     val authResult = requestResult.getOrNull()!!
                     Companion.retryLogs.add(
-                        "Retry request succeeded after $retriesAttempted attempts at timestamp ${System.currentTimeMillis()}"
+                        "Retry request succeeded after $retriesAttempted attempts " +
+                            "at timestamp ${System.currentTimeMillis()}"
                     )
                     return Result.success(
                         RetryRequestResult(
@@ -865,7 +869,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 if (exception !is RateLimitingException) {
                     // Not a rate limiting error, fail immediately
                     Companion.retryLogs.add(
-                        "Retry request failed with non-retryable error after $retriesAttempted attempts at timestamp ${System.currentTimeMillis()}"
+                        "Retry request failed with non-retryable error after $retriesAttempted attempts " +
+                            "at timestamp ${System.currentTimeMillis()}"
                     )
                     return Result.success(
                         RetryRequestResult(
@@ -896,7 +901,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             } catch (e: Exception) {
                 // Non-retryable error
                 Companion.retryLogs.add(
-                    "Retry request failed with exception after $retriesAttempted attempts: ${e.message} at timestamp ${System.currentTimeMillis()}"
+                    "Retry request failed with exception after $retriesAttempted attempts: ${e.message} " +
+                        "at timestamp ${System.currentTimeMillis()}"
                 )
                 return Result.success(
                     RetryRequestResult(
@@ -923,13 +929,15 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
 
     // PLY-118: Request throttling to prevent rate limiting
     companion object {
-        private var lastRequestTime: Long = 0
-        private var requestCount: Int = 0 // Track request count for testing
+        @Volatile private var lastRequestTime: Long = 0
+
+        @Volatile private var requestCount: Int = 0 // Track request count for testing
 
         // PLY-118: Circuit breaker state tracking
-        private var circuitBreakerStatus = "CLOSED" // OPEN, CLOSED, HALF_OPEN
-        private var consecutiveFailureCount = 0
-        private var circuitOpenedAtMs: Long = 0
+        @Volatile private var circuitBreakerStatus = "CLOSED" // OPEN, CLOSED, HALF_OPEN
+        @Volatile private var consecutiveFailureCount = 0
+
+        @Volatile private var circuitOpenedAtMs: Long = 0
         private const val FAILURE_THRESHOLD = 3 // Open circuit after 3 consecutive failures
 
         // PLY-118: Comprehensive logging for rate limiting scenarios
@@ -949,7 +957,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
 
         // Log throttling activity
         Companion.throttlingLogs.add(
-            "throttle request to $endpoint with delay ${currentThrottleDelay}ms at timestamp ${System.currentTimeMillis()}"
+            "throttle request to $endpoint with delay ${currentThrottleDelay}ms " +
+                "at timestamp ${System.currentTimeMillis()}"
         )
 
         // Update state for next call
@@ -979,17 +988,20 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
             )
             return Result.failure(
                 Exception(
-                    "Circuit breaker is OPEN - too many consecutive failures. Request rejected to prevent further rate limiting."
+                    "Circuit breaker is OPEN - too many consecutive failures. " +
+                        "Request rejected to prevent further rate limiting."
                 )
             )
         }
 
         try {
             Companion.circuitBreakerLogs.add(
-                "Circuit breaker $circuitBreakerStatus - processing request to $endpoint with failure count $consecutiveFailureCount at timestamp ${System.currentTimeMillis()}"
+                "Circuit breaker $circuitBreakerStatus - processing request to $endpoint " +
+                    "with failure count $consecutiveFailureCount at timestamp ${System.currentTimeMillis()}"
             )
 
-            // Simulate failed request for testing - in real implementation this would be makeAuthenticatedRequest(endpoint)
+            // Simulate failed request for testing - in real implementation
+            // this would be makeAuthenticatedRequest(endpoint)
             // For minimal implementation to pass test, we simulate failures for non-existent endpoints
             if (endpoint.contains("non-existent-endpoint")) {
                 // Record failure
@@ -1000,7 +1012,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                     circuitBreakerStatus = "OPEN"
                     circuitOpenedAtMs = System.currentTimeMillis()
                     Companion.circuitBreakerLogs.add(
-                        "circuit breaker opened due to $consecutiveFailureCount consecutive failure at timestamp ${System.currentTimeMillis()}"
+                        "circuit breaker opened due to $consecutiveFailureCount consecutive failure " +
+                            "at timestamp ${System.currentTimeMillis()}"
                     )
                 }
 
@@ -1022,7 +1035,8 @@ class AuthenticatedApiClient(private val authRepository: AuthRepository) {
                 circuitBreakerStatus = "OPEN"
                 circuitOpenedAtMs = System.currentTimeMillis()
                 Companion.circuitBreakerLogs.add(
-                    "circuit breaker opened due to exception - $consecutiveFailureCount consecutive failure at timestamp ${System.currentTimeMillis()}"
+                    "circuit breaker opened due to exception - $consecutiveFailureCount consecutive failure " +
+                        "at timestamp ${System.currentTimeMillis()}"
                 )
             }
 
