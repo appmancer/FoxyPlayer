@@ -127,4 +127,21 @@ class HeuristicFilePathMetadataExtractor {
         
         return score
     }
+    
+    /**
+     * Persists extracted metadata through repository pattern with transactional support
+     * @param extractionResult The result of metadata extraction
+     * @param repository The repository to persist through
+     * @return Result indicating success/failure of persistence operation
+     */
+    suspend fun persistMetadataWithRepository(
+        extractionResult: HeuristicFilePathExtractionResult,
+        repository: MetadataRepository
+    ): Result<MetadataPersistenceResult> {
+        return repository.persistMetadataTransaction(
+            extractionResult.albumEntity,
+            extractionResult.trackEntity,
+            extractionResult.albumTrackEntity
+        )
+    }
 }

@@ -1,6 +1,7 @@
 package com.foxy.player.music
 
 import com.foxy.player.music.business.HeuristicFilePathMetadataExtractor
+import com.foxy.player.music.business.MetadataRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -77,5 +78,33 @@ class HeuristicFilePathMetadataExtractionTest {
             assertEquals("Title should match for path: $filePath", expected.third, extractionResult.trackEntity.title)
             assertEquals("Album title should match for path: $filePath", expected.second, extractionResult.albumEntity.title)
         }
+    }
+    
+    @Test
+    fun `heuristic_metadata_extractor_should_persist_entities_through_repository_pattern_with_transactional_support`() = runBlocking {
+        // Arrange - setup heuristic extractor with repository integration
+        val mockRepository = MetadataRepository()
+        val heuristicExtractor = HeuristicFilePathMetadataExtractor()
+        
+        val filePath = "/Music/Pink Floyd/The Wall/01 - Another Brick in the Wall.mp3"
+        
+        // Act - extract metadata and persist through repository pattern
+        val extractionResult = heuristicExtractor.extractMetadataFromFilePath(filePath).getOrThrow()
+        val persistResult = heuristicExtractor.persistMetadataWithRepository(extractionResult, mockRepository)
+        
+        // Assert - verify transactional persistence through repository
+        assertTrue("Should successfully persist through repository", persistResult.isSuccess)
+        val persistedData = persistResult.getOrNull()
+        assertNotNull("Persisted data should not be null", persistedData)
+        
+        // Verify repository received all entities in single transaction
+        assertTrue("Repository should persist album entity", persistedData!!.albumPersisted)
+        assertTrue("Repository should persist track entity", persistedData.trackPersisted)
+        assertTrue("Repository should persist album-track junction", persistedData.junctionPersisted)
+        assertTrue("Repository should execute in single transaction", persistedData.transactional)
+        
+        // Verify data integrity after persistence
+        assertEquals("Persisted album ID should match extraction", extractionResult.albumEntity.id, persistedData.persistedAlbumId)
+        assertEquals("Persisted track ID should match extraction", extractionResult.trackEntity.id, persistedData.persistedTrackId)
     }
 }
