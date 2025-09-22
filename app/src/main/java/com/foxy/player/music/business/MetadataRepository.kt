@@ -26,7 +26,8 @@ class MetadataRepository {
     /**
      * Persists metadata entities in a single transaction
      * @param albumEntity The album entity to persist
-     * @param trackEntity The track entity to persist * @param albumTrackEntity The junction entity to persist
+     * @param trackEntity The track entity to persist
+     * @param albumTrackEntity The junction entity to persist
      * @return Result indicating success/failure of persistence operation
      */
     suspend fun persistMetadataTransaction(
