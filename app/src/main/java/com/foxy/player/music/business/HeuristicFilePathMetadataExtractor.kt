@@ -31,11 +31,11 @@ class HeuristicFilePathMetadataExtractor {
         return try {
             val (artist, album, title) = parsePathForMetadata(filePath)
             val currentTime = System.currentTimeMillis()
-            
+
             // Generate unique IDs
             val trackId = UUID.randomUUID().toString()
             val albumId = UUID.randomUUID().toString()
-            
+
             // Create enhanced track entity
             val trackEntity = EnhancedTrackEntity(
                 id = trackId,
@@ -46,7 +46,7 @@ class HeuristicFilePathMetadataExtractor {
                 durationMs = 0L, // Default for heuristic extraction
                 lastModified = currentTime
             )
-            
+
             // Create enhanced album entity
             val albumPath = extractAlbumPath(filePath)
             val albumEntity = EnhancedAlbumEntity(
@@ -56,30 +56,30 @@ class HeuristicFilePathMetadataExtractor {
                 path = albumPath,
                 lastModified = currentTime
             )
-            
+
             // Create album-track junction entity
             val albumTrackEntity = AlbumTrackEntity(
                 albumId = albumId,
                 trackId = trackId,
                 trackOrder = 1 // Default track order for heuristic extraction
             )
-            
+
             // Calculate confidence score based on metadata quality
             val confidenceScore = calculateConfidenceScore(artist, album, title)
-            
+
             val result = HeuristicFilePathExtractionResult(
                 trackEntity = trackEntity,
                 albumEntity = albumEntity,
                 albumTrackEntity = albumTrackEntity,
                 confidenceScore = confidenceScore
             )
-            
+
             Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
     /**
      * Parses file path for artist, album, and title metadata
      * Based on typical music folder structure: /Artist/Album/Track.ext
@@ -93,10 +93,10 @@ class HeuristicFilePathMetadataExtractor {
         }
         val fileName = parts.lastOrNull() ?: "Unknown"
         val title = fileName.substringBeforeLast('.')
-        
+
         return Triple(artist, album, title)
     }
-    
+
     /**
      * Extracts album directory path from file path
      */
@@ -108,26 +108,26 @@ class HeuristicFilePathMetadataExtractor {
             else -> "/"
         }
     }
-    
+
     /**
      * Calculates confidence score based on metadata quality
      * Higher score for well-structured paths with identifiable components
      */
     private fun calculateConfidenceScore(artist: String, album: String, title: String): Double {
         var score = 0.0
-        
+
         // Artist confidence
         if (artist.isNotBlank() && artist != "Unknown Artist") score += 0.3
-        
-        // Album confidence  
+
+        // Album confidence
         if (album.isNotBlank() && album != "Unknown Album") score += 0.3
-        
+
         // Title confidence
         if (title.isNotBlank() && title != "Unknown") score += 0.4
-        
+
         return score
     }
-    
+
     /**
      * Persists extracted metadata through repository pattern with transactional support
      * @param extractionResult The result of metadata extraction

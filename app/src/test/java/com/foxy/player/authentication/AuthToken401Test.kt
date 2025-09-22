@@ -44,7 +44,8 @@ class AuthToken401Test {
         assertTrue("Should handle refresh failure with re-authentication", result.isSuccess)
         assertNotNull("Should have new token after re-authentication", authRepository.getCurrentToken())
         assertTrue(
-            "Should have different token after re-authentication", authRepository.getCurrentToken() != failingRefreshToken
+            "Should have different token after re-authentication",
+            authRepository.getCurrentToken() != failingRefreshToken
         )
     }
 
@@ -85,10 +86,12 @@ class AuthToken401Test {
         val logEntries = authRepository.getAuthenticationLogs()
         assertTrue("Should have logged authentication operations", logEntries.isNotEmpty())
         assertTrue(
-            "Should log request attempts", logEntries.any { it.contains("Authentication request to /api/userinfo") }
+            "Should log request attempts",
+            logEntries.any { it.contains("Authentication request to /api/userinfo") }
         )
         assertTrue(
-            "Should log network errors", logEntries.any { it.contains("Network timeout occurred") }
+            "Should log network errors",
+            logEntries.any { it.contains("Network timeout occurred") }
         )
         assertNotNull("Should provide log access for monitoring", logEntries)
     }
@@ -116,7 +119,8 @@ class AuthToken401Test {
         assertNotNull("Should have final valid token", integrationResult.finalToken)
         assertTrue("Should have logged all operations", integrationResult.operationLogs.isNotEmpty())
         assertTrue(
-            "Should handle token refresh attempt", integrationResult.operationLogs.any { it.contains("Token refreshed") }
+            "Should handle token refresh attempt",
+            integrationResult.operationLogs.any { it.contains("Token refreshed") }
         )
         assertTrue("Should handle network timeouts gracefully", integrationResult.networkHandled)
         assertNotNull("Should provide comprehensive flow validation", integrationResult.flowValidation)
