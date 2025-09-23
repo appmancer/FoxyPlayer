@@ -195,9 +195,9 @@ class MetadataValidationTest {
         
         // Persistence results 
         assertNotNull("Should have persistence result", validatedResult.persistenceResult)
-        assertTrue("Album should be persisted", validatedResult.persistenceResult.albumPersisted)
-        assertTrue("Track should be persisted", validatedResult.persistenceResult.trackPersisted)
-        assertTrue("Junction should be persisted", validatedResult.persistenceResult.junctionPersisted)
+        assertTrue("Album should be persisted", validatedResult.persistenceResult!!.albumPersisted)
+        assertTrue("Track should be persisted", validatedResult.persistenceResult!!.trackPersisted)
+        assertTrue("Junction should be persisted", validatedResult.persistenceResult!!.junctionPersisted)
         
         // Combined confidence tracking preserved through persistence
         assertTrue("Should maintain combined confidence after persistence", validatedResult.combinedConfidence > 0.7)
