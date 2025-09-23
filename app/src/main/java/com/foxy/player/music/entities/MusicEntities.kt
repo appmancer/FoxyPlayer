@@ -454,3 +454,27 @@ data class AlbumTrackWithEnhancedTrack(
     )
     val track: EnhancedTrackEntity
 )
+
+/**
+ * Result of metadata validation containing quality assessment and confidence scoring.
+ * Provides comprehensive validation results for audio metadata.
+ */
+data class MetadataValidationResult(
+    val isValid: Boolean,
+    val confidenceScore: Double,
+    val validationErrors: List<String>,
+    val hasRequiredFields: Boolean,
+    val isHighQuality: Boolean
+)
+
+/**
+ * Result of integrated metadata extraction with validation.
+ * Combines multi-strategy extraction results with metadata validation for comprehensive quality assessment.
+ */
+data class ValidatedMetadataResult(
+    val multiStrategyResult: com.foxy.player.music.ui.MultiStrategyMetadataResult,
+    val validationResult: MetadataValidationResult,
+    val combinedConfidence: Double,
+    val qualityAssessment: String,
+    val persistenceResult: com.foxy.player.music.business.MetadataPersistenceResult? = null
+)
