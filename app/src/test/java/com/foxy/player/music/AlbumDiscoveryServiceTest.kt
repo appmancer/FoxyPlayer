@@ -165,4 +165,36 @@ class AlbumDiscoveryServiceTest {
         assertTrue("Track should have audio file extension", 
             firstTrack.endsWith(".mp3") || firstTrack.endsWith(".flac") || firstTrack.endsWith(".wav"))
     }
+
+    @Test
+    fun `discoverAlbumsByPath should use real pCloud file discovery instead of mock data`() = runBlocking {
+        // Arrange - Create MusicDiscoveryService instance with real pCloud integration
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val apiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(apiClient)
+
+        // Act - Call album discovery on a test path
+        val albumDiscoveryResult = musicDiscoveryService.discoverAlbumsByPath("/TestMusic")
+
+        // Assert - Verify that it uses real pCloud file discovery, not hardcoded mock data
+        assertTrue("Should successfully discover albums using real pCloud API", albumDiscoveryResult.isSuccess)
+        val albumResults = albumDiscoveryResult.getOrNull()
+        assertNotNull("Should return album discovery results", albumResults)
+        
+        val albumGroups = albumResults?.albumGroups
+        assertNotNull("Should discover album groups from real pCloud files", albumGroups)
+        
+        // This test should fail because current implementation returns hardcoded mock data
+        // We expect the real implementation to call pCloud API and extract real metadata
+        // The test will verify that we're NOT getting the hardcoded "Test Album" / "Test Artist"
+        if (albumGroups!!.isNotEmpty()) {
+            val firstAlbum = albumGroups.first()
+            assertFalse("Should not return hardcoded mock data - album name should not be 'Test Album'", 
+                firstAlbum.albumName == "Test Album")
+            assertFalse("Should not return hardcoded mock data - artist name should not be 'Test Artist'", 
+                firstAlbum.artistName == "Test Artist")
+            assertFalse("Should not return hardcoded mock tracks", 
+                firstAlbum.tracks.contains("track1.mp3") && firstAlbum.tracks.contains("track2.mp3"))
+        }
+    }
 }
