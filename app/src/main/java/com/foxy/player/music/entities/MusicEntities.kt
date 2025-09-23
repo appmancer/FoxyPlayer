@@ -466,3 +466,14 @@ data class MetadataValidationResult(
     val hasRequiredFields: Boolean,
     val isHighQuality: Boolean
 )
+
+/**
+ * Result of integrated metadata extraction with validation.
+ * Combines multi-strategy extraction results with metadata validation for comprehensive quality assessment.
+ */
+data class ValidatedMetadataResult(
+    val multiStrategyResult: com.foxy.player.music.ui.MultiStrategyMetadataResult,
+    val validationResult: MetadataValidationResult,
+    val combinedConfidence: Double,
+    val qualityAssessment: String
+)

@@ -1,8 +1,11 @@
 package com.foxy.player.music
 
 import com.foxy.player.music.business.MetadataValidator
+import com.foxy.player.music.business.MusicMetadataExtractor
 import com.foxy.player.music.entities.AudioMetadata
 import com.foxy.player.music.entities.MetadataValidationResult
+import com.foxy.player.music.network.MusicDiscoveryService
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -93,5 +96,40 @@ class MetadataValidationTest {
             result.validationErrors.any { it.contains("duration") })
         assertTrue("Should detect invalid bitrate error", 
             result.validationErrors.any { it.contains("bitrate") })
+    }
+
+    @Test
+    fun `should integrate validation with multi-strategy metadata extraction`() {
+        // Arrange: Create real extractor 
+        val extractor = MusicMetadataExtractor()
+        
+        // Note: This test will fail until extractMetadataWithValidation is implemented
+        // This is the expected RED state for TDD Cycle #2
+        
+        // Act: Extract metadata with validation integration
+        val result = runBlocking {
+            extractor.extractMetadataWithValidation(
+                audioFileUrl = "https://sample.com/abbey_road/come_together.mp3",
+                audioFileName = "come_together.mp3", 
+                filePath = "/music/The Beatles/Abbey Road/come_together.mp3"
+            )
+        }
+        
+        // Assert: Result includes both multi-strategy extraction AND validation results
+        assertTrue("Integration should succeed", result.isSuccess)
+        val validatedResult = result.getOrThrow()
+        
+        // Multi-strategy extraction results
+        assertNotNull("Should have multi-strategy result", validatedResult.multiStrategyResult)
+        assertTrue("Should have good extraction confidence", validatedResult.multiStrategyResult.overallConfidence > 0.5)
+        
+        // Validation results integrated
+        assertNotNull("Should have validation result", validatedResult.validationResult)
+        assertTrue("Should not have validation errors", validatedResult.validationResult.validationErrors.isEmpty())
+        assertTrue("Should have high validation confidence", validatedResult.validationResult.confidenceScore > 0.8)
+        
+        // Combined confidence score factoring both extraction and validation
+        assertTrue("Should have high combined confidence", validatedResult.combinedConfidence > 0.7)
+        assertEquals("Should have quality assessment", "High quality metadata with validation passed", validatedResult.qualityAssessment)
     }
 }
