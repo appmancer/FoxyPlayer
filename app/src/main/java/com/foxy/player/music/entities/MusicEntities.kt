@@ -475,5 +475,6 @@ data class ValidatedMetadataResult(
     val multiStrategyResult: com.foxy.player.music.ui.MultiStrategyMetadataResult,
     val validationResult: MetadataValidationResult,
     val combinedConfidence: Double,
-    val qualityAssessment: String
+    val qualityAssessment: String,
+    val persistenceResult: com.foxy.player.music.business.MetadataPersistenceResult? = null
 )

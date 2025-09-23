@@ -2,6 +2,7 @@ package com.foxy.player.music
 
 import com.foxy.player.music.business.MetadataValidator
 import com.foxy.player.music.business.MusicMetadataExtractor
+import com.foxy.player.music.business.MetadataRepository
 import com.foxy.player.music.entities.AudioMetadata
 import com.foxy.player.music.entities.MetadataValidationResult
 import com.foxy.player.music.entities.ValidatedMetadataResult
@@ -163,5 +164,43 @@ class MetadataValidationTest {
         // Combined confidence should be calculated from real extraction and validation
         assertTrue("Should have realistic combined confidence", validatedResult.combinedConfidence > 0.0)
         assertNotNull("Should have quality assessment", validatedResult.qualityAssessment)
+    }
+
+    @Test
+    fun `should persist validated metadata to Repository with confidence tracking`() {
+        // Arrange: Create extractor and repository
+        val extractor = MusicMetadataExtractor()
+        val repository = MetadataRepository()
+        
+        // Note: This test will fail until extractAndPersistValidatedMetadata is implemented
+        // This is the expected RED state for TDD Cycle #4
+        
+        // Act: Extract metadata with validation AND persist to repository
+        val result = runBlocking {
+            extractor.extractAndPersistValidatedMetadata(
+                audioFileUrl = "https://sample.com/abbey_road/come_together.mp3",
+                audioFileName = "come_together.mp3", 
+                filePath = "/music/The Beatles/Abbey Road/come_together.mp3",
+                repository = repository
+            )
+        }
+        
+        // Assert: Result includes validation, extraction AND repository persistence
+        assertTrue("Extraction and persistence should succeed", result.isSuccess)
+        val validatedResult = result.getOrThrow()
+        
+        // Validation results
+        assertNotNull("Should have validation result", validatedResult.validationResult)
+        assertTrue("Should have high validation confidence", validatedResult.validationResult.confidenceScore > 0.8)
+        
+        // Persistence results 
+        assertNotNull("Should have persistence result", validatedResult.persistenceResult)
+        assertTrue("Album should be persisted", validatedResult.persistenceResult.albumPersisted)
+        assertTrue("Track should be persisted", validatedResult.persistenceResult.trackPersisted)
+        assertTrue("Junction should be persisted", validatedResult.persistenceResult.junctionPersisted)
+        
+        // Combined confidence tracking preserved through persistence
+        assertTrue("Should maintain combined confidence after persistence", validatedResult.combinedConfidence > 0.7)
+        assertNotNull("Should have quality assessment including persistence status", validatedResult.qualityAssessment)
     }
 }
