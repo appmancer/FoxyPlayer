@@ -116,4 +116,21 @@ class AlbumDiscoveryServiceTest {
         assertNotNull("Should return discovered albums", discoveredAlbums)
         assertTrue("Should discover at least one album", discoveredAlbums!!.isNotEmpty())
     }
+
+    @Test
+    fun `MusicDiscoveryService should have discoverAlbumsByPath method that groups tracks by album metadata`() = runBlocking {
+        // Arrange - Create MusicDiscoveryService instance
+        val authRepository = AuthRepository("")
+        val apiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(apiClient)
+
+        // Act - Call the new album discovery method that should exist
+        val albumDiscoveryResult = musicDiscoveryService.discoverAlbumsByPath("/Music")
+
+        // Assert - Verify the method exists and returns proper album-grouped results
+        assertTrue("Should successfully discover albums by path", albumDiscoveryResult.isSuccess)
+        val albumResults = albumDiscoveryResult.getOrNull()
+        assertNotNull("Should return album discovery results", albumResults)
+        assertNotNull("Should group tracks by album metadata", albumResults?.albumGroups)
+    }
 }
