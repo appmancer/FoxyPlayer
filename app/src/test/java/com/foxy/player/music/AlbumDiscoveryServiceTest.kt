@@ -133,4 +133,36 @@ class AlbumDiscoveryServiceTest {
         assertNotNull("Should return album discovery results", albumResults)
         assertNotNull("Should group tracks by album metadata", albumResults?.albumGroups)
     }
+
+    @Test
+    fun `discoverAlbumsByPath should scan pCloud directory and extract real album metadata from audio files`() = runBlocking {
+        // Arrange - Create MusicDiscoveryService instance with real pCloud integration
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val apiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(apiClient)
+
+        // Act - Call album discovery on a test path that should have audio files
+        val albumDiscoveryResult = musicDiscoveryService.discoverAlbumsByPath("/TestMusic")
+
+        // Assert - Verify that it actually scans pCloud and extracts real metadata
+        assertTrue("Should successfully scan pCloud directory", albumDiscoveryResult.isSuccess)
+        val albumResults = albumDiscoveryResult.getOrNull()
+        assertNotNull("Should return album discovery results", albumResults)
+        
+        val albumGroups = albumResults?.albumGroups
+        assertNotNull("Should discover album groups from audio files", albumGroups)
+        assertTrue("Should find at least one album from scanned audio files", albumGroups!!.isNotEmpty())
+        
+        // Verify that each album group contains real metadata extracted from files
+        val firstAlbum = albumGroups.first()
+        assertTrue("Album name should not be empty", firstAlbum.albumName.isNotBlank())
+        assertTrue("Artist name should not be empty", firstAlbum.artistName.isNotBlank())
+        assertTrue("Should have at least one track", firstAlbum.trackCount > 0)
+        assertTrue("Track list should not be empty", firstAlbum.tracks.isNotEmpty())
+        
+        // Verify track filenames are realistic (contain file extensions)
+        val firstTrack = firstAlbum.tracks.first()
+        assertTrue("Track should have audio file extension", 
+            firstTrack.endsWith(".mp3") || firstTrack.endsWith(".flac") || firstTrack.endsWith(".wav"))
+    }
 }
