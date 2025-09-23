@@ -454,3 +454,15 @@ data class AlbumTrackWithEnhancedTrack(
     )
     val track: EnhancedTrackEntity
 )
+
+/**
+ * Result of metadata validation containing quality assessment and confidence scoring.
+ * Provides comprehensive validation results for audio metadata.
+ */
+data class MetadataValidationResult(
+    val isValid: Boolean,
+    val confidenceScore: Double,
+    val validationErrors: List<String>,
+    val hasRequiredFields: Boolean,
+    val isHighQuality: Boolean
+)
