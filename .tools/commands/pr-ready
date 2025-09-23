@@ -198,39 +198,21 @@ Co-Authored-By: opencode <noreply@opencode.ai>"
     echo -e "${SUCCESS} Remaining changes committed automatically"
 fi
 
-# Switch to appmancer SSH configuration for GitHub operations
-echo -e "\n${WORKING} Setting up SSH configuration for PR workflow..."
+# Using Sam-3Degrees repository - no SSH switching needed
+echo -e "\n${WORKING} Setting up repository for PR workflow..."
 
-# Capture current SSH state for restoration later
-original_ssh_state=$(./.tools/commands/ssh-switch status | grep "Current mode:" | awk '{print $4}' || echo "unknown")
-echo -e "${INFO} SSH Key Management: Detected current mode: '$original_ssh_state'"
+# Verify current repository configuration
+current_remote=$(git remote get-url origin)
+expected_remote="git@github.com-3Degrees:Sam-3Degrees/FoxyPlayer.git"
 
-# Switch to appmancer mode for PR operations
-echo -e "${INFO} Switching to appmancer mode for GitHub operations..."
-if ! ./.tools/commands/ssh-switch appmancer; then
-    echo -e "${ERROR} Failed to switch to appmancer SSH configuration"
-    echo -e "${INFO} This is required for GitHub PR operations"
-    exit 1
-fi
-
-# Capture current GitHub CLI auth state before switching
-original_gh_user=$(gh auth status --hostname github.com 2>&1 | grep "Logged in to github.com as" | awk '{print $6}' || echo "")
-echo -e "${INFO} GitHub CLI: Detected original user: '$original_gh_user'"
-
-# Switch to appmancer account for GitHub CLI
-echo -e "${INFO} Switching GitHub CLI to appmancer..."
-gh auth switch --hostname github.com --user appmancer 2>/dev/null || {
-    echo -e "${YELLOW} GitHub CLI switch failed or not needed"
-}
-
-# Ensure remote uses standard github.com format (works with appmancer key)
-original_remote=$(git remote get-url origin)
-correct_remote="git@github.com:appmancer/FoxyPlayer.git"
-if [[ "$original_remote" != "$correct_remote" ]]; then
-    echo -e "${INFO} Setting remote URL for GitHub operations..."
-    echo -e "${INFO} From: $original_remote"
-    echo -e "${INFO} To: $correct_remote"
-    git remote set-url origin "$correct_remote"
+if [[ "$current_remote" != "$expected_remote" ]]; then
+    echo -e "${INFO} Updating remote URL to Sam-3Degrees repository..."
+    echo -e "${INFO} From: $current_remote"
+    echo -e "${INFO} To: $expected_remote"
+    git remote set-url origin "$expected_remote"
+    echo -e "${SUCCESS} Remote URL updated"
+else
+    echo -e "${SUCCESS} Repository correctly configured for Sam-3Degrees"
 fi
 
 # Push branch
@@ -252,7 +234,7 @@ deletions=$(git diff dev..HEAD --shortstat | grep -o '[0-9]* deletion' | grep -o
 # Create PR
 echo -e "\n${PR} Creating Pull Request..."
 
-# GitHub CLI should now work with standard github.com remote and appmancer authentication
+# PR creation ready - using Sam-3Degrees repository
 
 # Generate comprehensive PR description
 pr_description="## Summary
@@ -307,12 +289,12 @@ echo -e "${INFO} This may take a few moments depending on GitHub API response ti
 
 # Try creating PR with explicit head specification to handle remote branch issues
 echo -e "${INFO} Attempting PR creation with head specification..."
-if ! gh pr create --base dev --head "$branch" --title "$ticket_id: $ticket_title" --body "$pr_description"; then
+if ! gh pr create --repo Sam-3Degrees/FoxyPlayer --base dev --head "$branch" --title "$ticket_id: $ticket_title" --body "$pr_description"; then
     echo -e "${ERROR} Failed to create PR with --head flag, trying without..."
     
     # Fallback: try without --head flag
     echo -e "${INFO} Attempting PR creation without head specification..."
-    if ! gh pr create --base dev --title "$ticket_id: $ticket_title" --body "$pr_description"; then
+    if ! gh pr create --repo Sam-3Degrees/FoxyPlayer --base dev --title "$ticket_id: $ticket_title" --body "$pr_description"; then
         echo -e "${ERROR} Failed to create PR automatically"
         echo -e "${INFO} Troubleshooting:"
         echo "  1. Ensure GitHub CLI is installed and configured: gh auth status"
@@ -363,23 +345,17 @@ jq '.phase = "pr-created" | .pr_created_at = now | .pr_created_at |= todate | .p
    .spectrum/current-ticket.json > .spectrum/current-ticket.json.tmp
 mv .spectrum/current-ticket.json.tmp .spectrum/current-ticket.json
 
-# Restore development configuration but keep SSH as appmancer for pr-monitor
+# Configure repository for ongoing Sam-3Degrees development
 echo -e "${INFO} Configuring remote URL for ongoing development..."
 
-# Determine correct remote for development based on original SSH state
-if [[ "$original_ssh_state" == "appmancer" ]]; then
-    dev_remote="git@github.com:appmancer/FoxyPlayer.git"
-    echo -e "${INFO} Keeping appmancer remote: $dev_remote"
-else
-    dev_remote="git@github.com-3Degrees:Sam-3Degrees/FoxyPlayer.git"
-    echo -e "${INFO} Setting Sam-3Degrees remote: $dev_remote"
+# Ensure remote stays configured for Sam-3Degrees ongoing development
+sam_remote="git@github.com-3Degrees:Sam-3Degrees/FoxyPlayer.git"
+current_remote=$(git remote get-url origin)
+if [[ "$current_remote" != "$sam_remote" ]]; then
+    echo -e "${INFO} Configuring remote URL for ongoing development..."
+    git remote set-url origin "$sam_remote"
+    echo -e "${SUCCESS} Remote configured for Sam-3Degrees development"
 fi
-
-git remote set-url origin "$dev_remote"
-
-# Keep SSH and GitHub CLI as appmancer for pr-monitor phase
-echo -e "${INFO} SSH Key Management: Keeping SSH as appmancer for PR workflow"
-echo -e "${INFO} SSH and GitHub CLI will be restored to '$original_ssh_state' mode in pr-cleanup after PR merge"
 
 echo -e "\n${SUCCESS} ${GREEN}PULL REQUEST CREATED SUCCESSFULLY${NC}"
 echo -e "${INFO} Summary:"

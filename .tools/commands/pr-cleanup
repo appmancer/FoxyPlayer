@@ -189,65 +189,27 @@ echo -e "${SUCCESS} Current ticket state cleaned up"
 # Restore authentication configuration
 echo -e "\n${WORKING} Restoring authentication configuration..."
 
-# Load original SSH state from ticket info
-original_ssh_state=$(echo "$ticket_info" | jq -r '.original_ssh_state // "sam"')
-original_gh_user=$(echo "$ticket_info" | jq -r '.original_gh_user // ""')
+# Ensure Sam-3Degrees configuration is maintained (no SSH switching needed)
+echo -e "${WORKING} Verifying Sam-3Degrees repository configuration..."
 
-echo -e "${INFO} Restoring SSH configuration to '$original_ssh_state' mode..."
+# Always use Sam-3Degrees configuration
+correct_remote="git@github.com-3Degrees:Sam-3Degrees/FoxyPlayer.git"
+user_name="Sam-3Degrees"
+user_email="sam@3degrees.co"
 
-# Use ssh-switch to restore original SSH configuration
-if ! ./.tools/commands/ssh-switch "$original_ssh_state"; then
-    echo -e "${YELLOW} Warning: Could not restore SSH configuration to '$original_ssh_state' mode"
-    echo -e "${INFO} Falling back to Sam development mode..."
-    ./.tools/commands/ssh-switch sam
-fi
-
-# Restore GitHub CLI authentication if we have the original user
-if [[ -n "$original_gh_user" && "$original_gh_user" != "null" ]]; then
-    echo -e "${INFO} Restoring GitHub CLI to '$original_gh_user'..."
-    if gh auth switch --hostname github.com --user "$original_gh_user" 2>/dev/null; then
-        echo -e "${SUCCESS} GitHub CLI authentication restored to $original_gh_user"
-    else
-        echo -e "${YELLOW} Warning: Could not switch GitHub CLI back to $original_gh_user"
-        echo -e "${INFO} Attempting to switch to Sam-3Degrees as fallback..."
-        gh auth switch --hostname github.com --user Sam-3Degrees 2>/dev/null || {
-            echo -e "${YELLOW} GitHub CLI remains as current user"
-        }
-    fi
-else
-    echo -e "${INFO} No original GitHub CLI user saved, attempting Sam-3Degrees..."
-    gh auth switch --hostname github.com --user Sam-3Degrees 2>/dev/null || {
-        echo -e "${YELLOW} Could not switch GitHub CLI to Sam-3Degrees"
-    }
-fi
-
-# Restore git remote configuration
-echo -e "${WORKING} Restoring git remote configuration..."
 current_remote=$(git config --get remote.origin.url)
-
-# Determine correct remote based on restored SSH state
-if [[ "$original_ssh_state" == "appmancer" ]]; then
-    correct_remote="git@github.com:appmancer/FoxyPlayer.git"
-    user_name="appmancer"
-    user_email="noreply@appmancer.com"
-else
-    correct_remote="git@github.com-3Degrees:Sam-3Degrees/FoxyPlayer.git"
-    user_name="Sam-3Degrees"
-    user_email="sam@3degrees.co"
-fi
-
 if [[ "$current_remote" != "$correct_remote" ]]; then
-    echo -e "${INFO} Updating git remote to match SSH configuration..."
+    echo -e "${INFO} Updating git remote to Sam-3Degrees repository..."
     echo -e "${INFO} From: $current_remote"
     echo -e "${INFO} To: $correct_remote"
     git remote set-url origin "$correct_remote"
     echo -e "${SUCCESS} Git remote updated"
 else
-    echo -e "${SUCCESS} Git remote already correctly configured"
+    echo -e "${SUCCESS} Git remote correctly configured for Sam-3Degrees"
 fi
 
-# Restore git user configuration
-echo -e "${WORKING} Restoring git user configuration..."
+# Ensure git user configuration
+echo -e "${WORKING} Verifying git user configuration..."
 git config user.name "$user_name"
 git config user.email "$user_email"
 echo -e "${SUCCESS} Git user configuration restored to $user_name"
