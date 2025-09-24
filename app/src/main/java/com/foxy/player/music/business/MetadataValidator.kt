@@ -59,10 +59,8 @@ class MetadataValidator {
         }
 
         // Determine if metadata has required fields
-        val hasRequiredFields = metadata.title.isNotBlank() && 
-                               metadata.title != "Unknown" &&
-                               metadata.artist.isNotBlank() && 
-                               metadata.artist != "Unknown Artist"
+        val hasRequiredFields = metadata.title.isNotBlank() && metadata.title != "Unknown" &&
+            metadata.artist.isNotBlank() && metadata.artist != "Unknown Artist"
 
         // Determine if metadata is high quality
         val isHighQuality = confidenceScore >= 0.8

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Enhanced state model for home screen content
@@ -25,6 +26,7 @@ data class EnhancedHomeState(
 /**
  * EnhancedHomeViewModel with reactive StateFlow state management
  * PLY-140: EnhancedHomeViewModel Implementation
+ * PLY-146: Personalized Content Integration
  * * Provides reactive state management for home screen with backward compatibility
  * to MusicHubViewModel via hubState property.
  * * Architecture:
@@ -33,13 +35,24 @@ data class EnhancedHomeState(
  * - Implements reactive StateFlow for UI reactivity
  * - Provides backward compatibility bridge
  * - Integrates with real data sources via HeuristicMusicDiscovery
+ * - Integrates with recommendation engine via ContentSectionOrganizer
  * * @property heuristicDiscovery Service for discovering music content, nullable for testing
+ * @property contentOrganizer Service for generating personalized content sections
  * @property ioDispatcher Coroutine dispatcher for background operations
  */
 class EnhancedHomeViewModel(
     private val heuristicDiscovery: HeuristicMusicDiscovery? = null,
+    private val contentOrganizer: ContentSectionOrganizer? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
+
+    companion object {
+        /**
+         * Timeout for content loading operations in milliseconds
+         * Used to prevent hanging operations and provide responsive UX
+         */
+        private const val CONTENT_LOAD_TIMEOUT_MS = 2000L
+    }
 
     private val _enhancedState = MutableStateFlow(EnhancedHomeState())
 
@@ -67,15 +80,16 @@ class EnhancedHomeViewModel(
      * * Implements reactive loading with proper error handling. Updates both enhancedState
      * and hubState for backward compatibility. Executes on IO dispatcher to avoid
      * blocking the main thread.
-     * * @throws IllegalStateException if called when discovery service is unavailable
      */
     fun loadContent() {
         viewModelScope.launch(ioDispatcher) {
             try {
                 updateLoadingState(isLoading = true)
 
-                // Load real content from discovery service
-                val contentResult = loadContentSections()
+                // Load real content from discovery service with timeout
+                val contentResult = withTimeoutOrNull(CONTENT_LOAD_TIMEOUT_MS) {
+                    loadContentSections()
+                } ?: emptyList()
 
                 updateSuccessState(contentResult)
             } catch (e: Exception) {
@@ -85,8 +99,43 @@ class EnhancedHomeViewModel(
     }
 
     /**
+     * PLY-146: Load personalized content using recommendation engine
+     * Integrates with ContentSectionOrganizer to provide personalized recommendations
+     * based on user history and album discovery service.
+     */
+    fun loadPersonalizedContent() {
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                updateLoadingState(isLoading = true)
+
+                // Load personalized content from recommendation engine
+                val contentResult = withTimeoutOrNull(CONTENT_LOAD_TIMEOUT_MS) {
+                    loadPersonalizedSections()
+                } ?: emptyList()
+
+                updateSuccessState(contentResult)
+            } catch (e: Exception) {
+                updateErrorState("Failed to load personalized content: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * PLY-146: Refresh content for background updates
+     * Provides content refresh functionality for keeping data current
+     */
+    fun refreshContent() {
+        // For now, refresh uses personalized content if available, falls back to regular content
+        if (contentOrganizer != null) {
+            loadPersonalizedContent()
+        } else {
+            loadContent()
+        }
+    }
+
+    /**
      * Load content sections from the heuristic discovery service
-     * * @return List of content sections loaded from the discovery service
+     * @return List of content sections loaded from the discovery service
      */
     private suspend fun loadContentSections(): List<ContentSection<*>> {
         return heuristicDiscovery?.let { discovery ->
@@ -99,6 +148,37 @@ class EnhancedHomeViewModel(
                 )
             )
         } ?: emptyList()
+    }
+
+    /**
+     * PLY-146: Load personalized content sections from recommendation engine
+     * Uses ContentSectionOrganizer to generate ordered, personalized content sections
+     * @return List of personalized content sections
+     */
+    private suspend fun loadPersonalizedSections(): List<ContentSection<*>> {
+        return contentOrganizer?.let { organizer ->
+            try {
+                val sectionsResult = organizer.generateOrderedSections()
+                if (sectionsResult.isSuccess) {
+                    sectionsResult.getOrNull()?.takeIf { it.isNotEmpty() } ?: createFallbackPersonalizedContent()
+                } else {
+                    createFallbackPersonalizedContent()
+                }
+            } catch (e: Exception) {
+                createFallbackPersonalizedContent()
+            }
+        } ?: emptyList()
+    }
+
+    /**
+     * Creates fallback personalized content when recommendation engine is unavailable
+     * @return List of minimal content sections for graceful degradation
+     */
+    private fun createFallbackPersonalizedContent(): List<ContentSection<*>> {
+        return listOf(
+            ContentSection(title = "Recommended for You", items = emptyList<Any>()),
+            ContentSection(title = "Recently Played", items = emptyList<Any>())
+        )
     }
 
     /**
