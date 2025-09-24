@@ -230,4 +230,44 @@ class AlbumDiscoveryServiceTest {
                 firstAlbum.artistName.isNotBlank() && firstAlbum.artistName != "Discovered Artist")
         }
     }
+
+    @Test
+    fun `discoverAlbumsByPath should group multiple tracks by same album metadata into single album groups`() = runBlocking {
+        // Arrange - Create MusicDiscoveryService instance
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val apiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(apiClient)
+
+        // Act - Call album discovery on a test path
+        val albumDiscoveryResult = musicDiscoveryService.discoverAlbumsByPath("/TestMusic")
+
+        // Assert - Verify that tracks are properly grouped by album metadata
+        assertTrue("Should successfully discover albums", albumDiscoveryResult.isSuccess)
+        val albumResults = albumDiscoveryResult.getOrNull()
+        assertNotNull("Should return album discovery results", albumResults)
+        
+        val albumGroups = albumResults?.albumGroups
+        assertNotNull("Should have album groups", albumGroups)
+        
+        if (albumGroups!!.isNotEmpty()) {
+            // Test should fail because current implementation creates one album group per track
+            // We expect the real implementation to group tracks by album metadata
+            val totalTracks = albumGroups.sumOf { it.trackCount }
+            val albumGroupCount = albumGroups.size
+            
+            // If we have multiple tracks but fewer album groups than tracks, then grouping is working
+            // Current implementation creates 1 album per track, so this will fail initially
+            if (totalTracks > 1) {
+                assertTrue("Should group tracks by album - album groups ($albumGroupCount) should be fewer than total tracks ($totalTracks)",
+                    albumGroupCount < totalTracks)
+                
+                // Verify that each album group has correct track count
+                albumGroups.forEach { albumGroup ->
+                    assertEquals("Track count should match actual tracks list size", 
+                        albumGroup.tracks.size, albumGroup.trackCount)
+                    assertTrue("Each album should have at least one track", albumGroup.trackCount > 0)
+                }
+            }
+        }
+    }
 }
