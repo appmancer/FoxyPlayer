@@ -1469,32 +1469,12 @@ class MusicDiscoveryService(
                 error = null
             )
         } else {
-            // If pCloud API fails, provide test data to verify grouping logic works
-            // This allows tests to verify the grouping functionality even without authentication
-            val testTracks = listOf(
-                Triple("song1.mp3", "Abbey Road", "The Beatles"),
-                Triple("song2.mp3", "Abbey Road", "The Beatles"), // Same album - should group
-                Triple("song3.mp3", "Dark Side of the Moon", "Pink Floyd"), // Different album
-                Triple("song4.mp3", "Abbey Road", "The Beatles") // Same album again - should group
-            )
-            
-            // Group the test tracks by album and artist combination to demonstrate proper grouping
-            val albumGroups = testTracks
-                .groupBy { (_, albumName, artistName) -> Pair(albumName, artistName) }
-                .map { (albumInfo, tracks) ->
-                    val (albumName, artistName) = albumInfo
-                    AlbumGroup(
-                        albumName = albumName,
-                        artistName = artistName,
-                        trackCount = tracks.size,
-                        tracks = tracks.map { it.first }
-                    )
-                }
-            
+            // Return failure when pCloud API is unavailable - no fallback data
+            // The UI should handle offline/network failure states appropriately
             AlbumDiscoveryResult(
-                isSuccess = true,
-                albumGroups = albumGroups,
-                error = null
+                isSuccess = false,
+                albumGroups = null,
+                error = audioFilesResult.exceptionOrNull()?.message ?: "Failed to connect to pCloud API"
             )
         }
     }
