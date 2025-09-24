@@ -1499,6 +1499,40 @@ class MusicDiscoveryService(
         }
     }
 
+    /**
+     * Enhanced album discovery with database integration.
+     * PLY-125: Discovers albums and writes entities to database during scanning process.
+     */
+    suspend fun discoverAlbumsWithDatabase(path: String, database: Any): AlbumDiscoveryResult {
+        // First discover albums using existing method
+        val discoveryResult = discoverAlbumsByPath(path)
+        
+        return if (discoveryResult.isSuccess && discoveryResult.albumGroups != null) {
+            // Write discovered albums to database
+            discoveryResult.albumGroups.forEach { albumGroup ->
+                // Create album entity from album group
+                val albumEntity = AlbumEntity(
+                    albumName = albumGroup.albumName,
+                    artistName = albumGroup.artistName,
+                    trackCount = albumGroup.trackCount
+                )
+                
+                // Write to database using reflection to call writeAlbum method
+                try {
+                    val writeMethod = database.javaClass.getMethod("writeAlbum", AlbumEntity::class.java)
+                    writeMethod.invoke(database, albumEntity)
+                } catch (e: Exception) {
+                    MusicDiscoveryLogger.logDatabaseError("writeAlbum", "albums", e)
+                }
+            }
+            
+            // Return the discovery result
+            discoveryResult
+        } else {
+            discoveryResult
+        }
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: MusicDiscoveryService? = null
@@ -1573,4 +1607,14 @@ data class PCloudAPIDebugInfo(
     val endpoint: String,
     val timestamp: Long,
     val responseType: String // Added: indicate JSON/other without exposing content
+)
+
+/**
+ * Album entity for database persistence.
+ * PLY-125: Used for writing discovered albums to database during scanning.
+ */
+data class AlbumEntity(
+    val albumName: String,
+    val artistName: String,
+    val trackCount: Int
 )
