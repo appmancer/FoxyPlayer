@@ -46,6 +46,14 @@ class EnhancedHomeViewModel(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
+    companion object {
+        /**
+         * Timeout for content loading operations in milliseconds
+         * Used to prevent hanging operations and provide responsive UX
+         */
+        private const val CONTENT_LOAD_TIMEOUT_MS = 2000L
+    }
+
     private val _enhancedState = MutableStateFlow(EnhancedHomeState())
 
     /**
@@ -79,7 +87,7 @@ class EnhancedHomeViewModel(
                 updateLoadingState(isLoading = true)
 
                 // Load real content from discovery service with timeout
-                val contentResult = withTimeoutOrNull(2000) { // 2 second timeout
+                val contentResult = withTimeoutOrNull(CONTENT_LOAD_TIMEOUT_MS) {
                     loadContentSections()
                 } ?: emptyList()
 
@@ -101,7 +109,7 @@ class EnhancedHomeViewModel(
                 updateLoadingState(isLoading = true)
 
                 // Load personalized content from recommendation engine
-                val contentResult = withTimeoutOrNull(2000) { // 2 second timeout
+                val contentResult = withTimeoutOrNull(CONTENT_LOAD_TIMEOUT_MS) {
                     loadPersonalizedSections()
                 } ?: emptyList()
 
