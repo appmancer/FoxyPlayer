@@ -1409,6 +1409,109 @@ class MusicDiscoveryService(
         return "TIMEOUT_ERROR analysis: Circuit breaker state CLOSED, performance impact 150ms"
     }
 
+    /**
+     * Enhanced album discovery method that groups tracks by album metadata during pCloud scanning.
+     * PLY-125: Populates AlbumEntity table during file discovery process.
+     */
+    suspend fun discoverAlbumsByPath(path: String): AlbumDiscoveryResult {
+        // Use real pCloud file discovery instead of mock data
+        val audioFilesResult = listAudioFiles(path)
+        
+        return if (audioFilesResult.isSuccess) {
+            val audioFilesResponse = audioFilesResult.getOrNull()!!
+            
+            // Create album groups from discovered audio files with real metadata extraction and grouping
+            val albumGroups = if (audioFilesResponse.audioFiles.isNotEmpty()) {
+                // Extract metadata from each audio file first
+                val tracksWithMetadata = audioFilesResponse.audioFiles.mapNotNull { audioFile ->
+                    try {
+                        // Extract metadata from the audio file
+                        val audioFileUrl = "https://eapi.pcloud.com$path/$audioFile"
+                        val metadataResult = extractMetadata(audioFileUrl, audioFile)
+                        
+                        if (metadataResult.isSuccess) {
+                            val metadata = metadataResult.getOrNull()!!
+                            Triple(
+                                audioFile,
+                                if (metadata.album.isNotBlank()) metadata.album else "Unknown Album",
+                                if (metadata.artist.isNotBlank()) metadata.artist else "Unknown Artist"
+                            )
+                        } else {
+                            // Fallback to unknown values if metadata extraction fails
+                            Triple(audioFile, "Unknown Album", "Unknown Artist")
+                        }
+                    } catch (e: Exception) {
+                        // Fallback for any extraction errors
+                        Triple(audioFile, "Unknown Album", "Unknown Artist")
+                    }
+                }
+                
+                // Group tracks by album and artist combination
+                tracksWithMetadata
+                    .groupBy { (_, albumName, artistName) -> Pair(albumName, artistName) }
+                    .map { (albumInfo, tracks) ->
+                        val (albumName, artistName) = albumInfo
+                        AlbumGroup(
+                            albumName = albumName,
+                            artistName = artistName,
+                            trackCount = tracks.size,
+                            tracks = tracks.map { it.first }
+                        )
+                    }
+            } else {
+                // If no audio files found, return empty list (still successful)
+                emptyList()
+            }
+            
+            AlbumDiscoveryResult(
+                isSuccess = true,
+                albumGroups = albumGroups,
+                error = null
+            )
+        } else {
+            // Return failure when pCloud API is unavailable - no fallback data
+            // The UI should handle offline/network failure states appropriately
+            AlbumDiscoveryResult(
+                isSuccess = false,
+                albumGroups = null,
+                error = audioFilesResult.exceptionOrNull()?.message ?: "Failed to connect to pCloud API"
+            )
+        }
+    }
+
+    /**
+     * Enhanced album discovery with database integration.
+     * PLY-125: Discovers albums and writes entities to database during scanning process.
+     */
+    suspend fun discoverAlbumsWithDatabase(path: String, database: AlbumRepository): AlbumDiscoveryResult {
+        // First discover albums using existing method
+        val discoveryResult = discoverAlbumsByPath(path)
+        
+        return if (discoveryResult.isSuccess && discoveryResult.albumGroups != null) {
+            // Write discovered albums to database
+            discoveryResult.albumGroups.forEach { albumGroup ->
+                // Create album entity from album group
+                val albumEntity = AlbumEntity(
+                    albumName = albumGroup.albumName,
+                    artistName = albumGroup.artistName,
+                    trackCount = albumGroup.trackCount
+                )
+                
+                // Write to database using proper repository interface
+                try {
+                    database.writeAlbum(albumEntity)
+                } catch (e: Exception) {
+                    MusicDiscoveryLogger.logDatabaseError("writeAlbum", "albums", e)
+                }
+            }
+            
+            // Return the discovery result
+            discoveryResult
+        } else {
+            discoveryResult
+        }
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: MusicDiscoveryService? = null
@@ -1435,6 +1538,35 @@ data class AlbumsDiscoveryResponse(
 )
 
 /**
+ * Result for enhanced album discovery that groups tracks by album metadata.
+ * PLY-125: Used by MusicDiscoveryService.discoverAlbumsByPath()
+ */
+data class AlbumDiscoveryResult(
+    val isSuccess: Boolean,
+    val albumGroups: List<AlbumGroup>?,
+    val error: String?
+) {
+    fun getOrNull(): AlbumDiscoveryData? = if (isSuccess) AlbumDiscoveryData(albumGroups ?: emptyList()) else null
+}
+
+/**
+ * Data container for successful album discovery results.
+ */
+data class AlbumDiscoveryData(
+    val albumGroups: List<AlbumGroup>
+)
+
+/**
+ * Group of tracks that belong to the same album.
+ */
+data class AlbumGroup(
+    val albumName: String,
+    val artistName: String,
+    val trackCount: Int,
+    val tracks: List<String>
+)
+
+/**
  * Discovered album with metadata and associated audio files.
  */
 data class DiscoveredAlbum(
@@ -1455,3 +1587,21 @@ data class PCloudAPIDebugInfo(
     val timestamp: Long,
     val responseType: String // Added: indicate JSON/other without exposing content
 )
+
+/**
+ * Album entity for database persistence.
+ * PLY-125: Used for writing discovered albums to database during scanning.
+ */
+data class AlbumEntity(
+    val albumName: String,
+    val artistName: String,
+    val trackCount: Int
+)
+
+/**
+ * Repository interface for album database operations.
+ * PLY-125: Replaces reflection-based database access with proper interface.
+ */
+interface AlbumRepository {
+    fun writeAlbum(album: AlbumEntity)
+}
