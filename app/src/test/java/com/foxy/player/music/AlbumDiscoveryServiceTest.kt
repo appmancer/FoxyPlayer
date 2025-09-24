@@ -26,20 +26,38 @@ data class AudioFileMetadata(
     val year: Int
 )
 
-data class ExtractedMetadata(
-    val fileName: String,
+/**
+ * Test-specific result class for album discovery (different from main AlbumDiscoveryResult)
+ */
+data class TestAlbumDiscoveryResult(
     val albumName: String,
     val artistName: String,
-    val year: Int
+    val trackCount: Int,
+    val discoveredTracks: List<String>
 )
+
+/**
+ * Test-specific result wrapper for album operations
+ */
+sealed class AlbumResult<out T> {
+    data class Success<T>(val data: T) : AlbumResult<T>()
+    data class Error<T>(val exception: Exception, val message: String) : AlbumResult<T>()
+    
+    fun isSuccess(): Boolean = this is Success
+    fun isError(): Boolean = this is Error
+    fun getOrNull(): T? = when (this) {
+        is Success -> data
+        is Error -> null
+    }
+}
 
 /**
  * Mock database for testing album entity persistence during discovery.
  */
-class TestAlbumDatabase {
+class TestAlbumDatabase : com.foxy.player.music.network.AlbumRepository {
     private val albums = mutableListOf<AlbumEntity>()
     
-    fun writeAlbum(album: AlbumEntity) {
+    override fun writeAlbum(album: AlbumEntity) {
         albums.add(album)
     }
     
@@ -59,9 +77,9 @@ class TestAlbumDatabase {
 class AlbumDiscoveryServiceTest {
 
     @Test
-    fun `AlbumDiscoveryResult data class should work correctly`() {
+    fun `TestAlbumDiscoveryResult data class should work correctly`() {
         // Arrange
-        val albumResult = AlbumDiscoveryResult(
+        val albumResult = TestAlbumDiscoveryResult(
             albumName = "Test Album",
             artistName = "Test Artist",
             trackCount = 10,
@@ -79,8 +97,8 @@ class AlbumDiscoveryServiceTest {
     fun `AlbumResult success should work correctly`() {
         // Arrange
         val albums = listOf(
-            AlbumDiscoveryResult("Album 1", "Artist 1", 5, emptyList()),
-            AlbumDiscoveryResult("Album 2", "Artist 2", 8, emptyList())
+            TestAlbumDiscoveryResult("Album 1", "Artist 1", 5, emptyList()),
+            TestAlbumDiscoveryResult("Album 2", "Artist 2", 8, emptyList())
         )
         val result = AlbumResult.Success(albums)
 
@@ -94,7 +112,7 @@ class AlbumDiscoveryServiceTest {
     fun `AlbumResult error should work correctly`() {
         // Arrange
         val exception = RuntimeException("Test error")
-        val result = AlbumResult.Error<List<AlbumDiscoveryResult>>(exception, "Test error message")
+        val result = AlbumResult.Error<List<TestAlbumDiscoveryResult>>(exception, "Test error message")
 
         // Assert
         assertFalse("Should not be success", result.isSuccess())
@@ -288,10 +306,10 @@ class AlbumDiscoveryServiceTest {
         
         // Arrange - Create audio file metadata simulating real extracted data
         val extractedMetadata = listOf(
-            ExtractedMetadata("highway_to_hell.mp3", "Highway to Hell", "AC/DC", 1979),
-            ExtractedMetadata("back_in_black.mp3", "Back in Black", "AC/DC", 1980),
-            ExtractedMetadata("whole_lotta_love.mp3", "Led Zeppelin II", "Led Zeppelin", 1969),
-            ExtractedMetadata("black_dog.mp3", "Led Zeppelin IV", "Led Zeppelin", 1971)
+            AudioFileMetadata("highway_to_hell.mp3", "Highway to Hell", "AC/DC", 1979),
+            AudioFileMetadata("back_in_black.mp3", "Back in Black", "AC/DC", 1980),
+            AudioFileMetadata("whole_lotta_love.mp3", "Led Zeppelin II", "Led Zeppelin", 1969),
+            AudioFileMetadata("black_dog.mp3", "Led Zeppelin IV", "Led Zeppelin", 1971)
         )
         
         // Act - Process extracted metadata into album groups (metadata processing logic)

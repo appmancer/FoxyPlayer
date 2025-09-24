@@ -1437,12 +1437,12 @@ class MusicDiscoveryService(
                                 if (metadata.artist.isNotBlank()) metadata.artist else "Unknown Artist"
                             )
                         } else {
-                            // Fallback to filename-based extraction if metadata extraction fails
-                            Triple(audioFile, "Extracted Album", "Extracted Artist")
+                            // Fallback to unknown values if metadata extraction fails
+                            Triple(audioFile, "Unknown Album", "Unknown Artist")
                         }
                     } catch (e: Exception) {
                         // Fallback for any extraction errors
-                        Triple(audioFile, "Extracted Album", "Extracted Artist")
+                        Triple(audioFile, "Unknown Album", "Unknown Artist")
                     }
                 }
                 
@@ -1483,7 +1483,7 @@ class MusicDiscoveryService(
      * Enhanced album discovery with database integration.
      * PLY-125: Discovers albums and writes entities to database during scanning process.
      */
-    suspend fun discoverAlbumsWithDatabase(path: String, database: Any): AlbumDiscoveryResult {
+    suspend fun discoverAlbumsWithDatabase(path: String, database: AlbumRepository): AlbumDiscoveryResult {
         // First discover albums using existing method
         val discoveryResult = discoverAlbumsByPath(path)
         
@@ -1497,10 +1497,9 @@ class MusicDiscoveryService(
                     trackCount = albumGroup.trackCount
                 )
                 
-                // Write to database using reflection to call writeAlbum method
+                // Write to database using proper repository interface
                 try {
-                    val writeMethod = database.javaClass.getMethod("writeAlbum", AlbumEntity::class.java)
-                    writeMethod.invoke(database, albumEntity)
+                    database.writeAlbum(albumEntity)
                 } catch (e: Exception) {
                     MusicDiscoveryLogger.logDatabaseError("writeAlbum", "albums", e)
                 }
@@ -1598,3 +1597,11 @@ data class AlbumEntity(
     val artistName: String,
     val trackCount: Int
 )
+
+/**
+ * Repository interface for album database operations.
+ * PLY-125: Replaces reflection-based database access with proper interface.
+ */
+interface AlbumRepository {
+    fun writeAlbum(album: AlbumEntity)
+}
