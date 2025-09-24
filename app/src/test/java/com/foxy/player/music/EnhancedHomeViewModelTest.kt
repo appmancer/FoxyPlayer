@@ -72,7 +72,7 @@ class EnhancedHomeViewModelTest {
         val authenticatedApiClient = AuthenticatedApiClient(authRepository)
         val musicService = MusicDiscoveryService(authenticatedApiClient)
         val heuristicDiscovery = HeuristicMusicDiscovery(musicService)
-        val viewModel = EnhancedHomeViewModel(heuristicDiscovery)
+        val viewModel = EnhancedHomeViewModel(heuristicDiscovery, ioDispatcher = testDispatcher)
 
         // Act - call loadContent() method to load real content
         viewModel.loadContent()
@@ -92,5 +92,74 @@ class EnhancedHomeViewModelTest {
                 section.title.contains("Recently Added") || section.toString().contains("ContentSection")
             }
         )
+    }
+
+    @Test
+    fun `EnhancedHomeViewModel should integrate with recommendation engine for personalized content`() = runTest(testDispatcher) {
+        // PLY-146: Test recommendation engine integration
+        // Arrange - create ViewModel with real recommendation engine components
+        val authRepository = AuthRepository()
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicService = MusicDiscoveryService(authenticatedApiClient)
+        val albumDiscoveryService = AlbumDiscoveryService(musicService)
+        val userHistoryService = UserHistoryService()
+        val contentOrganizer = ContentSectionOrganizer(userHistoryService, albumDiscoveryService)
+        
+        // Create enhanced ViewModel with recommendation engine
+        val viewModel = EnhancedHomeViewModel(
+            heuristicDiscovery = null, // Use new recommendation engine instead
+            contentOrganizer = contentOrganizer,
+            ioDispatcher = testDispatcher
+        )
+
+        // Act - load personalized content
+        viewModel.loadPersonalizedContent()
+        advanceUntilIdle()
+
+        // Assert - verify personalized recommendations are loaded
+        val finalState = viewModel.enhancedState.first()
+        assertFalse("Loading should complete", finalState.isLoading)
+        assertNotNull("Personalized content should be loaded", finalState.content)
+        
+        // Verify we have recommendation sections
+        val hasRecommendations = finalState.content.any { section ->
+            section.title.contains("Recommended") || section.title.contains("Recently Played")
+        }
+        assertTrue("Should have personalized recommendation sections", hasRecommendations)
+        assertNull("Should not have errors", finalState.error)
+    }
+
+    @Test
+    fun `EnhancedHomeViewModel should support content refresh functionality`() = runTest(testDispatcher) {
+        // PLY-146: Test content refresh and background updates
+        // Arrange
+        val authRepository = AuthRepository()
+        val authenticatedApiClient = AuthenticatedApiClient(authRepository)
+        val musicService = MusicDiscoveryService(authenticatedApiClient)
+        val albumDiscoveryService = AlbumDiscoveryService(musicService)
+        val userHistoryService = UserHistoryService()
+        val contentOrganizer = ContentSectionOrganizer(userHistoryService, albumDiscoveryService)
+        
+        val viewModel = EnhancedHomeViewModel(
+            heuristicDiscovery = null,
+            contentOrganizer = contentOrganizer,
+            ioDispatcher = testDispatcher
+        )
+
+        // Act - initial load then refresh
+        viewModel.loadPersonalizedContent()
+        advanceUntilIdle()
+        
+        val initialState = viewModel.enhancedState.first()
+        
+        // Refresh content
+        viewModel.refreshContent()
+        advanceUntilIdle()
+
+        // Assert - verify refresh works
+        val refreshedState = viewModel.enhancedState.first()
+        assertFalse("Refresh should complete loading", refreshedState.isLoading)
+        assertNotNull("Refreshed content should exist", refreshedState.content)
+        assertNull("Refresh should not have errors", refreshedState.error)
     }
 }
