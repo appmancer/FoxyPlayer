@@ -13,8 +13,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Enhanced state model for home screen content
  * Supports reactive StateFlow state management with loading/success/error patterns
- * 
- * @property isLoading Indicates whether content is currently being loaded
+ * * @property isLoading Indicates whether content is currently being loaded
  * @property content List of content sections for the home screen
  * @property error Error message if content loading failed, null if no error
  */
@@ -28,19 +27,16 @@ data class EnhancedHomeState(
  * EnhancedHomeViewModel with reactive StateFlow state management
  * PLY-140: EnhancedHomeViewModel Implementation
  * PLY-146: Personalized Content Integration
- * 
- * Provides reactive state management for home screen with backward compatibility
+ * * Provides reactive state management for home screen with backward compatibility
  * to MusicHubViewModel via hubState property.
- * 
- * Architecture:
+ * * Architecture:
  * - Uses dependency injection for testability
  * - Follows Android ViewModel lifecycle patterns
  * - Implements reactive StateFlow for UI reactivity
  * - Provides backward compatibility bridge
  * - Integrates with real data sources via HeuristicMusicDiscovery
  * - Integrates with recommendation engine via ContentSectionOrganizer
- * 
- * @property heuristicDiscovery Service for discovering music content, nullable for testing
+ * * @property heuristicDiscovery Service for discovering music content, nullable for testing
  * @property contentOrganizer Service for generating personalized content sections
  * @property ioDispatcher Coroutine dispatcher for background operations
  */
@@ -73,8 +69,7 @@ class EnhancedHomeViewModel(
 
     /**
      * Load content for the home screen using real data from HeuristicMusicDiscovery
-     * 
-     * Implements reactive loading with proper error handling. Updates both enhancedState
+     * * Implements reactive loading with proper error handling. Updates both enhancedState
      * and hubState for backward compatibility. Executes on IO dispatcher to avoid
      * blocking the main thread.
      */

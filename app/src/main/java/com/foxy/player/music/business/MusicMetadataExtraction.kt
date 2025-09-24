@@ -673,15 +673,17 @@ class MusicMetadataExtractor {
             // Create a simple music discovery service for testing
             val testMusicDiscoveryService = object {
                 fun extractMetadata(audioFileUrl: String, audioFileName: String): Result<AudioMetadata> {
-                    return Result.success(AudioMetadata(
-                        title = "Come Together",
-                        artist = "The Beatles",
-                        album = "Abbey Road",
-                        durationMs = 259000L,
-                        format = "MP3",
-                        bitrate = 320,
-                        trackNumber = 1
-                    ))
+                    return Result.success(
+                        AudioMetadata(
+                            title = "Come Together",
+                            artist = "The Beatles",
+                            album = "Abbey Road",
+                            durationMs = 259000L,
+                            format = "MP3",
+                            bitrate = 320,
+                            trackNumber = 1
+                        )
+                    )
                 }
             }
 
@@ -713,7 +715,9 @@ class MusicMetadataExtractor {
             }
 
             // Calculate combined confidence
-            val combinedConfidence = (multiStrategyResult.overallConfidence + integrationValidationResult.confidence) / 2
+            val combinedConfidence = (
+                multiStrategyResult.overallConfidence + integrationValidationResult.confidence
+                ) / 2
 
             // Generate quality assessment
             val qualityAssessment = if (combinedConfidence > 0.7) {
@@ -761,7 +765,7 @@ class MusicMetadataExtractor {
             // Create a real multi-strategy result with proper structure
             val realMultiStrategyResult = com.foxy.player.music.ui.MultiStrategyMetadataResult(
                 metadata = testMetadata,
-                overallConfidence = 0.85,  // Realistic confidence from real strategies
+                overallConfidence = 0.85, // Realistic confidence from real strategies
                 strategyResults = mapOf(
                     "MediaMetadataRetriever" to com.foxy.player.music.ui.StrategyResult(
                         strategyName = "MediaMetadataRetriever",
@@ -823,13 +827,13 @@ class MusicMetadataExtractor {
         return try {
             // First extract with validation (using existing method)
             val extractResult = extractMetadataWithRealMultiStrategy(audioFileUrl, audioFileName, filePath)
-            
+
             if (extractResult.isFailure) {
                 return extractResult
             }
-            
+
             val validatedResult = extractResult.getOrThrow()
-            
+
             // Mock persistence logic for TDD GREEN phase
             // In real implementation, this would create entities and persist them
             val mockPersistenceResult = MetadataPersistenceResult(
@@ -840,13 +844,13 @@ class MusicMetadataExtractor {
                 persistedAlbumId = "album_123",
                 persistedTrackId = "track_456"
             )
-            
+
             // Create enhanced result with persistence info
             val resultWithPersistence = validatedResult.copy(
                 persistenceResult = mockPersistenceResult,
                 qualityAssessment = validatedResult.qualityAssessment + " - persisted to repository"
             )
-            
+
             Result.success(resultWithPersistence)
         } catch (e: Exception) {
             Result.failure(e)

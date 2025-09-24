@@ -95,7 +95,9 @@ class EnhancedHomeViewModelTest {
     }
 
     @Test
-    fun `EnhancedHomeViewModel should integrate with recommendation engine for personalized content`() = runTest(testDispatcher) {
+    fun `EnhancedHomeViewModel should integrate with recommendation engine for personalized content`() = runTest(
+        testDispatcher
+    ) {
         // PLY-146: Test recommendation engine integration
         // Arrange - create ViewModel with real recommendation engine components
         val authRepository = AuthRepository()
@@ -104,7 +106,7 @@ class EnhancedHomeViewModelTest {
         val albumDiscoveryService = AlbumDiscoveryService(musicService)
         val userHistoryService = UserHistoryService()
         val contentOrganizer = ContentSectionOrganizer(userHistoryService, albumDiscoveryService)
-        
+
         // Create enhanced ViewModel with recommendation engine
         val viewModel = EnhancedHomeViewModel(
             heuristicDiscovery = null, // Use new recommendation engine instead
@@ -120,7 +122,7 @@ class EnhancedHomeViewModelTest {
         val finalState = viewModel.enhancedState.first()
         assertFalse("Loading should complete", finalState.isLoading)
         assertNotNull("Personalized content should be loaded", finalState.content)
-        
+
         // Verify we have recommendation sections
         val hasRecommendations = finalState.content.any { section ->
             section.title.contains("Recommended") || section.title.contains("Recently Played")
@@ -139,7 +141,7 @@ class EnhancedHomeViewModelTest {
         val albumDiscoveryService = AlbumDiscoveryService(musicService)
         val userHistoryService = UserHistoryService()
         val contentOrganizer = ContentSectionOrganizer(userHistoryService, albumDiscoveryService)
-        
+
         val viewModel = EnhancedHomeViewModel(
             heuristicDiscovery = null,
             contentOrganizer = contentOrganizer,
@@ -149,9 +151,9 @@ class EnhancedHomeViewModelTest {
         // Act - initial load then refresh
         viewModel.loadPersonalizedContent()
         advanceUntilIdle()
-        
+
         val initialState = viewModel.enhancedState.first()
-        
+
         // Refresh content
         viewModel.refreshContent()
         advanceUntilIdle()
