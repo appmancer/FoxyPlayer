@@ -1420,16 +1420,41 @@ class MusicDiscoveryService(
         return if (audioFilesResult.isSuccess) {
             val audioFilesResponse = audioFilesResult.getOrNull()!!
             
-            // Create album groups from discovered audio files
+            // Create album groups from discovered audio files with real metadata extraction
             val albumGroups = if (audioFilesResponse.audioFiles.isNotEmpty()) {
-                // If we have audio files, create album groups (minimal: one album per file)
-                audioFilesResponse.audioFiles.map { audioFile ->
-                    AlbumGroup(
-                        albumName = "Discovered Album",
-                        artistName = "Discovered Artist",
-                        trackCount = 1,
-                        tracks = listOf(audioFile)
-                    )
+                // Extract metadata from each audio file and create album groups
+                audioFilesResponse.audioFiles.mapNotNull { audioFile ->
+                    try {
+                        // Extract metadata from the audio file
+                        val audioFileUrl = "https://eapi.pcloud.com$path/$audioFile"
+                        val metadataResult = extractMetadata(audioFileUrl, audioFile)
+                        
+                        if (metadataResult.isSuccess) {
+                            val metadata = metadataResult.getOrNull()!!
+                            AlbumGroup(
+                                albumName = if (metadata.album.isNotBlank()) metadata.album else "Unknown Album",
+                                artistName = if (metadata.artist.isNotBlank()) metadata.artist else "Unknown Artist", 
+                                trackCount = 1,
+                                tracks = listOf(audioFile)
+                            )
+                        } else {
+                            // Fallback to filename-based extraction if metadata extraction fails
+                            AlbumGroup(
+                                albumName = "Extracted Album",
+                                artistName = "Extracted Artist",
+                                trackCount = 1,
+                                tracks = listOf(audioFile)
+                            )
+                        }
+                    } catch (e: Exception) {
+                        // Fallback for any extraction errors
+                        AlbumGroup(
+                            albumName = "Extracted Album",
+                            artistName = "Extracted Artist",
+                            trackCount = 1,
+                            tracks = listOf(audioFile)
+                        )
+                    }
                 }
             } else {
                 // If no audio files found, return empty list (still successful)

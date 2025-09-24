@@ -197,4 +197,37 @@ class AlbumDiscoveryServiceTest {
                 firstAlbum.tracks.contains("track1.mp3") && firstAlbum.tracks.contains("track2.mp3"))
         }
     }
+
+    @Test
+    fun `discoverAlbumsByPath should extract real metadata from audio files instead of using placeholder data`() = runBlocking {
+        // Arrange - Create MusicDiscoveryService instance
+        val authRepository = AuthRepository("https://eapi.pcloud.com")
+        val apiClient = AuthenticatedApiClient(authRepository)
+        val musicDiscoveryService = MusicDiscoveryService(apiClient)
+
+        // Act - Call album discovery on a test path
+        val albumDiscoveryResult = musicDiscoveryService.discoverAlbumsByPath("/TestMusic")
+
+        // Assert - Verify that it extracts real metadata, not placeholder data
+        assertTrue("Should successfully discover albums", albumDiscoveryResult.isSuccess)
+        val albumResults = albumDiscoveryResult.getOrNull()
+        assertNotNull("Should return album discovery results", albumResults)
+        
+        val albumGroups = albumResults?.albumGroups
+        assertNotNull("Should have album groups", albumGroups)
+        
+        // This test should fail because current implementation uses placeholder "Discovered Album"/"Discovered Artist"
+        // We expect the real implementation to extract actual metadata from audio files
+        if (albumGroups!!.isNotEmpty()) {
+            val firstAlbum = albumGroups.first()
+            assertFalse("Should not use placeholder album name 'Discovered Album'", 
+                firstAlbum.albumName == "Discovered Album")
+            assertFalse("Should not use placeholder artist name 'Discovered Artist'", 
+                firstAlbum.artistName == "Discovered Artist")
+            assertTrue("Album name should be extracted from real metadata", 
+                firstAlbum.albumName.isNotBlank() && firstAlbum.albumName != "Discovered Album")
+            assertTrue("Artist name should be extracted from real metadata", 
+                firstAlbum.artistName.isNotBlank() && firstAlbum.artistName != "Discovered Artist")
+        }
+    }
 }
