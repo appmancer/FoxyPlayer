@@ -36,20 +36,7 @@ data class TestAlbumDiscoveryResult(
     val discoveredTracks: List<String>
 )
 
-/**
- * Test-specific result wrapper for album operations
- */
-sealed class AlbumResult<out T> {
-    data class Success<T>(val data: T) : AlbumResult<T>()
-    data class Error<T>(val exception: Exception, val message: String) : AlbumResult<T>()
-    
-    fun isSuccess(): Boolean = this is Success
-    fun isError(): Boolean = this is Error
-    fun getOrNull(): T? = when (this) {
-        is Success -> data
-        is Error -> null
-    }
-}
+
 
 /**
  * Mock database for testing album entity persistence during discovery.
